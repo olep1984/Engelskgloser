@@ -405,6 +405,16 @@ function getDailyFlags() {
   return shuffled.slice(0, 20);
 }
 
+function FlagImg({code, size=90}) {
+  return (
+    <img
+      src={`https://flagcdn.com/w160/${code.toLowerCase()}.png`}
+      alt={code}
+      style={{width:size*1.5, height:size, objectFit:"cover", borderRadius:8, border:"1px solid #ddd", boxShadow:"0 2px 8px rgba(0,0,0,0.1)"}}
+    />
+  );
+}
+
 function FlagQuiz({onBack, addCoins}) {
   const [deck] = useState(() => getDailyFlags());
   const [idx, setIdx] = useState(0);
@@ -439,7 +449,7 @@ function FlagQuiz({onBack, addCoins}) {
       <div style={s.resultTitle}>Flaggquiz ferdig!</div>
       <div style={s.resultScore}>{score} av {deck.length} riktige</div>
       <div style={{fontSize:16,color:"#f9a825",fontWeight:500}}>+{score} 🪙 coins!</div>
-      <div style={{fontSize:13,color:"var(--text3)"}}>Nye flagg i morgen!</div>
+      <div style={{fontSize:13,color:"var(--text3)",marginTop:4}}>Nye flagg i morgen!</div>
       <button style={{...s.bigBtn,...s.btnGray}} onClick={onBack}>Hjem</button>
     </div></div>
   );
@@ -451,23 +461,22 @@ function FlagQuiz({onBack, addCoins}) {
       <div style={s.progress}>{idx+1} / {deck.length}</div>
 
       <div style={{textAlign:"center",marginBottom:20}}>
-        <div style={{fontSize:13,color:"var(--text3)",marginBottom:8}}>Hvilket land er dette?</div>
-        <div style={{fontSize:90,lineHeight:1,marginBottom:4}}>
-          {String.fromCodePoint(...current.code.split("").map(c=>0x1F1E0-65+c.charCodeAt(0)))}
-        </div>
+        <div style={{fontSize:13,color:"var(--text3)",marginBottom:12}}>Hvilket land er dette?</div>
+        <FlagImg code={current.code} size={90}/>
       </div>
 
       <div style={s.choicesGrid}>
         {choices.map((f,i) => {
-          let bg = "#fff";
+          let bg = "#fff", border = "1px solid #ddd";
           if (chosen) {
-            if (f.code === current.code) bg = "#d4f7d4";
-            else if (f.code === chosen) bg = "#fdd";
+            if (f.code === current.code) { bg = "#d4f7d4"; border = "2px solid #43a047"; }
+            else if (f.code === chosen) { bg = "#fdd"; border = "2px solid #e53935"; }
           }
           return (
-            <button key={i} style={{...s.choice, background:bg, fontSize:15, padding:"18px 8px"}}
+            <button key={i} style={{...s.choice, background:bg, border, fontSize:14, padding:"14px 8px", display:"flex", alignItems:"center", justifyContent:"center", gap:6}}
               onClick={() => pick(f)}>
-              {String.fromCodePoint(...f.code.split("").map(c=>0x1F1E0-65+c.charCodeAt(0)))} {f.name}
+              <FlagImg code={f.code} size={22}/>
+              <span>{f.name}</span>
             </button>
           );
         })}
