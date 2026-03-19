@@ -344,14 +344,13 @@ function AdminPanel({students,gloser,onSaveStudents,onSaveGloser,onBack}){
     onSaveStudents(ns);setNextSId(n=>n+1);setName("");setPinVal("");setMsg("✅ Lagt til!");setTimeout(()=>setMsg(""),1500);
   }
 
-  async function translateWord(w){
+  const dict={"hund":"dog","katt":"cat","hus":"house","bil":"car","bok":"book","skole":"school","venn":"friend","mat":"food","fisk":"fish","fugl":"bird","tre":"tree","blomst":"flower","sol":"sun","måne":"moon","stjerne":"star","vann":"water","ild":"fire","jord":"earth","luft":"air","is":"ice","snø":"snow","regn":"rain","vind":"wind","dag":"day","natt":"night","tid":"time","år":"year","uke":"week","måned":"month","time":"hour","mann":"man","kvinne":"woman","barn":"child","gutt":"boy","jente":"girl","familie":"family","mor":"mother","far":"father","bror":"brother","søster":"sister","hjem":"home","by":"city","land":"country","gate":"street","park":"park","butikk":"shop","mat":"food","drikke":"drink","brød":"bread","melk":"milk","egg":"egg","ost":"cheese","frukt":"fruit","grønnsak":"vegetable","eple":"apple","banan":"banana","appelsin":"orange","jordbær":"strawberry","fotball":"football","ball":"ball","spill":"game","sang":"song","musikk":"music","film":"movie","bok":"book","penn":"pen","bord":"table","stol":"chair","vindu":"window","dør":"door","vegg":"wall","gulv":"floor","tak":"ceiling","seng":"bed","lampe":"lamp","telefon":"phone","datamaskin":"computer","skjerm":"screen","nøkkel":"key","penger":"money","klær":"clothes","sko":"shoes","jakke":"jacket","lykke":"happiness","kjærlighet":"love","fred":"peace","krig":"war","god":"good","dårlig":"bad","stor":"big","liten":"small","rask":"fast","langsom":"slow","ny":"new","gammel":"old","varm":"warm","kald":"cold","lett":"easy","vanskelig":"difficult"};
+  function translateWord(w){
     if(!w.trim()){setNewEn("");return;}
-    setTranslating(true);setNewEn("");
-    try{
-      const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:50,messages:[{role:"user",content:`Oversett dette norske ordet til engelsk. Svar kun med det engelske ordet, ingenting annet: "${w}"`}]})});
-      const d=await r.json();setNewEn(d.content?.[0]?.text?.trim().toLowerCase()||"");
-    }catch{setNewEn("");}
-    setTranslating(false);
+    const hit=dict[w.trim().toLowerCase()];
+    setNewEn(hit||"");
+    if(!hit)setAddMsg("Ikke funnet – skriv engelsk ord selv");
+    setTimeout(()=>setAddMsg(""),2000);
   }
 
   function addGlose(){
