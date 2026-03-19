@@ -459,8 +459,9 @@ function TeacherReport({gloser, students, singleStudent, onBack}) {
   function sc(x){return x==="kan"?"#2e7d32":x==="nesten"?"#e65100":x==="trenger øving"?"#c62828":"#aaa";}
   function se(x){return x==="kan"?"✅":x==="nesten"?"🔶":x==="trenger øving"?"❌":"⬜";}
 
-  const qi = st?.history.filter(h => h.source === "quiz") || [];
-  const hi = st?.history.filter(h => h.source === "hangman") || [];
+  const history = st?.history || [];
+  const qi = history.filter(h => h.source === "quiz");
+  const hi = history.filter(h => h.source === "hangman");
   const qp = qi.length > 0 ? Math.round(qi.filter(h=>h.correct).length/qi.length*100) : 0;
   const hp = hi.length > 0 ? Math.round(hi.filter(h=>h.correct).length/hi.length*100) : 0;
   const can = gloser.filter(g => status(g.en) === "kan").length;
