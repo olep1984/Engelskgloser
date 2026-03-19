@@ -410,14 +410,44 @@ function TeacherReport({gloser,students,onBack}){
 // ── ADMIN ──
 function AdminPanel({students,setStudents,gloser,setGloser,onBack}){
   const [tab,setTab]=useState("students");
-  const [name,setName]=useState(""),pin,setPin]=useState(""),msg,setMsg]=useState("");
-  const [newNo,setNewNo]=useState(""),newEn,setNewEn]=useState(""),addMsg,setAddMsg]=useState("");
+  const [name, setName] = useState("");
+  const [msg, setMsg] = useState("");
+  const [newNo, setNewNo] = useState("");
+  const [newEn, setNewEn] = useState("");
+  const [addMsg, setAddMsg] = useState("");
   const [nextSId,setNextSId]=useState(()=>Math.max(...students.map(s=>s.id),0)+1);
   const [nextGId,setNextGId]=useState(()=>Math.max(...gloser.map(g=>g.id),0)+1);
-  const [pinVal,setPinVal]=useState("");
-  function addStudent(){if(!name.trim()||!/^\d{4}$/.test(pinVal)){setMsg("Skriv navn og 4-sifret PIN.");return;}if(students.find(s=>s.pin===pinVal)){setMsg("PIN allerede i bruk.");return;}setStudents(ss=>[...ss,{id:nextSId,name:name.trim(),pin:pinVal,history:[],quizSessions:0,hangmanSessions:0,points:0,coins:0,squad:[],club:CLUBS[nextSId%CLUBS.length],avatar:{kit:"basic",hair:"short",armband:false},purchased:[]}]);setNextSId(n=>n+1);setName("");setPinVal("");setMsg("✅ Lagt til!");setTimeout(()=>setMsg(""),1500);}
-  async function translateWord(w){if(!w.trim()){setNewEn("");return;}setNewEn("Oversetter...");try{const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:50,messages:[{role:"user",content:`Oversett dette norske ordet til engelsk. Svar kun med det engelske ordet, ingenting annet: "${w}"`}]})});const d=await r.json();setNewEn(d.content?.[0]?.text?.trim().toLowerCase()||"");}catch{setNewEn("");}}
-  function addGlose(){if(!newNo.trim()||!newEn.trim())return;setGloser(g=>[...g,{no:newNo.trim().toLowerCase(),en:newEn.trim().toLowerCase(),id:nextGId}]);setNextGId(n=>n+1);setNewNo("");setNewEn("");setAddMsg("✅ Lagt til!");setTimeout(()=>setAddMsg(""),1500);}
+  const [pinVal, setPinVal] = useState("");
+  const [translating, setTranslating] = useState(false);
+
+  function addStudent() {
+    if (!name.trim() || !/^\d{4}$/.test(pinVal)) { setMsg("Skriv navn og 4-sifret PIN."); return; }
+    if (students.find(s => s.pin === pinVal)) { setMsg("PIN allerede i bruk."); return; }
+    setStudents(ss => [...ss, { id: nextSId, name: name.trim(), pin: pinVal, history: [], quizSessions: 0, hangmanSessions: 0, points: 0, coins: 0, squad: [], club: CLUBS[nextSId % CLUBS.length], avatar: { kit: "basic", hair: "short", armband: false }, purchased: [] }]);
+    setNextSId(n => n + 1); setName(""); setPinVal(""); setMsg("✅ Lagt til!"); setTimeout(() => setMsg(""), 1500);
+  }
+
+  async function translateWord(w) {
+    if (!w.trim()) { setNewEn(""); return; }
+    setTranslating(true);
+    setNewEn("");
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 50, messages: [{ role: "user", content: `Oversett dette norske ordet til engelsk. Svar kun med det engelske ordet, ingenting annet: "${w}"` }] })
+      });
+      const d = await r.json();
+      setNewEn(d.content?.[0]?.text?.trim().toLowerCase() || "");
+    } catch { setNewEn(""); }
+    setTranslating(false);
+  }
+
+  function addGlose() {
+    if (!newNo.trim() || !newEn.trim()) return;
+    setGloser(g => [...g, { no: newNo.trim().toLowerCase(), en: newEn.trim().toLowerCase(), id: nextGId }]);
+    setNextGId(n => n + 1); setNewNo(""); setNewEn(""); setAddMsg("✅ Lagt til!"); setTimeout(() => setAddMsg(""), 1500);
+  }
   return(
     <div style={s.page}>
       <div style={s.topBar}><button style={s.back} onClick={onBack}>← Logg ut</button><span style={s.topTitle}>Admin</span></div>
@@ -425,7 +455,37 @@ function AdminPanel({students,setStudents,gloser,setGloser,onBack}){
         {["students","gloser","report"].map(t=><button key={t} onClick={()=>setTab(t)} style={{flex:1,padding:"9px",borderRadius:10,border:"1px solid",borderColor:tab===t?"var(--purple)":"#ddd",background:tab===t?"var(--purple-light)":"#fafafa",color:tab===t?"var(--purple-dark)":"#555",fontWeight:tab===t?500:400,cursor:"pointer",fontSize:13}}>{t==="students"?"👤 Elever":t==="gloser"?"📚 Gloser":"📋 Rapport"}</button>)}
       </div>
       {tab==="students"&&<><div style={s.addBox}><input style={s.input} placeholder="Elevnavn" value={name} onChange={e=>setName(e.target.value)}/><input style={s.input} placeholder="PIN (4 siffer)" value={pinVal} maxLength={4} onChange={e=>setPinVal(e.target.value.replace(/\D/g,""))}/><button style={s.bigBtn} onClick={addStudent}>Legg til elev +</button>{msg&&<div style={{color:msg.startsWith("✅")?"green":"#e53935",fontWeight:500}}>{msg}</div>}</div><div style={s.gloseList}>{students.map(st=><div key={st.id} style={s.gloseRow}><AvatarDisplay avatar={st.avatar} name={st.name} size={36}/><span style={{flex:1,fontSize:14,marginLeft:8}}>👤 {st.name} <span style={{color:"#bbb",fontSize:11}}>PIN: {st.pin}</span></span><span style={{fontSize:12,color:"#f9a825",marginRight:8}}>🪙{st.coins||0}</span><button style={s.deleteBtn} onClick={()=>setStudents(ss=>ss.filter(s=>s.id!==st.id))}>✕</button></div>)}</div></>}
-      {tab==="gloser"&&<><div style={s.addBox}><input style={s.input} placeholder="🇳🇴 Norsk ord" value={newNo} onChange={e=>setNewNo(e.target.value)} onBlur={e=>translateWord(e.target.value)}/><input style={{...s.input,color:newEn==="Oversetter..."?"#aaa":"var(--text)"}} placeholder="🇬🇧 Engelsk (auto)" value={newEn} onChange={e=>setNewEn(e.target.value)}/><button style={s.bigBtn} onClick={addGlose}>Legg til +</button>{addMsg&&<div style={{color:"green",fontWeight:500}}>{addMsg}</div>}</div><div style={s.gloseList}>{[...gloser].sort((a,b)=>b.id-a.id).map((g,i)=><div key={g.id} style={s.gloseRow}>{i<NEW_COUNT&&<span style={{fontSize:10,background:"#fff3e0",color:"#e65100",borderRadius:4,padding:"1px 5px",marginRight:6}}>NY</span>}<span style={s.glosePair}>{g.no} <span style={{color:"#aaa"}}>→</span> {g.en}</span><button style={s.deleteBtn} onClick={()=>setGloser(g2=>g2.filter(x=>x.id!==g.id))}>✕</button></div>)}</div></>}
+      {tab === "gloser" && <>
+        <div style={s.addBox}>
+          <input style={s.input} placeholder="🇳🇴 Skriv norsk ord..." value={newNo}
+            onChange={e => setNewNo(e.target.value)}
+            onBlur={e => translateWord(e.target.value)} />
+          <div style={{ position: "relative" }}>
+            <input style={{ ...s.input, width: "100%", paddingRight: 80, color: translating ? "#aaa" : "var(--text)" }}
+              placeholder="🇬🇧 Engelsk (forslag kommer automatisk)"
+              value={translating ? "Oversetter..." : newEn}
+              onChange={e => setNewEn(e.target.value)} />
+            {translating && <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#aaa" }}>⏳</div>}
+          </div>
+          {newEn && !translating && (
+            <div style={{ background: "#e8f5e9", borderRadius: 10, padding: "10px 14px", fontSize: 14, display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ flex: 1 }}>Forslag: <strong>{newEn}</strong></span>
+              <button style={{ background: "none", border: "none", fontSize: 13, color: "#e65100", cursor: "pointer" }} onClick={() => setNewEn("")}>Endre</button>
+            </div>
+          )}
+          <button style={{ ...s.bigBtn, opacity: (!newNo.trim() || !newEn.trim() || translating) ? 0.5 : 1 }} onClick={addGlose}>Legg til glose +</button>
+          {addMsg && <div style={{ color: "green", fontWeight: 500 }}>{addMsg}</div>}
+        </div>
+        <div style={s.gloseList}>
+          {[...gloser].sort((a, b) => b.id - a.id).map((g, i) => (
+            <div key={g.id} style={s.gloseRow}>
+              {i < NEW_COUNT && <span style={{ fontSize: 10, background: "#fff3e0", color: "#e65100", borderRadius: 4, padding: "1px 5px", marginRight: 6 }}>NY</span>}
+              <span style={s.glosePair}>{g.no} <span style={{ color: "#aaa" }}>→</span> {g.en}</span>
+              <button style={s.deleteBtn} onClick={() => setGloser(g2 => g2.filter(x => x.id !== g.id))}>✕</button>
+            </div>
+          ))}
+        </div>
+      </>}}
       {tab==="report"&&<TeacherReport gloser={gloser} students={students} onBack={()=>setTab("students")}/>}
     </div>
   );
