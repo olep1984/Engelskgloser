@@ -441,38 +441,123 @@ function HangmanGame({gloser,onBack,onCorrect}){
 }
 
 // ── TEACHER REPORT ──
-function TeacherReport({gloser,students,onBack}){
-  const [sel,setSel]=useState(students[0]?.id||null);
-  const [copied,setCopied]=useState(false);
-  const st=students.find(s=>s.id===sel);
-  const sorted=[...gloser].sort((a,b)=>b.id-a.id);
-  const newest=sorted.slice(0,NEW_COUNT),older=sorted.slice(NEW_COUNT);
-  const today=new Date().toLocaleDateString("no-NO",{day:"numeric",month:"long",year:"numeric"});
-  function status(en){if(!st)return"ikke øvd";const items=st.history.filter(h=>h.en===en&&h.source==="quiz");if(!items.length)return"ikke øvd";const p=items.filter(h=>h.correct).length/items.length;return p>=0.75?"kan":p>=0.4?"nesten":"trenger øving";}
+function TeacherReport({gloser, students, singleStudent, onBack}) {
+  const [sel, setSel] = useState(singleStudent || students[0]?.id || null);
+  const [copied, setCopied] = useState(false);
+  const st = students.find(s => s.id === sel);
+  const sorted = [...gloser].sort((a,b) => b.id - a.id);
+  const newest = sorted.slice(0, NEW_COUNT), older = sorted.slice(NEW_COUNT);
+  const today = new Date().toLocaleDateString("no-NO", {day:"numeric",month:"long",year:"numeric"});
+
+  function status(en) {
+    if (!st) return "ikke øvd";
+    const items = st.history.filter(h => h.en === en && h.source === "quiz");
+    if (!items.length) return "ikke øvd";
+    const p = items.filter(h => h.correct).length / items.length;
+    return p >= 0.75 ? "kan" : p >= 0.4 ? "nesten" : "trenger øving";
+  }
   function sc(x){return x==="kan"?"#2e7d32":x==="nesten"?"#e65100":x==="trenger øving"?"#c62828":"#aaa";}
   function se(x){return x==="kan"?"✅":x==="nesten"?"🔶":x==="trenger øving"?"❌":"⬜";}
-  const qi=st?.history.filter(h=>h.source==="quiz")||[];
-  const hi=st?.history.filter(h=>h.source==="hangman")||[];
-  const qp=qi.length>0?Math.round(qi.filter(h=>h.correct).length/qi.length*100):0;
-  const hp=hi.length>0?Math.round(hi.filter(h=>h.correct).length/hi.length*100):0;
-  const can=gloser.filter(g=>status(g.en)==="kan").length;
-  function buildText(){let t=`Glose-rapport – ${st?.name} – ${today}\n\nAKTIVITET\n  🎯 Quiz: ${st?.quizSessions||0} økter (${qp}%)\n  🪢 Hangman: ${st?.hangmanSessions||0} økter (${hp}%)\n  🪙 Coins: ${st?.coins||0}\n\nGLOSER (${can}/${gloser.length})\nNYE:\n`;newest.forEach(g=>{t+=`  ${se(status(g.en))} ${g.no} → ${g.en} (${status(g.en)})\n`;});if(older.length){t+=`\nTIDLIGERE:\n`;older.forEach(g=>{t+=`  ${se(status(g.en))} ${g.no} → ${g.en} (${status(g.en)})\n`;});}return t;}
-  function WR({g}){const x=status(g.en);const it=st?.history.filter(h=>h.en===g.en&&h.source==="quiz")||[];return(<div style={{display:"flex",alignItems:"center",padding:"9px 12px",borderBottom:"1px solid #f0f0f0",gap:8}}><span style={{flex:1,fontSize:14}}>{g.no} <span style={{color:"#bbb"}}>→</span> {g.en}</span>{it.length>0&&<span style={{fontSize:11,color:"#aaa"}}>{it.filter(h=>h.correct).length}/{it.length}</span>}<span style={{fontSize:12,fontWeight:500,color:sc(x),minWidth:90,textAlign:"right"}}>{se(x)} {x}</span></div>);}
-  return(
-    <div style={s.page}>
-      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>Sammendrag</span></div>
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>{students.map(x=><button key={x.id} onClick={()=>setSel(x.id)} style={{padding:"6px 14px",borderRadius:20,border:"1px solid",borderColor:sel===x.id?"var(--purple)":"#ddd",background:sel===x.id?"var(--purple-light)":"#fafafa",color:sel===x.id?"var(--purple-dark)":"#555",fontSize:13,cursor:"pointer"}}>{x.name}</button>)}</div>
-      <div style={{background:"#f9f9f9",borderRadius:12,padding:"12px",marginBottom:12,fontSize:13,color:"var(--text2)"}}>{today} · {can}/{gloser.length} gloser · 🪙 {st?.coins||0}</div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-        {[{icon:"🎯",t:"Quiz",ses:st?.quizSessions||0,c:qi.filter(h=>h.correct).length,tot:qi.length,p:qp},{icon:"🪢",t:"Hangman",ses:st?.hangmanSessions||0,c:hi.filter(h=>h.correct).length,tot:hi.length,p:hp}].map((x,i)=>(
-          <div key={i} style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:"12px"}}>
-            <div style={{fontSize:13,fontWeight:500,marginBottom:6}}>{x.icon} {x.t}</div>
-            <div style={{fontSize:18,fontWeight:500}}>{x.ses} <span style={{fontSize:11,color:"var(--text3)"}}>økter</span></div>
-            <div style={{fontSize:12,color:x.p>=70?"#2e7d32":x.p>=40?"#e65100":"#aaa"}}>{x.tot>0?`${x.c}/${x.tot} (${x.p}%)`:"Ikke øvd"}</div>
+
+  const qi = st?.history.filter(h => h.source === "quiz") || [];
+  const hi = st?.history.filter(h => h.source === "hangman") || [];
+  const qp = qi.length > 0 ? Math.round(qi.filter(h=>h.correct).length/qi.length*100) : 0;
+  const hp = hi.length > 0 ? Math.round(hi.filter(h=>h.correct).length/hi.length*100) : 0;
+  const can = gloser.filter(g => status(g.en) === "kan").length;
+  const kit = (st?.avatar?.gender==="female" ? FEMALE_KITS : MALE_KITS).find(k=>k.id===(st?.avatar?.kit||"basic")) || MALE_KITS[0];
+
+  function buildText() {
+    let t = `Rapport – ${st?.name} – ${today}\n\n`;
+    t += `AKTIVITET\n`;
+    t += `  🃏 Flashcards: ${st?.flashcardSessions||0} økter\n`;
+    t += `  🎯 Quiz: ${st?.quizSessions||0} økter – ${qi.filter(h=>h.correct).length}/${qi.length} riktige (${qp}%)\n`;
+    t += `  🪢 Hangman: ${st?.hangmanSessions||0} økter – ${hi.filter(h=>h.correct).length}/${hi.length} ord (${hp}%)\n`;
+    t += `  ✖️ Matte: ${st?.mathSessions||0} økter\n`;
+    t += `  🪙 Coins: ${st?.coins||0} · Avatar: ${kit.label}\n\n`;
+    t += `GLOSER (${can}/${gloser.length} behersket)\nNYE:\n`;
+    newest.forEach(g => { t += `  ${se(status(g.en))} ${g.no} → ${g.en} (${status(g.en)})\n`; });
+    if (older.length) { t += `\nTIDLIGERE:\n`; older.forEach(g => { t += `  ${se(status(g.en))} ${g.no} → ${g.en} (${status(g.en)})\n`; }); }
+    return t;
+  }
+
+  function WR({g}) {
+    const x = status(g.en);
+    const it = st?.history.filter(h => h.en === g.en && h.source === "quiz") || [];
+    return (
+      <div style={{display:"flex",alignItems:"center",padding:"9px 12px",borderBottom:"1px solid #f0f0f0",gap:8}}>
+        <span style={{flex:1,fontSize:14}}>{g.no} <span style={{color:"#bbb"}}>→</span> {g.en}</span>
+        {it.length > 0 && <span style={{fontSize:11,color:"#aaa"}}>{it.filter(h=>h.correct).length}/{it.length}</span>}
+        <span style={{fontSize:12,fontWeight:500,color:sc(x),minWidth:90,textAlign:"right"}}>{se(x)} {x}</span>
+      </div>
+    );
+  }
+
+  function StatCard({icon, title, sessions, correct, total, pct, extra}) {
+    return (
+      <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:"12px 14px",marginBottom:10}}>
+        <div style={{fontSize:14,fontWeight:500,marginBottom:8}}>{icon} {title}</div>
+        <div style={{display:"grid",gridTemplateColumns:total!=null?"1fr 1fr 1fr":"1fr",gap:8}}>
+          <div style={{background:"#f9f9f9",borderRadius:8,padding:"8px",textAlign:"center"}}>
+            <div style={{fontSize:20,fontWeight:500}}>{sessions}</div>
+            <div style={{fontSize:11,color:"#aaa",marginTop:2}}>Økter</div>
           </div>
+          {total != null && <>
+            <div style={{background:"#f9f9f9",borderRadius:8,padding:"8px",textAlign:"center"}}>
+              <div style={{fontSize:20,fontWeight:500}}>{total>0?`${correct}/${total}`:"–"}</div>
+              <div style={{fontSize:11,color:"#aaa",marginTop:2}}>Riktige</div>
+            </div>
+            <div style={{background:"#f9f9f9",borderRadius:8,padding:"8px",textAlign:"center"}}>
+              <div style={{fontSize:20,fontWeight:500,color:pct>=70?"#2e7d32":pct>=40?"#e65100":"#aaa"}}>{total>0?pct+"%":"–"}</div>
+              <div style={{fontSize:11,color:"#aaa",marginTop:2}}>Prosent</div>
+            </div>
+          </>}
+        </div>
+        {extra && <div style={{fontSize:12,color:"var(--text3)",marginTop:8}}>{extra}</div>}
+      </div>
+    );
+  }
+
+  return (
+    <div style={s.page}>
+      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Tilbake</button><span style={s.topTitle}>📋 Rapport</span></div>
+
+      {/* Student selector — always show all */}
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+        {students.map(x => (
+          <button key={x.id} onClick={()=>setSel(x.id)} style={{padding:"6px 14px",borderRadius:20,border:"1px solid",borderColor:sel===x.id?"var(--purple)":"#ddd",background:sel===x.id?"var(--purple-light)":"#fafafa",color:sel===x.id?"var(--purple-dark)":"#555",fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+            <AvatarDisplay avatar={x.avatar} name={x.name} size={22}/>
+            {x.name}
+          </button>
         ))}
       </div>
-      <div style={{fontSize:13,fontWeight:500,color:"var(--text3)",margin:"0 0 6px"}}>NYE GLOSER</div>
+
+      <div style={{background:"#f9f9f9",borderRadius:12,padding:"12px",marginBottom:12,fontSize:13,color:"var(--text2)",display:"flex",alignItems:"center",gap:10}}>
+        <AvatarDisplay avatar={st?.avatar} name={st?.name} size={40}/>
+        <div>
+          <div style={{fontWeight:500}}>{st?.name}</div>
+          <div>{today} · {can}/{gloser.length} gloser · 🪙 {st?.coins||0} coins</div>
+        </div>
+      </div>
+
+      <div style={{fontSize:13,fontWeight:500,color:"var(--text3)",margin:"0 0 8px"}}>AKTIVITET</div>
+      <StatCard icon="🃏" title="Flashcards" sessions={st?.flashcardSessions||0}/>
+      <StatCard icon="🎯" title="Quiz" sessions={st?.quizSessions||0} correct={qi.filter(h=>h.correct).length} total={qi.length} pct={qp}/>
+      <StatCard icon="🪢" title="Hangman" sessions={st?.hangmanSessions||0} correct={hi.filter(h=>h.correct).length} total={hi.length} pct={hp}/>
+      <StatCard icon="✖️" title="Matte" sessions={st?.mathSessions||0}/>
+
+      <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:"12px 14px",marginBottom:12}}>
+        <div style={{fontSize:14,fontWeight:500,marginBottom:8}}>🛒 Avatar</div>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <AvatarDisplay avatar={st?.avatar} name={st?.name} size={56}/>
+          <div style={{fontSize:13,color:"var(--text2)"}}>
+            <div>{st?.avatar?.gender==="female"?"👧 Jente":"👦 Gutt"}</div>
+            <div>Drakt: {kit.label}</div>
+            <div>🪙 {st?.coins||0} coins totalt</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{fontSize:13,fontWeight:500,color:"var(--text3)",margin:"16px 0 6px"}}>NYE GLOSER</div>
       <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,marginBottom:12,overflow:"hidden"}}>{newest.map(g=><WR key={g.id} g={g}/>)}</div>
       {older.length>0&&<><div style={{fontSize:13,fontWeight:500,color:"var(--text3)",margin:"0 0 6px"}}>TIDLIGERE GLOSER</div><div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,marginBottom:12,overflow:"hidden"}}>{older.map(g=><WR key={g.id} g={g}/>)}</div></>}
       <div style={{display:"flex",gap:8,fontSize:12,color:"var(--text3)",marginBottom:16,flexWrap:"wrap"}}><span>✅ kan</span><span>🔶 nesten</span><span>❌ trenger øving</span><span>⬜ ikke øvd</span></div>
@@ -574,8 +659,7 @@ function AdminPanel({students,gloser,onSaveStudents,onSaveGloser,onBack}){
         </div>
       </>}
 
-      {tab==="report"&&<TeacherReport gloser={gloser} students={students} onBack={()=>setTab("students")}/>}
-    </div>
+      {tab==="report"&&<TeacherReport gloser={gloser} students={students} onBack={()=>setTab("students")}/>}    </div>
   );
 }
 
@@ -721,10 +805,10 @@ function App(){
   );
 
   if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)}/>;
-  if(screen==="maths")return<MathMenu onBack={()=>setScreen("home")} addCoins={addCoins}/>;
+  if(screen==="maths")return<MathMenu onBack={()=>setScreen("home")} addCoins={addCoins} onStart={()=>updateStudent(currentUser.id,{mathSessions:(stData.mathSessions||0)+1})}/>;
   if(screen==="leaderboard")return<Leaderboard students={students} onBack={()=>setScreen("home")}/>;
   if(screen==="shop")return<AvatarShop student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("home")}/>;
-  if(screen==="report"){const st=students.find(s=>s.id===currentUser.id);return<TeacherReport gloser={gloser} students={[st]} onBack={()=>setScreen("home")}/>;}
+  if(screen==="report"){const st=students.find(s=>s.id===currentUser.id);return<TeacherReport gloser={gloser} students={students} singleStudent={st.id} onBack={()=>setScreen("home")}/>;}
   if(screen==="squad")return(
     <div style={s.page}>
       <div style={s.topBar}><button style={s.back} onClick={()=>setScreen("home")}>← Hjem</button><span style={s.topTitle}>Mitt lag</span></div>
@@ -749,7 +833,10 @@ function App(){
         </div>
         <div style={s.row}>
           <button style={s.navBtn} onClick={()=>{setFcIdx(i=>Math.max(0,i-1));setFcFlipped(false);}} disabled={fcIdx===0}>◀ Forrige</button>
-          <button style={s.navBtn} onClick={()=>{if(fcIdx<fcDeck.length-1){setFcIdx(i=>i+1);setFcFlipped(false);}else setScreen("home");}}>{fcIdx<fcDeck.length-1?"Neste ▶":"Ferdig ✓"}</button>
+          <button style={s.navBtn} onClick={()=>{
+            if(fcIdx<fcDeck.length-1){setFcIdx(i=>i+1);setFcFlipped(false);addCoins(1);}
+            else{addCoins(1);setScreen("home");}
+          }}>{fcIdx<fcDeck.length-1?"Neste ▶ +🪙":"Ferdig ✓ +🪙"}</button>
         </div>
       </div>
     );
@@ -802,7 +889,10 @@ function App(){
     );
   }
 
-  function startFlashcards(){setFcDeck(shuffle(gloser));setFcIdx(0);setFcFlipped(false);setScreen("flashcard");}
+  function startFlashcards(){
+    setFcDeck(shuffle(gloser));setFcIdx(0);setFcFlipped(false);setScreen("flashcard");
+    updateStudent(currentUser.id,{flashcardSessions:(stData.flashcardSessions||0)+1});
+  }
   function startQuiz(){const deck=buildQuizDeck(gloser);setQuizDeck(deck);setQuizIdx(0);setQuizScore(0);setQuizDone(false);setQuizAnswer(null);const f=deck[0];setQuizChoices(shuffle([f,...shuffle(gloser.filter(g=>g.en!==f.en)).slice(0,3)]));setScreen("quiz");}
 
   return(
