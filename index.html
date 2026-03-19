@@ -577,8 +577,7 @@ function SquadDisplay({squad,clubColor}){
 }
 
 // ── LEADERBOARD ──
-function Leaderboard({students,onBack}){
-  return(
+function Leaderboard({students,onBack}){  return(
     <div style={s.page}>
       <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>🏆 Poengtavle</span></div>
       <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:8}}>
