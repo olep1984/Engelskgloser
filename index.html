@@ -8,462 +8,765 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f7; min-height: 100vh; }
-  input, button { font-family: inherit; }
-  :root {
-    --bg: #ffffff; --bg2: #f5f5f5; --border: #e0e0e0;
-    --text: #1a1a1a; --text2: #666; --text3: #aaa;
-    --purple: #5c6bc0; --purple-light: #ede7f6; --purple-dark: #4527a0;
-  }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f7; min-height: 100vh; }
+input, button { font-family: inherit; }
+:root { --bg: #ffffff; --bg2: #f5f5f5; --border: #e0e0e0; --text: #1a1a1a; --text2: #666; --text3: #aaa; --purple: #5c6bc0; --purple-light: #ede7f6; --purple-dark: #4527a0; }
+@keyframes ballArc { 0%{transform:translate(0,0) scale(1);opacity:1} 60%{transform:translate(var(--bx),var(--by)) scale(1.2)} 100%{transform:translate(var(--ex),var(--ey)) scale(0.8);opacity:0.5} }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+@keyframes celebrate { 0%{transform:scale(1)} 50%{transform:scale(1.3)} 100%{transform:scale(1)} }
+@keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState } = React;
+const { useState, useEffect, useRef } = React;
 
 const ADMIN_PIN = "1234";
 const MAX_WRONG = 3;
 const NEW_COUNT = 5;
 
+const CLUBS = [
+  {name:"Real Madrid",emoji:"⚪",color:"#ffd700",bg:"#1a1a6e"},
+  {name:"Barcelona",emoji:"🔵",color:"#a50044",bg:"#004d98"},
+  {name:"Man City",emoji:"🩵",color:"#6caae4",bg:"#1c2c5b"},
+  {name:"Liverpool",emoji:"🔴",color:"#c8102e",bg:"#00b2a9"},
+  {name:"Bayern",emoji:"🔴",color:"#dc052d",bg:"#0066b2"},
+  {name:"PSG",emoji:"🔵",color:"#004170",bg:"#da291c"},
+  {name:"Arsenal",emoji:"❤️",color:"#ef0107",bg:"#9c824a"},
+  {name:"Juventus",emoji:"⚫",color:"#000",bg:"#fff"},
+  {name:"Dortmund",emoji:"🟡",color:"#fde100",bg:"#000"},
+  {name:"Ajax",emoji:"🔴",color:"#d2122e",bg:"#fff"},
+  {name:"Inter",emoji:"🔵",color:"#010e80",bg:"#000"},
+  {name:"Chelsea",emoji:"🔵",color:"#034694",bg:"#034694"},
+];
+
+// Posisjoner i et 4-3-3 lag
+const POSITIONS = [
+  {id:"gk",label:"Keeper",x:50,y:85},
+  {id:"lb",label:"Venstreback",x:15,y:65},
+  {id:"cb1",label:"Midtstopper",x:35,y:65},
+  {id:"cb2",label:"Midtstopper",x:65,y:65},
+  {id:"rb",label:"Høyreback",x:85,y:65},
+  {id:"cm1",label:"Midtbane",x:25,y:45},
+  {id:"cm2",label:"Midtbane",x:50,y:45},
+  {id:"cm3",label:"Midtbane",x:75,y:45},
+  {id:"lw",label:"Venstreving",x:15,y:22},
+  {id:"st",label:"Spiss",x:50,y:18},
+  {id:"rw",label:"Høyreving",x:85,y:22},
+];
+
 const defaultGloser = [
-  { no: "hund", en: "dog", id: 1 },
-  { no: "katt", en: "cat", id: 2 },
-  { no: "hus", en: "house", id: 3 },
-  { no: "bil", en: "car", id: 4 },
-  { no: "bok", en: "book", id: 5 },
-  { no: "skole", en: "school", id: 6 },
-  { no: "venn", en: "friend", id: 7 },
-  { no: "mat", en: "food", id: 8 },
+  {no:"hund",en:"dog",id:1},{no:"katt",en:"cat",id:2},{no:"hus",en:"house",id:3},
+  {no:"bil",en:"car",id:4},{no:"bok",en:"book",id:5},{no:"skole",en:"school",id:6},
+  {no:"venn",en:"friend",id:7},{no:"mat",en:"food",id:8},
 ];
-
 const initStudents = [
-  { id: 1, name: "Elev 1", pin: "1111", history: [] },
-  { id: 2, name: "Elev 2", pin: "2222", history: [] },
+  {id:1,name:"Elev 1",pin:"1111",history:[],quizSessions:0,hangmanSessions:0,points:0,squad:[],club:CLUBS[0]},
+  {id:2,name:"Elev 2",pin:"2222",history:[],quizSessions:0,hangmanSessions:0,points:0,squad:[],club:CLUBS[1]},
 ];
 
-function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+function shuffle(arr){return[...arr].sort(()=>Math.random()-0.5);}
+function loadLS(k,fb){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}}
+function saveLS(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 
-function buildQuizDeck(gloser) {
-  if (gloser.length <= 10) return shuffle([...gloser]);
-  const sorted = [...gloser].sort((a, b) => b.id - a.id);
-  const newest = sorted.slice(0, NEW_COUNT);
-  const older = sorted.slice(NEW_COUNT);
-  const oldPart = shuffle(older).slice(0, Math.round(older.length * 0.3));
-  return shuffle([...newest, ...oldPart]);
+function buildQuizDeck(gloser){
+  if(gloser.length<=10)return shuffle([...gloser]);
+  const s=[...gloser].sort((a,b)=>b.id-a.id);
+  return shuffle([...s.slice(0,NEW_COUNT),...shuffle(s.slice(NEW_COUNT)).slice(0,Math.round(s.slice(NEW_COUNT).length*0.3))]);
 }
 
-function PinPad({ title, subtitle, onSubmit, error, onBack }) {
-  const [pin, setPin] = useState("");
-  function press(d) {
-    if (pin.length >= 4) return;
-    const next = pin + d;
-    setPin(next);
-    if (next.length === 4) { setTimeout(() => { onSubmit(next); setPin(""); }, 120); }
+// ── PENALTY SHOOTOUT ──
+function PenaltyGame({onDone, playerName, clubColor}){
+  const [phase,setPhase]=useState("aim"); // aim, flying, result
+  const [target,setTarget]=useState({x:50,y:50});
+  const [scored,setScored]=useState(null);
+  const [shots,setShots]=useState([]);
+  const [current,setCurrent]=useState(0);
+  const TOTAL=5;
+
+  function shoot(){
+    if(phase!=="aim")return;
+    // Keeper picks random side
+    const keeperX=Math.random()>0.5?20:80;
+    const hit=Math.abs(target.x-keeperX)>25 || target.y<30;
+    setPhase("flying");
+    setTimeout(()=>{
+      const newShots=[...shots,hit];
+      setShots(newShots);
+      setScored(hit);
+      setPhase("result");
+      setTimeout(()=>{
+        if(current+1>=TOTAL){onDone(newShots.filter(Boolean).length);}
+        else{setCurrent(c=>c+1);setScored(null);setPhase("aim");setTarget({x:50,y:50});}
+      },1200);
+    },800);
   }
-  return (
-    <div style={{ maxWidth: 340, margin: "0 auto", padding: "32px 16px", textAlign: "center" }}>
-      {onBack && <button style={s.back} onClick={onBack}>← Tilbake</button>}
-      <div style={{ paddingTop: onBack ? 16 : 0 }}>
-        <div style={{ fontSize: 40, marginBottom: 8 }}>🎓</div>
-        <div style={{ fontSize: 20, fontWeight: 500 }}>{title}</div>
-        {subtitle && <div style={{ fontSize: 13, color: "var(--text2)", marginTop: 4 }}>{subtitle}</div>}
-        <div style={{ display: "flex", justifyContent: "center", gap: 12, margin: "24px 0 8px" }}>
-          {[0,1,2,3].map(i => (
-            <div key={i} style={{ width: 18, height: 18, borderRadius: "50%", background: pin.length > i ? "var(--purple)" : "#e0e0e0", transition: "background 0.15s" }} />
-          ))}
-        </div>
-        {error && <div style={{ fontSize: 12, color: "#e53935", margin: "6px 0" }}>{error}</div>}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginTop: 20 }}>
-          {[1,2,3,4,5,6,7,8,9].map(d => (
-            <button key={d} style={s.pinBtn} onClick={() => press(String(d))}>{d}</button>
-          ))}
-          <div />
-          <button style={s.pinBtn} onClick={() => press("0")}>0</button>
-          <button style={{ ...s.pinBtn, color: "var(--text3)" }} onClick={() => setPin(p => p.slice(0,-1))}>⌫</button>
-        </div>
+
+  const goals=shots.filter(Boolean).length;
+  return(
+    <div style={{textAlign:"center",padding:"16px 0"}}>
+      <div style={{fontSize:14,color:"#888",marginBottom:4}}>Straffespark! Skytt {current+1} av {TOTAL}</div>
+      <div style={{fontSize:13,fontWeight:500,marginBottom:12}}>Mål: {goals} | Misset: {shots.length-goals}</div>
+      {/* Goal */}
+      <div style={{position:"relative",width:"100%",maxWidth:320,margin:"0 auto",height:180,background:"linear-gradient(180deg,#90ee90 0%,#228b22 100%)",borderRadius:12,overflow:"hidden",cursor:phase==="aim"?"crosshair":"default",border:"2px solid #555"}}
+        onClick={e=>{
+          if(phase!=="aim")return;
+          const r=e.currentTarget.getBoundingClientRect();
+          setTarget({x:((e.clientX-r.left)/r.width)*100,y:((e.clientY-r.top)/r.height)*100});
+        }}>
+        {/* Goal frame */}
+        <div style={{position:"absolute",top:10,left:"15%",width:"70%",height:"55%",border:"4px solid white",borderBottom:"none",pointerEvents:"none"}}/>
+        {/* Net lines */}
+        {[20,40,60,80].map(x=><div key={x} style={{position:"absolute",top:10,left:`${15+x*0.7}%`,width:1,height:"55%",background:"rgba(255,255,255,0.3)",pointerEvents:"none"}}/>)}
+        {/* Target crosshair */}
+        {phase==="aim"&&<div style={{position:"absolute",left:`${target.x}%`,top:`${target.y}%`,transform:"translate(-50%,-50%)",fontSize:22,pointerEvents:"none"}}>⚽</div>}
+        {/* Flying ball */}
+        {phase==="flying"&&<div style={{position:"absolute",left:`${target.x}%`,top:`${target.y}%`,transform:"translate(-50%,-50%)",fontSize:22,animation:"celebrate 0.8s ease-out"}}>⚽</div>}
+        {/* Result */}
+        {phase==="result"&&scored!==null&&(
+          <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:scored?"rgba(0,180,0,0.5)":"rgba(200,0,0,0.5)",fontSize:40,animation:"celebrate 0.5s"}}>
+            {scored?"⚽ MÅL!":"❌ Reddet!"}
+          </div>
+        )}
+        {/* Hint text */}
+        {phase==="aim"&&<div style={{position:"absolute",bottom:8,width:"100%",textAlign:"center",fontSize:11,color:"rgba(255,255,255,0.8)"}}>Trykk der du vil skyte</div>}
+      </div>
+      {phase==="aim"&&<button style={{...s.bigBtn,marginTop:16,background:"#e53935"}} onClick={shoot}>🦵 Skyt!</button>}
+      <div style={{display:"flex",justifyContent:"center",gap:8,marginTop:12}}>
+        {Array(TOTAL).fill(0).map((_,i)=><span key={i} style={{fontSize:20}}>{i<shots.length?(shots[i]?"⚽":"❌"):"⬜"}</span>)}
       </div>
     </div>
   );
 }
 
-function HangmanSVG({ wrong }) {
-  return (
-    <svg viewBox="0 0 120 130" width="120" height="130">
-      <line x1="10" y1="125" x2="110" y2="125" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
-      <line x1="30" y1="125" x2="30" y2="10" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
-      <line x1="30" y1="10" x2="75" y2="10" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
-      <line x1="75" y1="10" x2="75" y2="25" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
-      {wrong >= 1 && <circle cx="75" cy="33" r="8" stroke="#e53935" strokeWidth="2.5" fill="none"/>}
-      {wrong >= 2 && <><line x1="75" y1="41" x2="75" y2="70" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="50" x2="58" y2="62" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="50" x2="92" y2="62" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/></>}
-      {wrong >= 3 && <><line x1="75" y1="70" x2="62" y2="88" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="70" x2="88" y2="88" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/></>}
-    </svg>
+// ── SQUAD BUILDER ──
+function SquadDisplay({squad, clubColor}){
+  return(
+    <div style={{position:"relative",width:"100%",maxWidth:320,margin:"0 auto",height:260,background:"linear-gradient(180deg,#2d8a2d 0%,#1a5c1a 50%,#2d8a2d 100%)",borderRadius:12,overflow:"hidden",border:"1px solid #1a5c1a"}}>
+      {/* Pitch markings */}
+      <div style={{position:"absolute",top:"50%",left:"10%",right:"10%",height:1,background:"rgba(255,255,255,0.3)"}}/>
+      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:60,height:60,border:"1px solid rgba(255,255,255,0.3)",borderRadius:"50%"}}/>
+      {POSITIONS.map((pos,i)=>{
+        const filled=i<squad.length;
+        return(
+          <div key={pos.id} style={{position:"absolute",left:`${pos.x}%`,top:`${pos.y}%`,transform:"translate(-50%,-50%)",textAlign:"center"}}>
+            <div style={{width:28,height:28,borderRadius:"50%",background:filled?clubColor:"rgba(255,255,255,0.2)",border:`2px solid ${filled?"white":"rgba(255,255,255,0.3)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,margin:"0 auto"}}>
+              {filled?"⚽":""}
+            </div>
+            <div style={{fontSize:8,color:"rgba(255,255,255,0.7)",marginTop:1,whiteSpace:"nowrap"}}>{pos.label}</div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
-function HangmanGame({ gloser, onBack }) {
-  const [deck] = useState(() => shuffle(gloser));
-  const [idx, setIdx] = useState(0);
-  const [guessed, setGuessed] = useState(new Set());
-  const [score, setScore] = useState(0);
-  const [done, setDone] = useState(false);
-  const word = deck[idx]?.en || "", hint = deck[idx]?.no || "";
-  const letters = word.split("");
-  const wrongGuesses = [...guessed].filter(l => !letters.includes(l));
-  const wrongCount = wrongGuesses.length;
-  const won = letters.every(l => guessed.has(l)), lost = wrongCount >= MAX_WRONG;
-  const finished = won || lost;
-  function guess(l) {
-    if (finished || guessed.has(l)) return;
-    const nx = new Set(guessed); nx.add(l); setGuessed(nx);
-    if (letters.every(c => nx.has(c))) setScore(sc => sc + 1);
+// ── LEADERBOARD ──
+function Leaderboard({students,onBack}){
+  const sorted=[...students].sort((a,b)=>(b.points||0)-(a.points||0));
+  return(
+    <div style={s.page}>
+      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>🏆 Poengtavle</span></div>
+      <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:8}}>
+        {sorted.map((st,i)=>{
+          const club=st.club||CLUBS[0];
+          const squadCount=st.squad?.length||0;
+          const medal=i===0?"🥇":i===1?"🥈":i===2?"🥉":"";
+          return(
+            <div key={st.id} style={{background:"#fff",border:"1px solid #eee",borderRadius:14,padding:"14px 16px",display:"flex",alignItems:"center",gap:12}}>
+              <div style={{fontSize:24,minWidth:30}}>{medal||`${i+1}.`}</div>
+              <div style={{width:40,height:40,borderRadius:"50%",background:club.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,border:`2px solid ${club.color}`,flexShrink:0}}>⚽</div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:500,fontSize:15}}>{st.name}</div>
+                <div style={{fontSize:12,color:"#888"}}>{club.name} · {squadCount}/11 spillere</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:22,fontWeight:500,color:"#5c6bc0"}}>{st.points||0}</div>
+                <div style={{fontSize:11,color:"#aaa"}}>poeng</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── CLUB PICKER ──
+function ClubPicker({current,onPick}){
+  return(
+    <div>
+      <div style={{fontSize:13,color:"#888",marginBottom:10}}>Velg favorittklubben din:</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+        {CLUBS.map(c=>(
+          <button key={c.name} onClick={()=>onPick(c)} style={{padding:"10px 6px",borderRadius:10,border:`2px solid ${current?.name===c.name?c.color:"#eee"}`,background:current?.name===c.name?c.bg:"#fafafa",cursor:"pointer",textAlign:"center"}}>
+            <div style={{fontSize:20}}>⚽</div>
+            <div style={{fontSize:11,marginTop:2,color:current?.name===c.name?"white":"#333",fontWeight:current?.name===c.name?500:400}}>{c.name}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── HANGMAN ──
+function HangmanGame({gloser,onBack,recordHistory,recordSession}){
+  const [deck]=useState(()=>shuffle(gloser));
+  const [idx,setIdx]=useState(0);
+  const [guessed,setGuessed]=useState(new Set());
+  const [score,setScore]=useState(0);
+  const [done,setDone]=useState(false);
+  const word=deck[idx]?.en||"",hint=deck[idx]?.no||"";
+  const letters=word.split("");
+  const wrong=[...guessed].filter(l=>!letters.includes(l));
+  const wrongCount=wrong.length;
+  const won=letters.every(l=>guessed.has(l)),lost=wrongCount>=MAX_WRONG;
+  const finished=won||lost;
+  function guess(l){
+    if(finished||guessed.has(l))return;
+    const nx=new Set(guessed);nx.add(l);setGuessed(nx);
+    if(letters.every(c=>nx.has(c))){setScore(sc=>sc+1);recordHistory&&recordHistory(word,true,"hangman");}
+    else if([...nx].filter(x=>!letters.includes(x)).length>=MAX_WRONG){recordHistory&&recordHistory(word,false,"hangman");}
   }
-  function next() { if (idx + 1 >= deck.length) { setDone(true); return; } setIdx(i => i+1); setGuessed(new Set()); }
-  const alpha = "abcdefghijklmnopqrstuvwxyz".split("");
-  if (done) return (
+  function next(){if(idx+1>=deck.length){recordSession&&recordSession("hangman");setDone(true);return;}setIdx(i=>i+1);setGuessed(new Set());}
+  const alpha="abcdefghijklmnopqrstuvwxyz".split("");
+  if(done)return(
     <div style={s.page}><div style={s.resultBox}>
-      <div style={{ fontSize: 64 }}>{score === deck.length ? "🏆" : score >= deck.length*0.6 ? "🌟" : "💪"}</div>
+      <div style={{fontSize:64}}>{score===deck.length?"🏆":score>=deck.length*0.6?"🌟":"💪"}</div>
       <div style={s.resultTitle}>Ferdig!</div>
       <div style={s.resultScore}>{score} av {deck.length} ord gjetta!</div>
-      <button style={s.bigBtn} onClick={() => { setIdx(0); setGuessed(new Set()); setScore(0); setDone(false); }}>Prøv igjen</button>
-      <button style={{ ...s.bigBtn, ...s.btnGray }} onClick={onBack}>Hjem</button>
+      <button style={s.bigBtn} onClick={()=>{setIdx(0);setGuessed(new Set());setScore(0);setDone(false);}}>Prøv igjen</button>
+      <button style={{...s.bigBtn,...s.btnGray}} onClick={onBack}>Hjem</button>
     </div></div>
   );
-  return (
+  return(
     <div style={s.page}>
-      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>Hangman</span><span style={{ fontSize: 14, fontWeight: 500 }}>⭐ {score}</span></div>
+      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>Hangman</span><span style={{fontSize:14,fontWeight:500}}>⭐ {score}</span></div>
       <div style={s.progress}>{idx+1} / {deck.length}</div>
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}><HangmanSVG wrong={wrongCount} /></div>
-      <div style={{ textAlign: "center", fontSize: 13, color: "var(--text2)", marginBottom: 6 }}>Norsk: <strong style={{ color: "var(--text)" }}>{hint}</strong></div>
-      <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", margin: "10px 0 16px" }}>
-        {letters.map((l, i) => <div key={i} style={s.letterBox}>{guessed.has(l) ? <span style={{ fontSize: 22, fontWeight: 500 }}>{l}</span> : <span style={{ color: "#ddd" }}>_</span>}</div>)}
+      <div style={{display:"flex",justifyContent:"center",marginBottom:4}}>
+        <svg viewBox="0 0 120 130" width="120" height="130">
+          <line x1="10" y1="125" x2="110" y2="125" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
+          <line x1="30" y1="125" x2="30" y2="10" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
+          <line x1="30" y1="10" x2="75" y2="10" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
+          <line x1="75" y1="10" x2="75" y2="25" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
+          {wrongCount>=1&&<circle cx="75" cy="33" r="8" stroke="#e53935" strokeWidth="2.5" fill="none"/>}
+          {wrongCount>=2&&<><line x1="75" y1="41" x2="75" y2="70" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="50" x2="58" y2="62" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="50" x2="92" y2="62" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/></>}
+          {wrongCount>=3&&<><line x1="75" y1="70" x2="62" y2="88" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="70" x2="88" y2="88" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/></>}
+        </svg>
       </div>
-      {wrongGuesses.length > 0 && <div style={{ textAlign: "center", fontSize: 12, color: "#e57373", marginBottom: 8 }}>Feil: {wrongGuesses.join("  ")}  ({MAX_WRONG - wrongCount} igjen)</div>}
-      {finished ? (
-        <div style={{ textAlign: "center", marginBottom: 16 }}>
-          {won ? <div style={{ fontSize: 22, color: "#43a047", fontWeight: 500 }}>🎉 Bra jobbet!</div> : <div style={{ fontSize: 16, color: "#e53935" }}>Ordet var: <strong>{word}</strong></div>}
-          <button style={{ ...s.bigBtn, marginTop: 14 }} onClick={next}>{idx+1 < deck.length ? "Neste ord ▶" : "Se resultat"}</button>
+      <div style={{textAlign:"center",fontSize:13,color:"var(--text2)",marginBottom:6}}>Norsk: <strong>{hint}</strong></div>
+      <div style={{display:"flex",justifyContent:"center",gap:8,flexWrap:"wrap",margin:"10px 0 16px"}}>
+        {letters.map((l,i)=><div key={i} style={s.letterBox}>{guessed.has(l)?<span style={{fontSize:22,fontWeight:500}}>{l}</span>:<span style={{color:"#ddd"}}>_</span>}</div>)}
+      </div>
+      {wrong.length>0&&<div style={{textAlign:"center",fontSize:12,color:"#e57373",marginBottom:8}}>Feil: {wrong.join("  ")}  ({MAX_WRONG-wrongCount} igjen)</div>}
+      {finished?(
+        <div style={{textAlign:"center",marginBottom:16}}>
+          {won?<div style={{fontSize:22,color:"#43a047",fontWeight:500}}>🎉 Bra jobbet!</div>:<div style={{fontSize:16,color:"#e53935"}}>Ordet var: <strong>{word}</strong></div>}
+          <button style={{...s.bigBtn,marginTop:14}} onClick={next}>{idx+1<deck.length?"Neste ord ▶":"Se resultat"}</button>
         </div>
-      ) : (
+      ):(
         <div style={s.keyboard}>
-          {alpha.map(l => <button key={l} style={{ ...s.key, background: guessed.has(l) ? (letters.includes(l) ? "#c8e6c9" : "#ffcdd2") : "#f5f5f5", color: guessed.has(l) ? "#999" : "#222", cursor: guessed.has(l) ? "default" : "pointer" }} onClick={() => guess(l)}>{l}</button>)}
+          {alpha.map(l=><button key={l} style={{...s.key,background:guessed.has(l)?(letters.includes(l)?"#c8e6c9":"#ffcdd2"):"#f5f5f5",color:guessed.has(l)?"#999":"#222",cursor:guessed.has(l)?"default":"pointer"}} onClick={()=>guess(l)}>{l}</button>)}
         </div>
       )}
     </div>
   );
 }
 
-function TeacherReport({ gloser, students, onBack }) {
-  const [selected, setSelected] = useState(students[0]?.id || null);
-  const [copied, setCopied] = useState(false);
-  const student = students.find(st => st.id === selected);
-  const sorted = [...gloser].sort((a, b) => b.id - a.id);
-  const newest = sorted.slice(0, NEW_COUNT), older = sorted.slice(NEW_COUNT);
-  const today = new Date().toLocaleDateString("no-NO", { day: "numeric", month: "long", year: "numeric" });
-  function status(en) {
-    if (!student) return "ikke øvd";
-    const items = student.history.filter(h => h.en === en);
-    if (!items.length) return "ikke øvd";
-    const pct = items.filter(h => h.correct).length / items.length;
-    return pct >= 0.75 ? "kan" : pct >= 0.4 ? "nesten" : "trenger øving";
+// ── TEACHER REPORT ──
+function TeacherReport({gloser,students,onBack}){
+  const [selected,setSelected]=useState(students[0]?.id||null);
+  const [copied,setCopied]=useState(false);
+  const student=students.find(st=>st.id===selected);
+  const sorted=[...gloser].sort((a,b)=>b.id-a.id);
+  const newest=sorted.slice(0,NEW_COUNT),older=sorted.slice(NEW_COUNT);
+  const today=new Date().toLocaleDateString("no-NO",{day:"numeric",month:"long",year:"numeric"});
+  function status(en){
+    if(!student)return"ikke øvd";
+    const items=student.history.filter(h=>h.en===en&&h.source==="quiz");
+    if(!items.length)return"ikke øvd";
+    const pct=items.filter(h=>h.correct).length/items.length;
+    return pct>=0.75?"kan":pct>=0.4?"nesten":"trenger øving";
   }
-  function statusColor(st) { return st === "kan" ? "#2e7d32" : st === "nesten" ? "#e65100" : st === "trenger øving" ? "#c62828" : "#aaa"; }
-  function statusEmoji(st) { return st === "kan" ? "✅" : st === "nesten" ? "🔶" : st === "trenger øving" ? "❌" : "⬜"; }
-  function buildText() {
-    let txt = `Glose-rapport – ${student?.name} – ${today}\n\nNYE GLOSER\n`;
-    newest.forEach(g => { txt += `  ${statusEmoji(status(g.en))} ${g.no} → ${g.en}  (${status(g.en)})\n`; });
-    if (older.length) { txt += `\nTIDLIGERE GLOSER\n`; older.forEach(g => { txt += `  ${statusEmoji(status(g.en))} ${g.no} → ${g.en}  (${status(g.en)})\n`; }); }
-    txt += `\nTotalt: ${gloser.filter(g => status(g.en) === "kan").length} av ${gloser.length} gloser behersket.`;
+  function sc(st){return st==="kan"?"#2e7d32":st==="nesten"?"#e65100":st==="trenger øving"?"#c62828":"#aaa";}
+  function se(st){return st==="kan"?"✅":st==="nesten"?"🔶":st==="trenger øving"?"❌":"⬜";}
+  const quizItems=student?.history.filter(h=>h.source==="quiz")||[];
+  const hmItems=student?.history.filter(h=>h.source==="hangman")||[];
+  const qPct=quizItems.length>0?Math.round(quizItems.filter(h=>h.correct).length/quizItems.length*100):0;
+  const hPct=hmItems.length>0?Math.round(hmItems.filter(h=>h.correct).length/hmItems.length*100):0;
+  const canCount=gloser.filter(g=>status(g.en)==="kan").length;
+  function buildText(){
+    let txt=`Glose-rapport – ${student?.name} – ${today}\n\n`;
+    txt+=`AKTIVITET\n  🎯 Quiz: ${student?.quizSessions||0} økter, ${quizItems.filter(h=>h.correct).length}/${quizItems.length} riktige (${qPct}%)\n`;
+    txt+=`  🪢 Hangman: ${student?.hangmanSessions||0} økter, ${hmItems.filter(h=>h.correct).length}/${hmItems.length} ord (${hPct}%)\n`;
+    txt+=`  ⚽ Poeng: ${student?.points||0} | Lag: ${student?.squad?.length||0}/11 spillere\n\n`;
+    txt+=`GLOSER (${canCount} av ${gloser.length} behersket)\nNYE GLOSER\n`;
+    newest.forEach(g=>{txt+=`  ${se(status(g.en))} ${g.no} → ${g.en}  (${status(g.en)})\n`;});
+    if(older.length){txt+=`\nTIDLIGERE GLOSER\n`;older.forEach(g=>{txt+=`  ${se(status(g.en))} ${g.no} → ${g.en}  (${status(g.en)})\n`;});}
     return txt;
   }
-  function WordRow({ g }) {
-    const st = status(g.en);
-    const items = student?.history.filter(h => h.en === g.en) || [];
-    return (
-      <div style={{ display: "flex", alignItems: "center", padding: "9px 12px", borderBottom: "1px solid #f0f0f0", gap: 8 }}>
-        <span style={{ flex: 1, fontSize: 14 }}>{g.no} <span style={{ color: "#bbb" }}>→</span> {g.en}</span>
-        {items.length > 0 && <span style={{ fontSize: 11, color: "#aaa" }}>{items.filter(h=>h.correct).length}/{items.length}</span>}
-        <span style={{ fontSize: 12, fontWeight: 500, color: statusColor(st), minWidth: 90, textAlign: "right" }}>{statusEmoji(st)} {st}</span>
+  function StatCard({icon,title,sessions,correct,total,pct}){
+    return(
+      <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:"14px 16px",marginBottom:10}}>
+        <div style={{fontSize:14,fontWeight:500,marginBottom:10}}>{icon} {title}</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+          {[{v:sessions,l:"Økter"},{v:total>0?`${correct}/${total}`:"–",l:"Riktige"},{v:total>0?pct+"%":"–",l:"Prosent",c:pct>=70?"#2e7d32":pct>=40?"#e65100":"#aaa"}].map((x,i)=>(
+            <div key={i} style={{background:"#f9f9f9",borderRadius:8,padding:"8px",textAlign:"center"}}>
+              <div style={{fontSize:18,fontWeight:500,color:x.c||"var(--text)"}}>{x.v}</div>
+              <div style={{fontSize:11,color:"#aaa",marginTop:2}}>{x.l}</div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
-  return (
+  function WordRow({g}){
+    const st=status(g.en);
+    const items=student?.history.filter(h=>h.en===g.en&&h.source==="quiz")||[];
+    return(
+      <div style={{display:"flex",alignItems:"center",padding:"9px 12px",borderBottom:"1px solid #f0f0f0",gap:8}}>
+        <span style={{flex:1,fontSize:14}}>{g.no} <span style={{color:"#bbb"}}>→</span> {g.en}</span>
+        {items.length>0&&<span style={{fontSize:11,color:"#aaa"}}>{items.filter(h=>h.correct).length}/{items.length}</span>}
+        <span style={{fontSize:12,fontWeight:500,color:sc(st),minWidth:90,textAlign:"right"}}>{se(st)} {st}</span>
+      </div>
+    );
+  }
+  return(
     <div style={s.page}>
       <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>Sammendrag</span></div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-        {students.map(st => (
-          <button key={st.id} onClick={() => setSelected(st.id)} style={{ padding: "6px 14px", borderRadius: 20, border: "1px solid", borderColor: selected === st.id ? "var(--purple)" : "#ddd", background: selected === st.id ? "var(--purple-light)" : "#fafafa", color: selected === st.id ? "var(--purple-dark)" : "#555", fontSize: 13, cursor: "pointer" }}>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+        {students.map(st=>(
+          <button key={st.id} onClick={()=>setSelected(st.id)} style={{padding:"6px 14px",borderRadius:20,border:"1px solid",borderColor:selected===st.id?"var(--purple)":"#ddd",background:selected===st.id?"var(--purple-light)":"#fafafa",color:selected===st.id?"var(--purple-dark)":"#555",fontSize:13,cursor:"pointer"}}>
             {st.name}
           </button>
         ))}
       </div>
-      <div style={{ background: "#f9f9f9", borderRadius: 12, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: "var(--text2)" }}>{today} · {gloser.filter(g => status(g.en) === "kan").length} av {gloser.length} gloser behersket</div>
-      <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text3)", margin: "0 0 6px 2px" }}>NYE GLOSER</div>
-      <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, marginBottom: 16, overflow: "hidden" }}>{newest.map(g => <WordRow key={g.id} g={g} />)}</div>
-      {older.length > 0 && <><div style={{ fontSize: 13, fontWeight: 500, color: "var(--text3)", margin: "0 0 6px 2px" }}>TIDLIGERE GLOSER</div><div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, marginBottom: 16, overflow: "hidden" }}>{older.map(g => <WordRow key={g.id} g={g} />)}</div></>}
-      <div style={{ display: "flex", gap: 8, fontSize: 12, color: "var(--text3)", marginBottom: 20, flexWrap: "wrap" }}>
-        <span>✅ kan</span><span>🔶 nesten</span><span>❌ trenger øving</span><span>⬜ ikke øvd</span>
-      </div>
-      <button style={s.bigBtn} onClick={() => { navigator.clipboard.writeText(buildText()); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>{copied ? "✅ Kopiert!" : "📋 Kopier til utklippstavle"}</button>
+      <div style={{background:"#f9f9f9",borderRadius:12,padding:"12px 14px",marginBottom:16,fontSize:13,color:"var(--text2)"}}>{today} · {canCount} av {gloser.length} gloser · ⚽ {student?.points||0} poeng</div>
+      <div style={{fontSize:13,fontWeight:500,color:"var(--text3)",margin:"0 0 8px 2px"}}>AKTIVITET</div>
+      <StatCard icon="🎯" title="Quiz" sessions={student?.quizSessions||0} correct={quizItems.filter(h=>h.correct).length} total={quizItems.length} pct={qPct}/>
+      <StatCard icon="🪢" title="Hangman" sessions={student?.hangmanSessions||0} correct={hmItems.filter(h=>h.correct).length} total={hmItems.length} pct={hPct}/>
+      <div style={{fontSize:13,fontWeight:500,color:"var(--text3)",margin:"16px 0 6px 2px"}}>NYE GLOSER</div>
+      <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,marginBottom:16,overflow:"hidden"}}>{newest.map(g=><WordRow key={g.id} g={g}/>)}</div>
+      {older.length>0&&<><div style={{fontSize:13,fontWeight:500,color:"var(--text3)",margin:"0 0 6px 2px"}}>TIDLIGERE GLOSER</div><div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,marginBottom:16,overflow:"hidden"}}>{older.map(g=><WordRow key={g.id} g={g}/>)}</div></>}
+      <div style={{display:"flex",gap:8,fontSize:12,color:"var(--text3)",marginBottom:20,flexWrap:"wrap"}}><span>✅ kan</span><span>🔶 nesten</span><span>❌ trenger øving</span><span>⬜ ikke øvd</span></div>
+      <button style={s.bigBtn} onClick={()=>{navigator.clipboard.writeText(buildText());setCopied(true);setTimeout(()=>setCopied(false),2000);}}>{copied?"✅ Kopiert!":"📋 Kopier til utklippstavle"}</button>
     </div>
   );
 }
 
-function AdminPanel({ students, setStudents, gloser, setGloser, onBack }) {
-  const [tab, setTab] = useState("students");
-  const [name, setName] = useState(""); const [pin, setPin] = useState(""); const [msg, setMsg] = useState("");
-  const [newNo, setNewNo] = useState(""); const [newEn, setNewEn] = useState(""); const [addMsg, setAddMsg] = useState("");
-  const [nextSId, setNextSId] = useState(() => Math.max(...students.map(s => s.id), 0) + 1);
-  const [nextGId, setNextGId] = useState(() => Math.max(...gloser.map(g => g.id), 0) + 1);
-  function addStudent() {
-    if (!name.trim() || !/^\d{4}$/.test(pin)) { setMsg("Skriv navn og 4-sifret PIN."); return; }
-    if (students.find(s => s.pin === pin)) { setMsg("PIN allerede i bruk."); return; }
-    setStudents(ss => [...ss, { id: nextSId, name: name.trim(), pin, history: [] }]);
-    setNextSId(n => n+1); setName(""); setPin(""); setMsg("✅ Lagt til!"); setTimeout(() => setMsg(""), 1500);
+// ── ADMIN ──
+function AdminPanel({students,setStudents,gloser,setGloser,onBack}){
+  const [tab,setTab]=useState("students");
+  const [name,setName]=useState(""),
+        [pin,setPin]=useState(""),
+        [msg,setMsg]=useState(""),
+        [newNo,setNewNo]=useState(""),
+        [newEn,setNewEn]=useState(""),
+        [addMsg,setAddMsg]=useState("");
+  const [nextSId,setNextSId]=useState(()=>Math.max(...students.map(s=>s.id),0)+1);
+  const [nextGId,setNextGId]=useState(()=>Math.max(...gloser.map(g=>g.id),0)+1);
+
+  function addStudent(){
+    if(!name.trim()||!/^\d{4}$/.test(pin)){setMsg("Skriv navn og 4-sifret PIN.");return;}
+    if(students.find(s=>s.pin===pin)){setMsg("PIN allerede i bruk.");return;}
+    setStudents(ss=>[...ss,{id:nextSId,name:name.trim(),pin,history:[],quizSessions:0,hangmanSessions:0,points:0,squad:[],club:CLUBS[nextSId%CLUBS.length]}]);
+    setNextSId(n=>n+1);setName("");setPin("");setMsg("✅ Lagt til!");setTimeout(()=>setMsg(""),1500);
   }
-  function addGlose() {
-    if (!newNo.trim() || !newEn.trim()) return;
-    setGloser(g => [...g, { no: newNo.trim().toLowerCase(), en: newEn.trim().toLowerCase(), id: nextGId }]);
-    setNextGId(n => n+1); setNewNo(""); setNewEn(""); setAddMsg("✅ Lagt til!"); setTimeout(() => setAddMsg(""), 1500);
+  async function translateWord(word){
+    if(!word.trim()){setNewEn("");return;}
+    setNewEn("Oversetter...");
+    try{
+      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:50,messages:[{role:"user",content:`Oversett dette norske ordet til engelsk. Svar kun med det engelske ordet, ingenting annet: "${word}"`}]})});
+      const data=await res.json();
+      setNewEn(data.content?.[0]?.text?.trim().toLowerCase()||"");
+    }catch{setNewEn("");}
   }
-  return (
+  function addGlose(){
+    if(!newNo.trim()||!newEn.trim())return;
+    setGloser(g=>[...g,{no:newNo.trim().toLowerCase(),en:newEn.trim().toLowerCase(),id:nextGId}]);
+    setNextGId(n=>n+1);setNewNo("");setNewEn("");setAddMsg("✅ Lagt til!");setTimeout(()=>setAddMsg(""),1500);
+  }
+  return(
     <div style={s.page}>
       <div style={s.topBar}><button style={s.back} onClick={onBack}>← Logg ut</button><span style={s.topTitle}>Admin</span></div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-        {["students","gloser","report"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid", borderColor: tab===t ? "var(--purple)" : "#ddd", background: tab===t ? "var(--purple-light)" : "#fafafa", color: tab===t ? "var(--purple-dark)" : "#555", fontWeight: tab===t ? 500 : 400, cursor: "pointer", fontSize: 13 }}>
-            {t === "students" ? "👤 Elever" : t === "gloser" ? "📚 Gloser" : "📋 Rapport"}
+      <div style={{display:"flex",gap:8,marginBottom:20}}>
+        {["students","gloser","report"].map(t=>(
+          <button key={t} onClick={()=>setTab(t)} style={{flex:1,padding:"10px",borderRadius:10,border:"1px solid",borderColor:tab===t?"var(--purple)":"#ddd",background:tab===t?"var(--purple-light)":"#fafafa",color:tab===t?"var(--purple-dark)":"#555",fontWeight:tab===t?500:400,cursor:"pointer",fontSize:13}}>
+            {t==="students"?"👤 Elever":t==="gloser"?"📚 Gloser":"📋 Rapport"}
           </button>
         ))}
       </div>
-      {tab === "students" && <>
+      {tab==="students"&&<>
         <div style={s.addBox}>
-          <input style={s.input} placeholder="Elevnavn" value={name} onChange={e => setName(e.target.value)} />
-          <input style={s.input} placeholder="PIN-kode (4 siffer)" value={pin} maxLength={4} onChange={e => setPin(e.target.value.replace(/\D/g,""))} />
+          <input style={s.input} placeholder="Elevnavn" value={name} onChange={e=>setName(e.target.value)}/>
+          <input style={s.input} placeholder="PIN-kode (4 siffer)" value={pin} maxLength={4} onChange={e=>setPin(e.target.value.replace(/\D/g,""))}/>
           <button style={s.bigBtn} onClick={addStudent}>Legg til elev +</button>
-          {msg && <div style={{ color: msg.startsWith("✅") ? "green" : "#e53935", fontWeight: 500 }}>{msg}</div>}
+          {msg&&<div style={{color:msg.startsWith("✅")?"green":"#e53935",fontWeight:500}}>{msg}</div>}
         </div>
         <div style={s.gloseList}>
-          {students.map(st => (
+          {students.map(st=>(
             <div key={st.id} style={s.gloseRow}>
-              <span style={{ flex: 1, fontSize: 15 }}>👤 {st.name} <span style={{ color: "#bbb", fontSize: 12 }}>PIN: {st.pin}</span></span>
-              <button style={s.deleteBtn} onClick={() => setStudents(ss => ss.filter(s => s.id !== st.id))}>✕</button>
+              <span style={{flex:1,fontSize:15}}>👤 {st.name} <span style={{color:"#bbb",fontSize:12}}>PIN: {st.pin}</span></span>
+              <span style={{fontSize:12,color:"var(--purple)",marginRight:8}}>⚽ {st.points||0}p</span>
+              <button style={s.deleteBtn} onClick={()=>setStudents(ss=>ss.filter(s=>s.id!==st.id))}>✕</button>
             </div>
           ))}
         </div>
       </>}
-      {tab === "gloser" && <>
+      {tab==="gloser"&&<>
         <div style={s.addBox}>
-          <input style={s.input} placeholder="🇳🇴 Norsk ord" value={newNo} onChange={e => setNewNo(e.target.value)} />
-          <input style={s.input} placeholder="🇬🇧 Engelsk ord" value={newEn} onChange={e => setNewEn(e.target.value)} />
+          <input style={s.input} placeholder="🇳🇴 Norsk ord" value={newNo} onChange={e=>setNewNo(e.target.value)} onBlur={e=>translateWord(e.target.value)}/>
+          <input style={{...s.input,color:newEn==="Oversetter..."?"#aaa":"var(--text)"}} placeholder="🇬🇧 Engelsk (fylles automatisk)" value={newEn} onChange={e=>setNewEn(e.target.value)}/>
           <button style={s.bigBtn} onClick={addGlose}>Legg til glose +</button>
-          {addMsg && <div style={{ color: "green", fontWeight: 500 }}>{addMsg}</div>}
+          {addMsg&&<div style={{color:"green",fontWeight:500}}>{addMsg}</div>}
         </div>
         <div style={s.gloseList}>
-          {[...gloser].sort((a,b) => b.id-a.id).map((g,i) => (
+          {[...gloser].sort((a,b)=>b.id-a.id).map((g,i)=>(
             <div key={g.id} style={s.gloseRow}>
-              {i < NEW_COUNT && <span style={{ fontSize: 10, background: "#fff3e0", color: "#e65100", borderRadius: 4, padding: "1px 5px", marginRight: 6 }}>NY</span>}
-              <span style={s.glosePair}>{g.no} <span style={{ color: "#aaa" }}>→</span> {g.en}</span>
-              <button style={s.deleteBtn} onClick={() => setGloser(g2 => g2.filter(x => x.id !== g.id))}>✕</button>
+              {i<NEW_COUNT&&<span style={{fontSize:10,background:"#fff3e0",color:"#e65100",borderRadius:4,padding:"1px 5px",marginRight:6}}>NY</span>}
+              <span style={s.glosePair}>{g.no} <span style={{color:"#aaa"}}>→</span> {g.en}</span>
+              <button style={s.deleteBtn} onClick={()=>setGloser(g2=>g2.filter(x=>x.id!==g.id))}>✕</button>
             </div>
           ))}
         </div>
       </>}
-      {tab === "report" && <TeacherReport gloser={gloser} students={students} onBack={() => setTab("gloser")} />}
+      {tab==="report"&&<TeacherReport gloser={gloser} students={students} onBack={()=>setTab("students")}/>}
     </div>
   );
 }
 
-function App() {
-  const [students, setStudents] = useState(initStudents);
-  const [gloser, setGloser] = useState(defaultGloser);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loginError, setLoginError] = useState("");
-  const [selectingStudent, setSelectingStudent] = useState(null);
-  const [screen, setScreen] = useState("home");
-  const [quizDeck, setQuizDeck] = useState([]);
-  const [quizIdx, setQuizIdx] = useState(0);
-  const [quizChoices, setQuizChoices] = useState([]);
-  const [quizAnswer, setQuizAnswer] = useState(null);
-  const [quizScore, setQuizScore] = useState(0);
-  const [quizDone, setQuizDone] = useState(false);
-  const [fcDeck, setFcDeck] = useState([]);
-  const [fcIdx, setFcIdx] = useState(0);
-  const [fcFlipped, setFcFlipped] = useState(false);
-  const [fcDir, setFcDir] = useState("no→en");
+// ── PIN PAD ──
+function PinPad({title,subtitle,onSubmit,error,onBack}){
+  const [pin,setPin]=useState("");
+  function press(d){
+    if(pin.length>=4)return;
+    const next=pin+d;setPin(next);
+    if(next.length===4){setTimeout(()=>{onSubmit(next);setPin("");},120);}
+  }
+  return(
+    <div style={{maxWidth:340,margin:"0 auto",padding:"32px 16px",textAlign:"center"}}>
+      {onBack&&<button style={s.back} onClick={onBack}>← Tilbake</button>}
+      <div style={{paddingTop:onBack?16:0}}>
+        <div style={{fontSize:40,marginBottom:8}}>🎓</div>
+        <div style={{fontSize:20,fontWeight:500}}>{title}</div>
+        {subtitle&&<div style={{fontSize:13,color:"var(--text2)",marginTop:4}}>{subtitle}</div>}
+        <div style={{display:"flex",justifyContent:"center",gap:12,margin:"24px 0 8px"}}>
+          {[0,1,2,3].map(i=><div key={i} style={{width:18,height:18,borderRadius:"50%",background:pin.length>i?"var(--purple)":"#e0e0e0",transition:"background 0.15s"}}/>)}
+        </div>
+        {error&&<div style={{fontSize:12,color:"#e53935",margin:"6px 0"}}>{error}</div>}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:10,marginTop:20}}>
+          {[1,2,3,4,5,6,7,8,9].map(d=><button key={d} style={s.pinBtn} onClick={()=>press(String(d))}>{d}</button>)}
+          <div/><button style={s.pinBtn} onClick={()=>press("0")}>0</button>
+          <button style={{...s.pinBtn,color:"var(--text3)"}} onClick={()=>setPin(p=>p.slice(0,-1))}>⌫</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  function recordHistory(en, correct) {
-    setStudents(ss => ss.map(st => st.id === currentUser.id ? { ...st, history: [...st.history, { en, correct }] } : st));
+// ── MAIN APP ──
+function App(){
+  const [students,setStudentsRaw]=useState(()=>loadLS("students",initStudents));
+  const [gloser,setGloserRaw]=useState(()=>loadLS("gloser",defaultGloser));
+  const [currentUser,setCurrentUser]=useState(null);
+  const [loginError,setLoginError]=useState("");
+  const [selecting,setSelecting]=useState(null);
+  const [screen,setScreen]=useState("home");
+  const [quizDeck,setQuizDeck]=useState([]);
+  const [quizIdx,setQuizIdx]=useState(0);
+  const [quizChoices,setQuizChoices]=useState([]);
+  const [quizAnswer,setQuizAnswer]=useState(null);
+  const [quizScore,setQuizScore]=useState(0);
+  const [quizDone,setQuizDone]=useState(false);
+  const [fcDeck,setFcDeck]=useState([]);
+  const [fcIdx,setFcIdx]=useState(0);
+  const [fcFlipped,setFcFlipped]=useState(false);
+  const [fcDir,setFcDir]=useState("no→en");
+  const [showPenalty,setShowPenalty]=useState(false);
+  const [penaltyResult,setPenaltyResult]=useState(null);
+  const [showClubPicker,setShowClubPicker]=useState(false);
+
+  function setStudents(fn){setStudentsRaw(prev=>{const next=typeof fn==="function"?fn(prev):fn;saveLS("students",next);return next;});}
+  function setGloser(fn){setGloserRaw(prev=>{const next=typeof fn==="function"?fn(prev):fn;saveLS("gloser",next);return next;});}
+
+  function addPoints(pts){
+    setStudents(ss=>ss.map(st=>{
+      if(st.id!==currentUser.id)return st;
+      const newPoints=(st.points||0)+pts;
+      const newSquad=[...( st.squad||[])];
+      // Every 3 points = new squad player
+      const oldPlayers=Math.floor((st.points||0)/3);
+      const newPlayers=Math.floor(newPoints/3);
+      for(let i=oldPlayers;i<newPlayers&&newSquad.length<11;i++)newSquad.push(`player_${Date.now()}_${i}`);
+      return{...st,points:newPoints,squad:newSquad};
+    }));
+    setCurrentUser(u=>({...u,points:(u.points||0)+pts}));
   }
 
-  if (!currentUser) {
-    if (!selectingStudent) return (
-      <div style={{ maxWidth: 380, margin: "0 auto", padding: "40px 16px", textAlign: "center" }}>
-        <div style={{ fontSize: 48 }}>🎓</div>
-        <div style={{ fontSize: 22, fontWeight: 500, marginTop: 8 }}>Glose-appen</div>
-        <div style={{ fontSize: 14, color: "var(--text2)", marginTop: 4, marginBottom: 28 }}>Hvem er du?</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
-          {students.map(st => (
-            <button key={st.id} style={{ padding: "16px 20px", borderRadius: 14, border: "1px solid #ddd", background: "#fafafa", fontSize: 16, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 12 }}
-              onClick={() => { setSelectingStudent(st); setLoginError(""); }}>
-              <span style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--purple-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 500, color: "var(--purple)" }}>
-                {st.name.charAt(0).toUpperCase()}
-              </span>
-              {st.name}
-            </button>
-          ))}
+  function recordHistory(en,correct,source){
+    setStudents(ss=>ss.map(st=>st.id!==currentUser.id?st:{...st,history:[...st.history,{en,correct,source}]}));
+  }
+  function recordSession(source){
+    setStudents(ss=>ss.map(st=>{
+      if(st.id!==currentUser.id)return st;
+      const k=source==="quiz"?"quizSessions":"hangmanSessions";
+      return{...st,[k]:(st[k]||0)+1};
+    }));
+  }
+
+  if(!currentUser){
+    if(!selecting)return(
+      <div style={{maxWidth:380,margin:"0 auto",padding:"40px 16px",textAlign:"center"}}>
+        <div style={{fontSize:48}}>🎓</div>
+        <div style={{fontSize:22,fontWeight:500,marginTop:8}}>Glose-appen</div>
+        <div style={{fontSize:14,color:"var(--text2)",marginTop:4,marginBottom:28}}>Hvem er du?</div>
+        <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24}}>
+          {students.map(st=>{
+            const club=st.club||CLUBS[0];
+            return(
+              <button key={st.id} style={{padding:"14px 20px",borderRadius:14,border:"1px solid #ddd",background:"#fafafa",fontSize:16,cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:12}}
+                onClick={()=>{setSelecting(st);setLoginError("");}}>
+                <span style={{width:40,height:40,borderRadius:"50%",background:club.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,border:`2px solid ${club.color}`,flexShrink:0}}>⚽</span>
+                <div>
+                  <div style={{fontWeight:500}}>{st.name}</div>
+                  <div style={{fontSize:11,color:"#888"}}>{club.name} · ⚽ {st.points||0} poeng</div>
+                </div>
+              </button>
+            );
+          })}
         </div>
-        <button style={{ width: "100%", padding: "12px", borderRadius: 12, border: "1px solid #ddd", background: "#f5f5f5", color: "#888", fontSize: 14, cursor: "pointer" }}
-          onClick={() => { setSelectingStudent("admin"); setLoginError(""); }}>🔒 Admin / Lærer</button>
+        <button style={{width:"100%",padding:"12px",borderRadius:12,border:"1px solid #ddd",background:"#f5f5f5",color:"#888",fontSize:14,cursor:"pointer"}}
+          onClick={()=>{setSelecting("admin");setLoginError("");}}>🔒 Admin / Lærer</button>
       </div>
     );
-    if (selectingStudent === "admin") return <PinPad title="Admin-innlogging" subtitle="Admin PIN" error={loginError} onBack={() => { setSelectingStudent(null); setLoginError(""); }} onSubmit={pin => { if (pin === ADMIN_PIN) { setCurrentUser("admin"); setSelectingStudent(null); setLoginError(""); } else setLoginError("Feil PIN, prøv igjen."); }} />;
-    return <PinPad title={selectingStudent.name} subtitle="Skriv inn PIN-koden din" error={loginError} onBack={() => { setSelectingStudent(null); setLoginError(""); }} onSubmit={pin => { if (pin === selectingStudent.pin) { setCurrentUser(selectingStudent); setSelectingStudent(null); setLoginError(""); setScreen("home"); } else setLoginError("Feil PIN, prøv igjen."); }} />;
+    if(selecting==="admin")return<PinPad title="Admin-innlogging" subtitle="Admin PIN" error={loginError} onBack={()=>{setSelecting(null);setLoginError("");}} onSubmit={p=>{if(p===ADMIN_PIN){setCurrentUser("admin");setSelecting(null);setLoginError("");}else setLoginError("Feil PIN, prøv igjen.");}}/>;
+    return<PinPad title={selecting.name} subtitle="Skriv inn PIN-koden din" error={loginError} onBack={()=>{setSelecting(null);setLoginError("");}} onSubmit={p=>{if(p===selecting.pin){setCurrentUser(selecting);setSelecting(null);setLoginError("");setScreen("home");}else setLoginError("Feil PIN, prøv igjen.");}}/>;
   }
 
-  if (currentUser === "admin") return <AdminPanel students={students} setStudents={setStudents} gloser={gloser} setGloser={setGloser} onBack={() => setCurrentUser(null)} />;
+  if(currentUser==="admin")return<AdminPanel students={students} setStudents={setStudents} gloser={gloser} setGloser={setGloser} onBack={()=>setCurrentUser(null)}/>;
 
-  function startFlashcards() { setFcDeck(shuffle(gloser)); setFcIdx(0); setFcFlipped(false); setScreen("flashcard"); }
-  function startQuiz() {
-    const deck = buildQuizDeck(gloser);
-    setQuizDeck(deck); setQuizIdx(0); setQuizScore(0); setQuizDone(false); setQuizAnswer(null);
-    makeChoices(deck, 0); setScreen("quiz");
-  }
-  function makeChoices(deck, idx) {
-    const correct = deck[idx];
-    setQuizChoices(shuffle([correct, ...shuffle(gloser.filter(g => g.en !== correct.en)).slice(0,3)]));
-  }
-  function handleQuizAnswer(choice) {
-    if (quizAnswer !== null) return;
-    const correct = quizDeck[quizIdx];
-    const isCorrect = choice.en === correct.en;
-    setQuizAnswer(choice.en);
-    recordHistory(correct.en, isCorrect);
-    if (isCorrect) setQuizScore(sc => sc+1);
-    setTimeout(() => {
-      const next = quizIdx+1;
-      if (next >= quizDeck.length) setQuizDone(true);
-      else { setQuizIdx(next); setQuizAnswer(null); makeChoices(quizDeck, next); }
-    }, 900);
-  }
-
-  if (screen === "hangman") return <HangmanGame gloser={gloser} onBack={() => setScreen("home")} />;
-  if (screen === "report") {
-    const st = students.find(s => s.id === currentUser.id);
-    return <TeacherReport gloser={gloser} students={[st]} onBack={() => setScreen("home")} />;
-  }
-  if (screen === "flashcard") {
-    const card = fcDeck[fcIdx];
-    const front = fcDir === "no→en" ? card.no : card.en, back = fcDir === "no→en" ? card.en : card.no;
-    return (
+  // Penalty overlay after quiz
+  if(showPenalty){
+    return(
       <div style={s.page}>
-        <div style={s.topBar}><button style={s.back} onClick={() => setScreen("home")}>← Hjem</button><span style={s.topTitle}>Flashcards</span>
-          <button style={s.smallBtn} onClick={() => setFcDir(d => d === "no→en" ? "en→no" : "no→en")}>{fcDir === "no→en" ? "🇳🇴→🇬🇧" : "🇬🇧→🇳🇴"}</button>
+        <div style={{textAlign:"center",padding:"20px 0 8px"}}>
+          <div style={{fontSize:28}}>⚽ Straffespark-runde!</div>
+          <div style={{fontSize:13,color:"#888",marginTop:4}}>Du fikk {quizScore} av {quizDeck.length} riktige — nå kan du score mål!</div>
+        </div>
+        <PenaltyGame onDone={goals=>{
+          const bonus=goals*2;
+          addPoints(quizScore+bonus);
+          setPenaltyResult({goals,bonus});
+          setShowPenalty(false);
+        }} playerName={currentUser.name}/>
+      </div>
+    );
+  }
+
+  if(penaltyResult){
+    const st=students.find(s=>s.id===currentUser.id);
+    const club=st?.club||CLUBS[0];
+    return(
+      <div style={s.page}>
+        <div style={s.resultBox}>
+          <div style={{fontSize:56}}>⚽</div>
+          <div style={s.resultTitle}>Økt fullført!</div>
+          <div style={{fontSize:15,color:"var(--text2)",textAlign:"center"}}>Quiz: +{quizScore}p &nbsp;|&nbsp; Straffespark: +{penaltyResult.bonus}p</div>
+          <div style={{fontSize:24,fontWeight:500,color:"var(--purple)"}}>+{quizScore+penaltyResult.bonus} poeng totalt!</div>
+          <div style={{width:"100%",margin:"8px 0"}}>
+            <div style={{fontSize:13,color:"#888",marginBottom:8,textAlign:"center"}}>Ditt lag ({st?.squad?.length||0}/11 spillere)</div>
+            <SquadDisplay squad={st?.squad||[]} clubColor={club.color}/>
+          </div>
+          {st?.squad?.length===11&&<div style={{fontSize:20,textAlign:"center",animation:"celebrate 1s infinite"}}>🏆 Laget er fullt!</div>}
+          <button style={s.bigBtn} onClick={()=>{setPenaltyResult(null);setScreen("home");}}>Hjem</button>
+        </div>
+      </div>
+    );
+  }
+
+  const stData=students.find(s=>s.id===currentUser.id);
+  const club=stData?.club||CLUBS[0];
+
+  if(showClubPicker){
+    return(
+      <div style={s.page}>
+        <div style={s.topBar}><button style={s.back} onClick={()=>setShowClubPicker(false)}>← Tilbake</button><span style={s.topTitle}>Velg klubb</span></div>
+        <ClubPicker current={club} onPick={c=>{
+          setStudents(ss=>ss.map(st=>st.id===currentUser.id?{...st,club:c}:st));
+          setCurrentUser(u=>({...u,club:c}));
+          setShowClubPicker(false);
+        }}/>
+      </div>
+    );
+  }
+
+  if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} recordHistory={recordHistory} recordSession={recordSession}/>;
+  if(screen==="leaderboard")return<Leaderboard students={students} onBack={()=>setScreen("home")}/>;
+  if(screen==="squad"){
+    return(
+      <div style={s.page}>
+        <div style={s.topBar}><button style={s.back} onClick={()=>setScreen("home")}>← Hjem</button><span style={s.topTitle}>Mitt lag</span></div>
+        <div style={{textAlign:"center",marginBottom:12}}>
+          <div style={{fontSize:16,fontWeight:500}}>{club.name}</div>
+          <div style={{fontSize:13,color:"#888"}}>{stData?.squad?.length||0}/11 spillere · ⚽ {stData?.points||0} poeng</div>
+          <button style={{fontSize:12,color:"var(--purple)",background:"none",border:"1px solid var(--purple)",borderRadius:20,padding:"4px 12px",cursor:"pointer",marginTop:8}} onClick={()=>setShowClubPicker(true)}>Bytt klubb</button>
+        </div>
+        <SquadDisplay squad={stData?.squad||[]} clubColor={club.color}/>
+        <div style={{fontSize:12,color:"#aaa",textAlign:"center",marginTop:12}}>Få ny spiller for hver 3. poeng du tjener!</div>
+      </div>
+    );
+  }
+  if(screen==="report"){
+    const st=students.find(s=>s.id===currentUser.id);
+    return<TeacherReport gloser={gloser} students={[st]} onBack={()=>setScreen("home")}/>;
+  }
+  if(screen==="flashcard"){
+    const card=fcDeck[fcIdx];
+    const front=fcDir==="no→en"?card.no:card.en,back=fcDir==="no→en"?card.en:card.no;
+    return(
+      <div style={s.page}>
+        <div style={s.topBar}><button style={s.back} onClick={()=>setScreen("home")}>← Hjem</button><span style={s.topTitle}>Flashcards</span>
+          <button style={s.smallBtn} onClick={()=>setFcDir(d=>d==="no→en"?"en→no":"no→en")}>{fcDir==="no→en"?"🇳🇴→🇬🇧":"🇬🇧→🇳🇴"}</button>
         </div>
         <div style={s.progress}>{fcIdx+1} / {fcDeck.length}</div>
-        <div style={{ ...s.card, cursor: "pointer" }} onClick={() => setFcFlipped(f => !f)}>
-          <div style={s.cardLang}>{fcFlipped ? (fcDir==="no→en"?"🇬🇧 Engelsk":"🇳🇴 Norsk") : (fcDir==="no→en"?"🇳🇴 Norsk":"🇬🇧 Engelsk")}</div>
-          <div style={s.cardWord}>{fcFlipped ? back : front}</div>
-          {!fcFlipped && <div style={s.cardHint}>Trykk for å snu</div>}
+        <div style={{...s.card,cursor:"pointer"}} onClick={()=>setFcFlipped(f=>!f)}>
+          <div style={s.cardLang}>{fcFlipped?(fcDir==="no→en"?"🇬🇧 Engelsk":"🇳🇴 Norsk"):(fcDir==="no→en"?"🇳🇴 Norsk":"🇬🇧 Engelsk")}</div>
+          <div style={s.cardWord}>{fcFlipped?back:front}</div>
+          {!fcFlipped&&<div style={s.cardHint}>Trykk for å snu</div>}
         </div>
         <div style={s.row}>
-          <button style={s.navBtn} onClick={() => { setFcIdx(i => Math.max(0,i-1)); setFcFlipped(false); }} disabled={fcIdx===0}>◀ Forrige</button>
-          <button style={s.navBtn} onClick={() => { if (fcIdx<fcDeck.length-1){setFcIdx(i=>i+1);setFcFlipped(false);}else setScreen("home"); }}>{fcIdx<fcDeck.length-1?"Neste ▶":"Ferdig ✓"}</button>
+          <button style={s.navBtn} onClick={()=>{setFcIdx(i=>Math.max(0,i-1));setFcFlipped(false);}} disabled={fcIdx===0}>◀ Forrige</button>
+          <button style={s.navBtn} onClick={()=>{if(fcIdx<fcDeck.length-1){setFcIdx(i=>i+1);setFcFlipped(false);}else setScreen("home");}}>{fcIdx<fcDeck.length-1?"Neste ▶":"Ferdig ✓"}</button>
         </div>
       </div>
     );
   }
-  if (screen === "quiz") {
-    if (quizDone) return (
+  if(screen==="quiz"){
+    if(quizDone)return(
       <div style={s.page}><div style={s.resultBox}>
-        <div style={{ fontSize: 64 }}>{quizScore===quizDeck.length?"🏆":quizScore>=quizDeck.length*0.7?"🌟":"💪"}</div>
+        <div style={{fontSize:64}}>{quizScore===quizDeck.length?"🏆":quizScore>=quizDeck.length*0.7?"🌟":"💪"}</div>
         <div style={s.resultTitle}>Quiz ferdig!</div>
         <div style={s.resultScore}>{quizScore} av {quizDeck.length} riktige</div>
-        <button style={s.bigBtn} onClick={startQuiz}>Prøv igjen</button>
-        <button style={{ ...s.bigBtn, background: "#e8f5e9", color: "#2e7d32" }} onClick={() => setScreen("report")}>📋 Se sammendrag</button>
-        <button style={{ ...s.bigBtn, ...s.btnGray }} onClick={() => setScreen("home")}>Hjem</button>
+        <button style={{...s.bigBtn,background:"#e53935"}} onClick={()=>{setQuizDone(false);setShowPenalty(true);}}>⚽ Skyt straffespark!</button>
+        <button style={{...s.bigBtn,background:"#e8f5e9",color:"#2e7d32"}} onClick={()=>setScreen("report")}>📋 Se sammendrag</button>
+        <button style={{...s.bigBtn,...s.btnGray}} onClick={()=>{addPoints(quizScore);setScreen("home");}}>Hjem (+{quizScore}p)</button>
       </div></div>
     );
-    const q = quizDeck[quizIdx];
-    const isNew = [...gloser].sort((a,b)=>b.id-a.id).slice(0,NEW_COUNT).some(g=>g.en===q.en);
-    return (
+    const q=quizDeck[quizIdx];
+    const isNew=[...gloser].sort((a,b)=>b.id-a.id).slice(0,NEW_COUNT).some(g=>g.en===q.en);
+    return(
       <div style={s.page}>
-        <div style={s.topBar}><button style={s.back} onClick={() => setScreen("home")}>← Hjem</button><span style={s.topTitle}>Quiz</span><span style={s.scoreTag}>⭐ {quizScore}</span></div>
+        <div style={s.topBar}><button style={s.back} onClick={()=>setScreen("home")}>← Hjem</button><span style={s.topTitle}>Quiz</span><span style={{fontSize:14,fontWeight:500}}>⭐ {quizScore}</span></div>
         <div style={s.progress}>{quizIdx+1} / {quizDeck.length}</div>
         <div style={s.questionBox}>
-          {isNew && <div style={{ fontSize: 11, background: "#fff3e0", color: "#e65100", borderRadius: 6, padding: "2px 8px", display: "inline-block", marginBottom: 8 }}>Ny glose</div>}
+          {isNew&&<div style={{fontSize:11,background:"#fff3e0",color:"#e65100",borderRadius:6,padding:"2px 8px",display:"inline-block",marginBottom:8}}>Ny glose</div>}
           <div style={s.questionLabel}>Hva er engelsk for:</div>
           <div style={s.questionWord}>{q.no}</div>
         </div>
         <div style={s.choicesGrid}>
-          {quizChoices.map((c,i) => {
-            let bg = "#fff";
-            if (quizAnswer !== null) { if (c.en===q.en) bg="#d4f7d4"; else if (c.en===quizAnswer) bg="#fdd"; }
-            return <button key={i} style={{ ...s.choice, background: bg }} onClick={() => handleQuizAnswer(c)}>{c.en}</button>;
+          {quizChoices.map((c,i)=>{
+            let bg="#fff";
+            if(quizAnswer!==null){if(c.en===q.en)bg="#d4f7d4";else if(c.en===quizAnswer)bg="#fdd";}
+            return<button key={i} style={{...s.choice,background:bg}} onClick={()=>{
+              if(quizAnswer!==null)return;
+              const correct=quizDeck[quizIdx];
+              const ok=c.en===correct.en;
+              setQuizAnswer(c.en);
+              recordHistory(correct.en,ok,"quiz");
+              if(ok)setQuizScore(sc=>sc+1);
+              setTimeout(()=>{
+                const next=quizIdx+1;
+                if(next>=quizDeck.length){recordSession("quiz");setQuizDone(true);}
+                else{setQuizIdx(next);setQuizAnswer(null);const nc=quizDeck[next];setQuizChoices(shuffle([nc,...shuffle(gloser.filter(g=>g.en!==nc.en)).slice(0,3)]));}
+              },900);
+            }}>{c.en}</button>;
           })}
         </div>
       </div>
     );
   }
 
-  return (
+  // HOME
+  function startFlashcards(){setFcDeck(shuffle(gloser));setFcIdx(0);setFcFlipped(false);setScreen("flashcard");}
+  function startQuiz(){
+    const deck=buildQuizDeck(gloser);
+    setQuizDeck(deck);setQuizIdx(0);setQuizScore(0);setQuizDone(false);setQuizAnswer(null);
+    const first=deck[0];setQuizChoices(shuffle([first,...shuffle(gloser.filter(g=>g.en!==first.en)).slice(0,3)]));
+    setScreen("quiz");
+  }
+
+  return(
     <div style={s.page}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 0 4px" }}>
-        <div><div style={{ fontSize: 18, fontWeight: 500 }}>Hei, {currentUser.name}! 👋</div><div style={{ fontSize: 13, color: "var(--text3)" }}>{gloser.length} gloser i listen</div></div>
-        <button style={{ background: "none", border: "1px solid #ddd", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#888", cursor: "pointer" }} onClick={() => setCurrentUser(null)}>Logg ut</button>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"20px 0 4px"}}>
+        <div>
+          <div style={{fontSize:18,fontWeight:500}}>Hei, {currentUser.name}! 👋</div>
+          <div style={{fontSize:13,color:"var(--text3)"}}>{gloser.length} gloser · ⚽ {stData?.points||0} poeng</div>
+        </div>
+        <button style={{background:"none",border:"1px solid #ddd",borderRadius:8,padding:"6px 12px",fontSize:12,color:"#888",cursor:"pointer"}} onClick={()=>setCurrentUser(null)}>Logg ut</button>
+      </div>
+      {/* Club banner */}
+      <div style={{background:club.bg,borderRadius:12,padding:"12px 16px",marginBottom:16,display:"flex",alignItems:"center",gap:12,cursor:"pointer"}} onClick={()=>setShowClubPicker(true)}>
+        <span style={{fontSize:28}}>⚽</span>
+        <div style={{flex:1}}>
+          <div style={{color:"white",fontWeight:500,fontSize:14}}>{club.name}</div>
+          <div style={{color:"rgba(255,255,255,0.7)",fontSize:12}}>{stData?.squad?.length||0}/11 spillere · Trykk for å bytte klubb</div>
+        </div>
+        <div style={{color:"white",fontSize:20,fontWeight:500}}>{stData?.points||0}p</div>
       </div>
       <div style={s.menuGrid}>
-        <button style={{ ...s.menuBtn, background: "#e3f2fd" }} onClick={startFlashcards}><span style={s.menuIcon}>🃏</span><span style={s.menuLabel}>Flashcards</span></button>
-        <button style={{ ...s.menuBtn, background: "#f3e5f5" }} onClick={() => gloser.length>=4?startQuiz():alert("Trenger minst 4 gloser!")}><span style={s.menuIcon}>🎯</span><span style={s.menuLabel}>Quiz</span></button>
-        <button style={{ ...s.menuBtn, background: "#fce4ec" }} onClick={() => setScreen("hangman")}><span style={s.menuIcon}>🪢</span><span style={s.menuLabel}>Hangman</span></button>
-        <button style={{ ...s.menuBtn, background: "#fff8e1" }} onClick={() => setScreen("report")}><span style={s.menuIcon}>📋</span><span style={s.menuLabel}>Sammendrag</span></button>
+        <button style={{...s.menuBtn,background:"#e3f2fd"}} onClick={startFlashcards}><span style={s.menuIcon}>🃏</span><span style={s.menuLabel}>Flashcards</span></button>
+        <button style={{...s.menuBtn,background:"#f3e5f5"}} onClick={()=>gloser.length>=4?startQuiz():alert("Trenger minst 4 gloser!")}><span style={s.menuIcon}>🎯</span><span style={s.menuLabel}>Quiz</span></button>
+        <button style={{...s.menuBtn,background:"#fce4ec"}} onClick={()=>setScreen("hangman")}><span style={s.menuIcon}>🪢</span><span style={s.menuLabel}>Hangman</span></button>
+        <button style={{...s.menuBtn,background:"#e8f5e9"}} onClick={()=>setScreen("squad")}><span style={s.menuIcon}>⚽</span><span style={s.menuLabel}>Mitt lag</span></button>
+        <button style={{...s.menuBtn,background:"#fff8e1"}} onClick={()=>setScreen("leaderboard")}><span style={s.menuIcon}>🏆</span><span style={s.menuLabel}>Poengtavle</span></button>
+        <button style={{...s.menuBtn,background:"#f9fbe7"}} onClick={()=>setScreen("report")}><span style={s.menuIcon}>📋</span><span style={s.menuLabel}>Sammendrag</span></button>
       </div>
     </div>
   );
 }
 
-const s = {
-  page: { maxWidth: 480, margin: "0 auto", padding: "0 16px 32px" },
-  topBar: { display: "flex", alignItems: "center", padding: "16px 0 8px", gap: 8 },
-  topTitle: { flex: 1, textAlign: "center", fontWeight: 500, fontSize: 17 },
-  back: { background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#555", padding: 0 },
-  smallBtn: { background: "none", border: "1px solid #ccc", borderRadius: 8, padding: "4px 8px", fontSize: 12, cursor: "pointer" },
-  scoreTag: { fontSize: 14, fontWeight: 500, minWidth: 40, textAlign: "right" },
-  progress: { textAlign: "center", fontSize: 13, color: "var(--text3)", marginBottom: 12 },
-  menuGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16 },
-  menuBtn: { border: "none", borderRadius: 16, padding: "20px 12px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 },
-  menuIcon: { fontSize: 32 },
-  menuLabel: { fontSize: 15, fontWeight: 500 },
-  card: { background: "#fff", border: "1px solid #ddd", borderRadius: 20, padding: "40px 24px", textAlign: "center", minHeight: 160, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", margin: "0 0 20px" },
-  cardLang: { fontSize: 13, color: "var(--text3)", marginBottom: 8 },
-  cardWord: { fontSize: 36, fontWeight: 500 },
-  cardHint: { fontSize: 12, color: "#bbb", marginTop: 16 },
-  row: { display: "flex", gap: 12 },
-  navBtn: { flex: 1, padding: "14px", borderRadius: 12, border: "1px solid #ddd", background: "#f9f9f9", fontSize: 15, cursor: "pointer" },
-  questionBox: { background: "#f5f0ff", borderRadius: 16, padding: "22px 20px", textAlign: "center", marginBottom: 20 },
-  questionLabel: { fontSize: 14, color: "var(--text2)", marginBottom: 8 },
-  questionWord: { fontSize: 34, fontWeight: 500 },
-  choicesGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 },
-  choice: { padding: "18px 8px", borderRadius: 12, border: "1px solid #ddd", fontSize: 17, cursor: "pointer" },
-  resultBox: { display: "flex", flexDirection: "column", alignItems: "center", gap: 12, paddingTop: 48 },
-  resultTitle: { fontSize: 26, fontWeight: 500 },
-  resultScore: { fontSize: 18, color: "var(--text2)" },
-  bigBtn: { width: "100%", padding: "14px", borderRadius: 12, border: "none", background: "var(--purple)", color: "#fff", fontSize: 16, cursor: "pointer", fontWeight: 500 },
-  btnGray: { background: "#f0f0f0", color: "#333" },
-  addBox: { display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 },
-  input: { padding: "12px 14px", borderRadius: 10, border: "1px solid #ccc", fontSize: 16 },
-  gloseList: { display: "flex", flexDirection: "column", gap: 8 },
-  gloseRow: { display: "flex", alignItems: "center", background: "#fafafa", borderRadius: 10, padding: "10px 14px", border: "1px solid #eee" },
-  glosePair: { flex: 1, fontSize: 15 },
-  deleteBtn: { background: "none", border: "none", color: "#ccc", fontSize: 16, cursor: "pointer" },
-  letterBox: { width: 36, height: 44, border: "1px solid #ccc", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, background: "#fafafa" },
-  keyboard: { display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" },
-  key: { width: 36, height: 40, border: "1px solid #ddd", borderRadius: 8, fontSize: 15, fontWeight: 500 },
-  pinBtn: { padding: "16px", borderRadius: 12, border: "1px solid #ddd", background: "#fafafa", fontSize: 22, cursor: "pointer" },
+const s={
+  page:{maxWidth:480,margin:"0 auto",padding:"0 16px 32px"},
+  topBar:{display:"flex",alignItems:"center",padding:"16px 0 8px",gap:8},
+  topTitle:{flex:1,textAlign:"center",fontWeight:500,fontSize:17},
+  back:{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"#555",padding:0},
+  smallBtn:{background:"none",border:"1px solid #ccc",borderRadius:8,padding:"4px 8px",fontSize:12,cursor:"pointer"},
+  progress:{textAlign:"center",fontSize:13,color:"var(--text3)",marginBottom:12},
+  menuGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginTop:4},
+  menuBtn:{border:"none",borderRadius:16,padding:"18px 12px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:8},
+  menuIcon:{fontSize:30},
+  menuLabel:{fontSize:14,fontWeight:500},
+  card:{background:"#fff",border:"1px solid #ddd",borderRadius:20,padding:"40px 24px",textAlign:"center",minHeight:160,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",margin:"0 0 20px"},
+  cardLang:{fontSize:13,color:"var(--text3)",marginBottom:8},
+  cardWord:{fontSize:36,fontWeight:500},
+  cardHint:{fontSize:12,color:"#bbb",marginTop:16},
+  row:{display:"flex",gap:12},
+  navBtn:{flex:1,padding:"14px",borderRadius:12,border:"1px solid #ddd",background:"#f9f9f9",fontSize:15,cursor:"pointer"},
+  questionBox:{background:"#f5f0ff",borderRadius:16,padding:"22px 20px",textAlign:"center",marginBottom:20},
+  questionLabel:{fontSize:14,color:"var(--text2)",marginBottom:8},
+  questionWord:{fontSize:34,fontWeight:500},
+  choicesGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
+  choice:{padding:"18px 8px",borderRadius:12,border:"1px solid #ddd",fontSize:17,cursor:"pointer"},
+  resultBox:{display:"flex",flexDirection:"column",alignItems:"center",gap:12,paddingTop:32},
+  resultTitle:{fontSize:26,fontWeight:500},
+  resultScore:{fontSize:18,color:"var(--text2)"},
+  bigBtn:{width:"100%",padding:"14px",borderRadius:12,border:"none",background:"var(--purple)",color:"#fff",fontSize:16,cursor:"pointer",fontWeight:500},
+  btnGray:{background:"#f0f0f0",color:"#333"},
+  addBox:{display:"flex",flexDirection:"column",gap:10,marginBottom:20},
+  input:{padding:"12px 14px",borderRadius:10,border:"1px solid #ccc",fontSize:16},
+  gloseList:{display:"flex",flexDirection:"column",gap:8},
+  gloseRow:{display:"flex",alignItems:"center",background:"#fafafa",borderRadius:10,padding:"10px 14px",border:"1px solid #eee"},
+  glosePair:{flex:1,fontSize:15},
+  deleteBtn:{background:"none",border:"none",color:"#ccc",fontSize:16,cursor:"pointer"},
+  letterBox:{width:36,height:44,border:"1px solid #ccc",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,background:"#fafafa"},
+  keyboard:{display:"flex",flexWrap:"wrap",gap:6,justifyContent:"center"},
+  key:{width:36,height:40,border:"1px solid #ddd",borderRadius:8,fontSize:15,fontWeight:500},
+  pinBtn:{padding:"16px",borderRadius:12,border:"1px solid #ddd",background:"#fafafa",fontSize:22,cursor:"pointer"},
 };
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
 </html>
