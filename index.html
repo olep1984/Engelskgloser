@@ -1130,12 +1130,13 @@ function App(){
     }
     load();
 
-    // Real-time listener for students
+    // Real-time listener for students — keyed by id
     let unsub = null;
     try {
       unsub = window.fbOn("glose/students", (val) => {
         if (val) {
-          const arr = Array.isArray(val) ? val.filter(Boolean) : Object.values(val).filter(Boolean);
+          // val is object like {"1": {...}, "2": {...}}
+          const arr = Object.values(val).filter(v => v && v.id);
           setStudentsState(arr);
         }
       });
