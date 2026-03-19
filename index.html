@@ -1161,11 +1161,13 @@ function App(){
   }
 
   async function updateStudent(id, updates) {
-    // Write directly to the student's node to avoid race conditions
-    try { await window.fbSet("glose/students/" + id, {...(students.find(s=>s.id===id)||{}), ...updates}); } catch {}
-    const ns = students.map(st => st.id !== id ? st : {...st, ...updates});
-    setStudentsState(ns);
+    const current = students.find(s => s.id === id) || {};
+    const merged = {...current, ...updates};
+    // Update local state immediately
+    setStudentsState(prev => prev.map(st => st.id !== id ? st : merged));
     if (currentUser && currentUser.id === id) setCurrentUser(u => ({...u, ...updates}));
+    // Write to Firebase
+    try { await window.fbSet("glose/students/" + id, merged); } catch(e) { console.error("Firebase write failed:", e); }
   }
 
   function addCoins(c){
@@ -1228,7 +1230,11 @@ function App(){
   );
 
   if(screen==="flags")return<FlagQuiz onBack={()=>setScreen("home")} addCoins={addCoins}/>;
-  if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)}/>;
+  if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>{
+    const st=getStudent();
+    updateStudent(currentUser.id,{hangmanSessions:(st.hangmanSessions||0)+1});
+    setScreen("home");
+  }} onCorrect={()=>addCoins(1)}/>;
   if(screen==="leaderboard")return<Leaderboard students={students} onBack={()=>setScreen("home")}/>;
   if(screen==="shop")return<AvatarShop student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("home")}/>;
   if(screen==="report")return<TeacherReport gloser={gloser} students={students} singleStudent={stData.id} onBack={()=>setScreen("home")}/>;
@@ -1287,8 +1293,8 @@ function App(){
               setTimeout(()=>{
                 const nx=quizIdx+1;
                 if(nx>=quizDeck.length){
-                  const fresh=students.find(s=>s.id===currentUser.id);
-                  updateStudent(currentUser.id,{quizSessions:(fresh?.quizSessions||0)+1});
+                  const st=getStudent();
+                  updateStudent(currentUser.id,{quizSessions:(st.quizSessions||0)+1});
                   setQuizDone(true);
                 }
                 else{setQuizIdx(nx);setQuizAnswer(null);const nc=quizDeck[nx];setQuizChoices(shuffle([nc,...shuffle(gloser.filter(g=>g.en!==nc.en)).slice(0,3)]));}
@@ -1300,12 +1306,15 @@ function App(){
     );
   }
 
+  function getStudent() { return students.find(s => s.id === currentUser?.id) || stData; }
+
   function startFlashcards(){
-    const fresh=students.find(s=>s.id===currentUser.id);
+    const st = getStudent();
     setFcDeck(shuffle(gloser));setFcIdx(0);setFcFlipped(false);
-    updateStudent(currentUser.id,{flashcardSessions:(fresh?.flashcardSessions||0)+1});
+    updateStudent(currentUser.id,{flashcardSessions:(st.flashcardSessions||0)+1});
     setScreen("flashcard");
   }
+
   function startQuiz(){
     const deck=buildQuizDeck(gloser);setQuizDeck(deck);setQuizIdx(0);setQuizScore(0);setQuizDone(false);setQuizAnswer(null);
     const f=deck[0];setQuizChoices(shuffle([f,...shuffle(gloser.filter(g=>g.en!==f.en)).slice(0,3)]));
