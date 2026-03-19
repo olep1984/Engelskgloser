@@ -473,10 +473,9 @@ function FlagQuiz({onBack, addCoins}) {
             else if (f.code === chosen) { bg = "#fdd"; border = "2px solid #e53935"; }
           }
           return (
-            <button key={i} style={{...s.choice, background:bg, border, fontSize:14, padding:"14px 8px", display:"flex", alignItems:"center", justifyContent:"center", gap:6}}
+            <button key={i} style={{...s.choice, background:bg, border, fontSize:14, padding:"14px 8px"}}
               onClick={() => pick(f)}>
-              <FlagImg code={f.code} size={22}/>
-              <span>{f.name}</span>
+              {f.name}
             </button>
           );
         })}
