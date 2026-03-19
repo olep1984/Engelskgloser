@@ -116,8 +116,7 @@ function AvatarDisplay({avatar, name, size=80, coins, showCoins=false}) {
   const gender = avatar?.gender || "male";
   const isMale = gender === "male";
   const kits = isMale ? MALE_KITS : FEMALE_KITS;
-  const hairs = isMale ? MALE_HAIR : FEMALE_HAIR;
-  const kit = kits.find(k => k.id === (avatar?.kit || "basic")) || kits[0];
+  const hairs = isMale ? MALE_HAIR : FEMALE_HAIR;  const kit = kits.find(k => k.id === (avatar?.kit || "basic")) || kits[0];
   const hair = hairs.find(h => h.id === (avatar?.hair || (isMale?"short":"long"))) || hairs[0];
   const hasExtra = avatar?.extra;
   const initials = name ? name.charAt(0).toUpperCase() : "?";
@@ -466,7 +465,6 @@ function TeacherReport({gloser, students, singleStudent, onBack}) {
   const hp = hi.length > 0 ? Math.round(hi.filter(h=>h.correct).length/hi.length*100) : 0;
   const can = gloser.filter(g => status(g.en) === "kan").length;
   const kit = (st?.avatar?.gender==="female" ? FEMALE_KITS : MALE_KITS).find(k=>k.id===(st?.avatar?.kit||"basic")) || MALE_KITS[0];
-
   function buildText() {
     let t = `Rapport – ${st?.name} – ${today}\n\n`;
     t += `AKTIVITET\n`;
