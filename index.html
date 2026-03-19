@@ -816,7 +816,11 @@ function App(){
               if(ok)setQuizScore(sc=>sc+1);
               setTimeout(()=>{
                 const nx=quizIdx+1;
-                if(nx>=quizDeck.length){updateStudent(currentUser.id,{quizSessions:(stData.quizSessions||0)+1});setQuizDone(true);}
+                if(nx>=quizDeck.length){
+                  const fresh=students.find(s=>s.id===currentUser.id);
+                  updateStudent(currentUser.id,{quizSessions:(fresh?.quizSessions||0)+1});
+                  setQuizDone(true);
+                }
                 else{setQuizIdx(nx);setQuizAnswer(null);const nc=quizDeck[nx];setQuizChoices(shuffle([nc,...shuffle(gloser.filter(g=>g.en!==nc.en)).slice(0,3)]));}
               },900);
             }}>{c.en}</button>;
@@ -827,8 +831,9 @@ function App(){
   }
 
   function startFlashcards(){
+    const fresh=students.find(s=>s.id===currentUser.id);
     setFcDeck(shuffle(gloser));setFcIdx(0);setFcFlipped(false);
-    updateStudent(currentUser.id,{flashcardSessions:(stData.flashcardSessions||0)+1});
+    updateStudent(currentUser.id,{flashcardSessions:(fresh?.flashcardSessions||0)+1});
     setScreen("flashcard");
   }
   function startQuiz(){
