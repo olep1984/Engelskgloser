@@ -191,7 +191,7 @@ function AvatarShop({student,onUpdate,onBack}){
 }
 
 // ── MATHS GAME ──
-function MathGame({onBack, addCoins}) {
+function MathGame({onBack, addCoins, mode}) {
   const [score, setScore] = useState(0);
   const [q, setQ] = useState(null);
   const [chosen, setChosen] = useState(null);
@@ -200,16 +200,26 @@ function MathGame({onBack, addCoins}) {
   const TOTAL = 10;
 
   function newQuestion() {
-    const a = Math.floor(Math.random() * 10) + 1;
-    const b = Math.floor(Math.random() * 10) + 1;
-    const answer = a * b;
+    let a, b, answer, op;
+    if (mode === "multiply") {
+      a = Math.floor(Math.random() * 10) + 1;
+      b = Math.floor(Math.random() * 10) + 1;
+      answer = a * b; op = "×";
+    } else if (mode === "add") {
+      a = Math.floor(Math.random() * 20) + 1;
+      b = Math.floor(Math.random() * 20) + 1;
+      answer = a + b; op = "+";
+    } else {
+      a = Math.floor(Math.random() * 20) + 10;
+      b = Math.floor(Math.random() * a) + 1;
+      answer = a - b; op = "−";
+    }
     const wrong = new Set();
     while (wrong.size < 3) {
-      let w = answer + (Math.floor(Math.random() * 10) - 5) * (Math.random() > 0.5 ? 1 : a);
+      let w = answer + (Math.floor(Math.random() * 8) - 4);
       if (w !== answer && w > 0) wrong.add(w);
     }
-    const choices = shuffle([answer, ...wrong]);
-    setQ({a, b, answer, choices});
+    setQ({a, b, answer, op, choices: shuffle([answer, ...wrong])});
     setChosen(null);
   }
 
@@ -218,47 +228,64 @@ function MathGame({onBack, addCoins}) {
   function pick(val) {
     if (chosen !== null) return;
     setChosen(val);
-    const correct = val === q.answer;
-    if (correct) { setScore(s => s + 1); addCoins(1); }
+    if (val === q.answer) { setScore(s => s + 1); addCoins(1); }
     setTimeout(() => {
       if (round + 1 >= TOTAL) setDone(true);
       else { setRound(r => r + 1); newQuestion(); }
     }, 900);
   }
 
+  const colors = {multiply:"#e0f7fa", add:"#e8f5e9", subtract:"#fff3e0"};
+  const titles = {multiply:"✖️ Ganging", add:"➕ Addisjon", subtract:"➖ Subtraksjon"};
+
   if (done) return (
     <div style={s.page}><div style={s.resultBox}>
-      <div style={{fontSize:64}}>{score >= 9 ? "🏆" : score >= 6 ? "🌟" : "💪"}</div>
+      <div style={{fontSize:64}}>{score>=9?"🏆":score>=6?"🌟":"💪"}</div>
       <div style={s.resultTitle}>Ferdig!</div>
       <div style={s.resultScore}>{score} av {TOTAL} riktige</div>
       <div style={{fontSize:16,color:"#f9a825",fontWeight:500}}>+{score} 🪙 coins tjent!</div>
-      <button style={s.bigBtn} onClick={() => { setScore(0); setRound(0); setDone(false); newQuestion(); }}>Prøv igjen</button>
+      <button style={s.bigBtn} onClick={()=>{setScore(0);setRound(0);setDone(false);newQuestion();}}>Prøv igjen</button>
       <button style={{...s.bigBtn,...s.btnGray}} onClick={onBack}>Hjem</button>
     </div></div>
   );
 
   if (!q) return null;
-
   return (
     <div style={s.page}>
-      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>✖️ Gangetabell</span><span style={{fontSize:14,fontWeight:500}}>⭐ {score}</span></div>
-      <div style={s.progress}>{round + 1} / {TOTAL}</div>
-      <div style={{background:"#e0f7fa", borderRadius:20, padding:"40px 24px", textAlign:"center", marginBottom:20}}>
+      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>{titles[mode]}</span><span style={{fontSize:14,fontWeight:500}}>⭐ {score}</span></div>
+      <div style={s.progress}>{round+1} / {TOTAL}</div>
+      <div style={{background:colors[mode],borderRadius:20,padding:"40px 24px",textAlign:"center",marginBottom:20}}>
         <div style={{fontSize:13,color:"var(--text3)",marginBottom:8}}>Hva er?</div>
-        <div style={{fontSize:52,fontWeight:500}}>{q.a} × {q.b} = ?</div>
+        <div style={{fontSize:52,fontWeight:500}}>{q.a} {q.op} {q.b} = ?</div>
       </div>
       <div style={s.choicesGrid}>
-        {q.choices.map((c,i) => {
-          let bg = "#fff";
-          if (chosen !== null) {
-            if (c === q.answer) bg = "#d4f7d4";
-            else if (c === chosen) bg = "#fdd";
-          }
-          return (
-            <button key={i} style={{...s.choice, background:bg, fontSize:26, fontWeight:500, padding:"22px 8px"}}
-              onClick={() => pick(c)}>{c}</button>
-          );
+        {q.choices.map((c,i)=>{
+          let bg="#fff";
+          if(chosen!==null){if(c===q.answer)bg="#d4f7d4";else if(c===chosen)bg="#fdd";}
+          return <button key={i} style={{...s.choice,background:bg,fontSize:26,fontWeight:500,padding:"22px 8px"}} onClick={()=>pick(c)}>{c}</button>;
         })}
+      </div>
+    </div>
+  );
+}
+
+function MathMenu({onBack, addCoins}) {
+  const [mode, setMode] = useState(null);
+  if (mode) return <MathGame onBack={()=>setMode(null)} addCoins={addCoins} mode={mode}/>;
+  return (
+    <div style={s.page}>
+      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>🔢 Matte</span></div>
+      <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:8}}>
+        {[
+          {mode:"add",icon:"➕",label:"Addisjon",desc:"Pluss-oppgaver opp til 40",bg:"#e8f5e9"},
+          {mode:"subtract",icon:"➖",label:"Subtraksjon",desc:"Minus-oppgaver opp til 30",bg:"#fff3e0"},
+          {mode:"multiply",icon:"✖️",label:"Gangetabell",desc:"1–10 gangen",bg:"#e0f7fa"},
+        ].map(({mode:m,icon,label,desc,bg})=>(
+          <button key={m} onClick={()=>setMode(m)} style={{background:bg,border:"1px solid #eee",borderRadius:16,padding:"20px",display:"flex",alignItems:"center",gap:16,cursor:"pointer",textAlign:"left"}}>
+            <span style={{fontSize:36}}>{icon}</span>
+            <div><div style={{fontWeight:500,fontSize:17}}>{label}</div><div style={{fontSize:13,color:"var(--text2)",marginTop:2}}>{desc}</div></div>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -678,7 +705,7 @@ function App(){
   );
 
   if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)}/>;
-  if(screen==="maths")return<MathGame onBack={()=>setScreen("home")} addCoins={addCoins}/>;
+  if(screen==="maths")return<MathMenu onBack={()=>setScreen("home")} addCoins={addCoins}/>;
   if(screen==="leaderboard")return<Leaderboard students={students} onBack={()=>setScreen("home")}/>;
   if(screen==="shop")return<AvatarShop student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("home")}/>;
   if(screen==="report"){const st=students.find(s=>s.id===currentUser.id);return<TeacherReport gloser={gloser} students={[st]} onBack={()=>setScreen("home")}/>;}
