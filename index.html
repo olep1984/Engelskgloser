@@ -678,22 +678,43 @@ function App(){
 
   useEffect(()=>{
     async function load(){
-      const ss=await dbGet("students");
-      const gg=await dbGet("gloser");
-      if(ss)setStudentsState(ss);
-      if(gg)setGloserState(gg);
+      const ss = await dbGet("students");
+      const gg = await dbGet("gloser");
+      if (ss) {
+        // Support both array and object format from Firebase
+        const arr = Array.isArray(ss) ? ss : Object.values(ss);
+        setStudentsState(arr);
+      }
+      if (gg) {
+        const arr = Array.isArray(gg) ? gg : Object.values(gg);
+        setGloserState(arr);
+      }
       setLoaded(true);
     }
     load();
   },[]);
 
-  async function saveStudents(ns){setStudentsState(ns);await dbSet("students",ns);}
-  async function saveGloser(ng){setGloserState(ng);await dbSet("gloser",ng);}
+  async function saveStudents(ns) {
+    setStudentsState(ns);
+    // Save as object keyed by id for safe partial updates
+    const obj = {};
+    ns.forEach(s => { obj[s.id] = s; });
+    await dbSet("students", obj);
+  }
 
-  async function updateStudent(id,updates){
-    const ns=students.map(st=>st.id!==id?st:{...st,...updates});
-    await saveStudents(ns);
-    if(currentUser&&currentUser.id===id)setCurrentUser(u=>({...u,...updates}));
+  async function saveGloser(ng) {
+    setGloserState(ng);
+    const obj = {};
+    ng.forEach((g,i) => { obj[g.id] = g; });
+    await dbSet("gloser", obj);
+  }
+
+  async function updateStudent(id, updates) {
+    // Write directly to the student's node to avoid race conditions
+    try { await window.fbSet("glose/students/" + id, {...(students.find(s=>s.id===id)||{}), ...updates}); } catch {}
+    const ns = students.map(st => st.id !== id ? st : {...st, ...updates});
+    setStudentsState(ns);
+    if (currentUser && currentUser.id === id) setCurrentUser(u => ({...u, ...updates}));
   }
 
   function addCoins(c){
