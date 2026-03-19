@@ -364,7 +364,7 @@ function MathMenu({onBack,addCoins,onStart}){
       <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>🔢 Matte</span></div>
       <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:8}}>
         {[{mode:"add",icon:"➕",label:"Addisjon",desc:"Pluss opp til 40",bg:"#e8f5e9"},{mode:"subtract",icon:"➖",label:"Subtraksjon",desc:"Minus opp til 30",bg:"#fff3e0"},{mode:"multiply",icon:"✖️",label:"Gangetabell",desc:"1–10 gangen",bg:"#e0f7fa"}].map(({mode:m,icon,label,desc,bg})=>(
-          <button key={m} onClick={()=>{onStart&&onStart();setMode(m);}} style={{background:bg,border:"1px solid #eee",borderRadius:16,padding:"18px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",textAlign:"left"}}>
+          <button key={m} onClick={()=>{onStart&&onStart(m);setMode(m);}} style={{background:bg,border:"1px solid #eee",borderRadius:16,padding:"18px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",textAlign:"left"}}>
             <span style={{fontSize:34}}>{icon}</span>
             <div><div style={{fontWeight:500,fontSize:16}}>{label}</div><div style={{fontSize:13,color:"var(--text2)",marginTop:2}}>{desc}</div></div>
           </button>
@@ -415,7 +415,7 @@ function FlagImg({code, size=90}) {
   );
 }
 
-function FlagQuiz({onBack, addCoins}) {
+function FlagQuiz({onBack, addCoins, onDone}) {
   const [deck] = useState(() => getDailyFlags());
   const [idx, setIdx] = useState(0);
   const [chosen, setChosen] = useState(null);
@@ -438,7 +438,7 @@ function FlagQuiz({onBack, addCoins}) {
     const correct = flag.code === deck[idx].code;
     if (correct) { setScore(s => s + 1); addCoins(1); }
     setTimeout(() => {
-      if (idx + 1 >= deck.length) setDone(true);
+      if (idx + 1 >= deck.length) { onDone&&onDone(); setDone(true); }
       else { setIdx(i => { makeChoices(i + 1); return i + 1; }); }
     }, 1000);
   }
@@ -541,7 +541,10 @@ function TeacherReport({gloser,students,singleStudent,onBack}){
       <StatCard icon="🃏" title="Flashcards" sessions={st?.flashcardSessions||0}/>
       <StatCard icon="🎯" title="Quiz" sessions={st?.quizSessions||0} correct={qi.filter(h=>h.correct).length} total={qi.length} pct={qp}/>
       <StatCard icon="🪢" title="Hangman" sessions={st?.hangmanSessions||0} correct={hi.filter(h=>h.correct).length} total={hi.length} pct={hp}/>
-      <StatCard icon="✖️" title="Matte" sessions={st?.mathSessions||0}/>
+      <StatCard icon="➕" title="Addisjon" sessions={st?.mathAddSessions||0}/>
+      <StatCard icon="➖" title="Subtraksjon" sessions={st?.mathSubtractSessions||0}/>
+      <StatCard icon="✖️" title="Gangetabell" sessions={st?.mathMultiplySessions||0}/>
+      <StatCard icon="🌍" title="Flaggquiz" sessions={st?.flagSessions||0}/>
       <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:"12px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
         <AvatarDisplay avatar={st?.avatar} name={st?.name||"?"} size={50}/>
         <div style={{fontSize:13,color:"var(--text2)"}}><div>{st?.avatar?.gender==="female"?"👧 Jente":"👦 Gutt"}</div><div>Drakt: {kit?.label}</div><div>🪙 {st?.coins||0} coins</div></div>
@@ -667,6 +670,10 @@ function App(){
   const [fcDir,setFcDir]=useState("no→en");
   const [showPenalty,setShowPenalty]=useState(false);
   const [penaltyResult,setPenaltyResult]=useState(null);
+  const [mathMultiplySessions,setMathMultiplySessions]=useState(0);
+  const [mathAddSessions,setMathAddSessions]=useState(0);
+  const [mathSubtractSessions,setMathSubtractSessions]=useState(0);
+  const [flagSessions,setFlagSessions]=useState(0);
   const [coinAnim,setCoinAnim]=useState(null);
 
   useEffect(()=>{
