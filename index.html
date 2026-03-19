@@ -327,8 +327,12 @@ function TeacherReport({gloser,students,onBack}){
 // ── ADMIN ──
 function AdminPanel({students,gloser,onSaveStudents,onSaveGloser,onBack}){
   const [tab,setTab]=useState("students");
-  const [name,setName]=useState(""),pinVal,setPinVal]=useState(""),msg,setMsg]=useState("");
-  const [newNo,setNewNo]=useState(""),newEn,setNewEn]=useState(""),addMsg,setAddMsg]=useState("");
+  const [name,setName]=useState("");
+  const [pinVal,setPinVal]=useState("");
+  const [msg,setMsg]=useState("");
+  const [newNo,setNewNo]=useState("");
+  const [newEn,setNewEn]=useState("");
+  const [addMsg,setAddMsg]=useState("");
   const [translating,setTranslating]=useState(false);
   const [nextSId,setNextSId]=useState(()=>Math.max(...students.map(s=>s.id),0)+1);
   const [nextGId,setNextGId]=useState(()=>Math.max(...gloser.map(g=>g.id),0)+1);
