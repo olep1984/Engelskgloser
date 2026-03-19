@@ -15,12 +15,18 @@
     const db = firebase.database();
     window.fbGet = async (key) => { const s = await db.ref(key).get(); return s.exists() ? s.val() : null; };
     window.fbSet = async (key, val) => { await db.ref(key).set(val); };
+    window.fbOn = (key, cb) => {
+      const ref = db.ref(key);
+      ref.on("value", snap => cb(snap.exists() ? snap.val() : null));
+      return () => ref.off("value");
+    };
     window.firebaseReady = true;
   } catch(e) {
     console.error("Firebase init failed:", e);
     window.firebaseReady = false;
     window.fbGet = async () => null;
     window.fbSet = async () => {};
+    window.fbOn = (key, cb) => () => {};
   }
 </script>
 <style>
@@ -1115,23 +1121,27 @@ function App(){
 
   useEffect(()=>{
     async function load(){
-      const ss = await dbGet("students");
       const gg = await dbGet("gloser");
-      if (ss) {
-        const arr = Array.isArray(ss)
-          ? ss.filter(Boolean)
-          : Object.values(ss).filter(Boolean);
-        setStudentsState(arr);
-      }
       if (gg) {
-        const arr = Array.isArray(gg)
-          ? gg.filter(Boolean)
-          : Object.values(gg).filter(Boolean);
+        const arr = Array.isArray(gg) ? gg.filter(Boolean) : Object.values(gg).filter(Boolean);
         setGloserState(arr);
       }
       setLoaded(true);
     }
     load();
+
+    // Real-time listener for students
+    let unsub = null;
+    try {
+      unsub = window.fbOn("glose/students", (val) => {
+        if (val) {
+          const arr = Array.isArray(val) ? val.filter(Boolean) : Object.values(val).filter(Boolean);
+          setStudentsState(arr);
+        }
+      });
+    } catch(e) { console.error("fbOn failed", e); }
+
+    return () => { if (unsub) unsub(); };
   },[]);
 
   async function saveStudents(ns) {
