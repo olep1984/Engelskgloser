@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Glose-appen</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f7; min-height: 100vh; }
+  input, button { font-family: inherit; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f5; --border: #e0e0e0;
+    --text: #1a1a1a; --text2: #666; --text3: #aaa;
+    --purple: #5c6bc0; --purple-light: #ede7f6; --purple-dark: #4527a0;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+const ADMIN_PIN = "1234";
+const MAX_WRONG = 3;
+const NEW_COUNT = 5;
+
+const defaultGloser = [
+  { no: "hund", en: "dog", id: 1 },
+  { no: "katt", en: "cat", id: 2 },
+  { no: "hus", en: "house", id: 3 },
+  { no: "bil", en: "car", id: 4 },
+  { no: "bok", en: "book", id: 5 },
+  { no: "skole", en: "school", id: 6 },
+  { no: "venn", en: "friend", id: 7 },
+  { no: "mat", en: "food", id: 8 },
+];
+
+const initStudents = [
+  { id: 1, name: "Elev 1", pin: "1111", history: [] },
+  { id: 2, name: "Elev 2", pin: "2222", history: [] },
+];
+
+function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+
+function buildQuizDeck(gloser) {
+  const sorted = [...gloser].sort((a, b) => b.id - a.id);
+  const newest = sorted.slice(0, NEW_COUNT);
+  const older = sorted.slice(NEW_COUNT);
+  return shuffle([...shuffle(newest), ...shuffle(older).slice(0, Math.max(2, Math.floor(newest.length * 0.4)))]);
+}
+
+function PinPad({ title, subtitle, onSubmit, error, onBack }) {
+  const [pin, setPin] = useState("");
+  function press(d) {
+    if (pin.length >= 4) return;
+    const next = pin + d;
+    setPin(next);
+    if (next.length === 4) { setTimeout(() => { onSubmit(next); setPin(""); }, 120); }
+  }
+  return (
+    <div style={{ maxWidth: 340, margin: "0 auto", padding: "32px 16px", textAlign: "center" }}>
+      {onBack && <button style={s.back} onClick={onBack}>← Tilbake</button>}
+      <div style={{ paddingTop: onBack ? 16 : 0 }}>
+        <div style={{ fontSize: 40, marginBottom: 8 }}>🎓</div>
+        <div style={{ fontSize: 20, fontWeight: 500 }}>{title}</div>
+        {subtitle && <div style={{ fontSize: 13, color: "var(--text2)", marginTop: 4 }}>{subtitle}</div>}
+        <div style={{ display: "flex", justifyContent: "center", gap: 12, margin: "24px 0 8px" }}>
+          {[0,1,2,3].map(i => (
+            <div key={i} style={{ width: 18, height: 18, borderRadius: "50%", background: pin.length > i ? "var(--purple)" : "#e0e0e0", transition: "background 0.15s" }} />
+          ))}
+        </div>
+        {error && <div style={{ fontSize: 12, color: "#e53935", margin: "6px 0" }}>{error}</div>}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginTop: 20 }}>
+          {[1,2,3,4,5,6,7,8,9].map(d => (
+            <button key={d} style={s.pinBtn} onClick={() => press(String(d))}>{d}</button>
+          ))}
+          <div />
+          <button style={s.pinBtn} onClick={() => press("0")}>0</button>
+          <button style={{ ...s.pinBtn, color: "var(--text3)" }} onClick={() => setPin(p => p.slice(0,-1))}>⌫</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HangmanSVG({ wrong }) {
+  return (
+    <svg viewBox="0 0 120 130" width="120" height="130">
+      <line x1="10" y1="125" x2="110" y2="125" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
+      <line x1="30" y1="125" x2="30" y2="10" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
+      <line x1="30" y1="10" x2="75" y2="10" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
+      <line x1="75" y1="10" x2="75" y2="25" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
+      {wrong >= 1 && <circle cx="75" cy="33" r="8" stroke="#e53935" strokeWidth="2.5" fill="none"/>}
+      {wrong >= 2 && <><line x1="75" y1="41" x2="75" y2="70" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="50" x2="58" y2="62" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="50" x2="92" y2="62" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/></>}
+      {wrong >= 3 && <><line x1="75" y1="70" x2="62" y2="88" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="70" x2="88" y2="88" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/></>}
+    </svg>
+  );
+}
+
+function HangmanGame({ gloser, onBack }) {
+  const [deck] = useState(() => shuffle(gloser));
+  const [idx, setIdx] = useState(0);
+  const [guessed, setGuessed] = useState(new Set());
+  const [score, setScore] = useState(0);
+  const [done, setDone] = useState(false);
+  const word = deck[idx]?.en || "", hint = deck[idx]?.no || "";
+  const letters = word.split("");
+  const wrongGuesses = [...guessed].filter(l => !letters.includes(l));
+  const wrongCount = wrongGuesses.length;
+  const won = letters.every(l => guessed.has(l)), lost = wrongCount >= MAX_WRONG;
+  const finished = won || lost;
+  function guess(l) {
+    if (finished || guessed.has(l)) return;
+    const nx = new Set(guessed); nx.add(l); setGuessed(nx);
+    if (letters.every(c => nx.has(c))) setScore(sc => sc + 1);
+  }
+  function next() { if (idx + 1 >= deck.length) { setDone(true); return; } setIdx(i => i+1); setGuessed(new Set()); }
+  const alpha = "abcdefghijklmnopqrstuvwxyz".split("");
+  if (done) return (
+    <div style={s.page}><div style={s.resultBox}>
+      <div style={{ fontSize: 64 }}>{score === deck.length ? "🏆" : score >= deck.length*0.6 ? "🌟" : "💪"}</div>
+      <div style={s.resultTitle}>Ferdig!</div>
+      <div style={s.resultScore}>{score} av {deck.length} ord gjetta!</div>
+      <button style={s.bigBtn} onClick={() => { setIdx(0); setGuessed(new Set()); setScore(0); setDone(false); }}>Prøv igjen</button>
+      <button style={{ ...s.bigBtn, ...s.btnGray }} onClick={onBack}>Hjem</button>
+    </div></div>
+  );
+  return (
+    <div style={s.page}>
+      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>Hangman</span><span style={{ fontSize: 14, fontWeight: 500 }}>⭐ {score}</span></div>
+      <div style={s.progress}>{idx+1} / {deck.length}</div>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}><HangmanSVG wrong={wrongCount} /></div>
+      <div style={{ textAlign: "center", fontSize: 13, color: "var(--text2)", marginBottom: 6 }}>Norsk: <strong style={{ color: "var(--text)" }}>{hint}</strong></div>
+      <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", margin: "10px 0 16px" }}>
+        {letters.map((l, i) => <div key={i} style={s.letterBox}>{guessed.has(l) ? <span style={{ fontSize: 22, fontWeight: 500 }}>{l}</span> : <span style={{ color: "#ddd" }}>_</span>}</div>)}
+      </div>
+      {wrongGuesses.length > 0 && <div style={{ textAlign: "center", fontSize: 12, color: "#e57373", marginBottom: 8 }}>Feil: {wrongGuesses.join("  ")}  ({MAX_WRONG - wrongCount} igjen)</div>}
+      {finished ? (
+        <div style={{ textAlign: "center", marginBottom: 16 }}>
+          {won ? <div style={{ fontSize: 22, color: "#43a047", fontWeight: 500 }}>🎉 Bra jobbet!</div> : <div style={{ fontSize: 16, color: "#e53935" }}>Ordet var: <strong>{word}</strong></div>}
+          <button style={{ ...s.bigBtn, marginTop: 14 }} onClick={next}>{idx+1 < deck.length ? "Neste ord ▶" : "Se resultat"}</button>
+        </div>
+      ) : (
+        <div style={s.keyboard}>
+          {alpha.map(l => <button key={l} style={{ ...s.key, background: guessed.has(l) ? (letters.includes(l) ? "#c8e6c9" : "#ffcdd2") : "#f5f5f5", color: guessed.has(l) ? "#999" : "#222", cursor: guessed.has(l) ? "default" : "pointer" }} onClick={() => guess(l)}>{l}</button>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeacherReport({ gloser, students, onBack }) {
+  const [selected, setSelected] = useState(students[0]?.id || null);
+  const [copied, setCopied] = useState(false);
+  const student = students.find(st => st.id === selected);
+  const sorted = [...gloser].sort((a, b) => b.id - a.id);
+  const newest = sorted.slice(0, NEW_COUNT), older = sorted.slice(NEW_COUNT);
+  const today = new Date().toLocaleDateString("no-NO", { day: "numeric", month: "long", year: "numeric" });
+  function status(en) {
+    if (!student) return "ikke øvd";
+    const items = student.history.filter(h => h.en === en);
+    if (!items.length) return "ikke øvd";
+    const pct = items.filter(h => h.correct).length / items.length;
+    return pct >= 0.75 ? "kan" : pct >= 0.4 ? "nesten" : "trenger øving";
+  }
+  function statusColor(st) { return st === "kan" ? "#2e7d32" : st === "nesten" ? "#e65100" : st === "trenger øving" ? "#c62828" : "#aaa"; }
+  function statusEmoji(st) { return st === "kan" ? "✅" : st === "nesten" ? "🔶" : st === "trenger øving" ? "❌" : "⬜"; }
+  function buildText() {
+    let txt = `Glose-rapport – ${student?.name} – ${today}\n\nNYE GLOSER\n`;
+    newest.forEach(g => { txt += `  ${statusEmoji(status(g.en))} ${g.no} → ${g.en}  (${status(g.en)})\n`; });
+    if (older.length) { txt += `\nTIDLIGERE GLOSER\n`; older.forEach(g => { txt += `  ${statusEmoji(status(g.en))} ${g.no} → ${g.en}  (${status(g.en)})\n`; }); }
+    txt += `\nTotalt: ${gloser.filter(g => status(g.en) === "kan").length} av ${gloser.length} gloser behersket.`;
+    return txt;
+  }
+  function WordRow({ g }) {
+    const st = status(g.en);
+    const items = student?.history.filter(h => h.en === g.en) || [];
+    return (
+      <div style={{ display: "flex", alignItems: "center", padding: "9px 12px", borderBottom: "1px solid #f0f0f0", gap: 8 }}>
+        <span style={{ flex: 1, fontSize: 14 }}>{g.no} <span style={{ color: "#bbb" }}>→</span> {g.en}</span>
+        {items.length > 0 && <span style={{ fontSize: 11, color: "#aaa" }}>{items.filter(h=>h.correct).length}/{items.length}</span>}
+        <span style={{ fontSize: 12, fontWeight: 500, color: statusColor(st), minWidth: 90, textAlign: "right" }}>{statusEmoji(st)} {st}</span>
+      </div>
+    );
+  }
+  return (
+    <div style={s.page}>
+      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>Sammendrag</span></div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        {students.map(st => (
+          <button key={st.id} onClick={() => setSelected(st.id)} style={{ padding: "6px 14px", borderRadius: 20, border: "1px solid", borderColor: selected === st.id ? "var(--purple)" : "#ddd", background: selected === st.id ? "var(--purple-light)" : "#fafafa", color: selected === st.id ? "var(--purple-dark)" : "#555", fontSize: 13, cursor: "pointer" }}>
+            {st.name}
+          </button>
+        ))}
+      </div>
+      <div style={{ background: "#f9f9f9", borderRadius: 12, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: "var(--text2)" }}>{today} · {gloser.filter(g => status(g.en) === "kan").length} av {gloser.length} gloser behersket</div>
+      <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text3)", margin: "0 0 6px 2px" }}>NYE GLOSER</div>
+      <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, marginBottom: 16, overflow: "hidden" }}>{newest.map(g => <WordRow key={g.id} g={g} />)}</div>
+      {older.length > 0 && <><div style={{ fontSize: 13, fontWeight: 500, color: "var(--text3)", margin: "0 0 6px 2px" }}>TIDLIGERE GLOSER</div><div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, marginBottom: 16, overflow: "hidden" }}>{older.map(g => <WordRow key={g.id} g={g} />)}</div></>}
+      <div style={{ display: "flex", gap: 8, fontSize: 12, color: "var(--text3)", marginBottom: 20, flexWrap: "wrap" }}>
+        <span>✅ kan</span><span>🔶 nesten</span><span>❌ trenger øving</span><span>⬜ ikke øvd</span>
+      </div>
+      <button style={s.bigBtn} onClick={() => { navigator.clipboard.writeText(buildText()); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>{copied ? "✅ Kopiert!" : "📋 Kopier til utklippstavle"}</button>
+    </div>
+  );
+}
+
+function AdminPanel({ students, setStudents, gloser, setGloser, onBack }) {
+  const [tab, setTab] = useState("students");
+  const [name, setName] = useState(""); const [pin, setPin] = useState(""); const [msg, setMsg] = useState("");
+  const [newNo, setNewNo] = useState(""); const [newEn, setNewEn] = useState(""); const [addMsg, setAddMsg] = useState("");
+  const [nextSId, setNextSId] = useState(() => Math.max(...students.map(s => s.id), 0) + 1);
+  const [nextGId, setNextGId] = useState(() => Math.max(...gloser.map(g => g.id), 0) + 1);
+  function addStudent() {
+    if (!name.trim() || !/^\d{4}$/.test(pin)) { setMsg("Skriv navn og 4-sifret PIN."); return; }
+    if (students.find(s => s.pin === pin)) { setMsg("PIN allerede i bruk."); return; }
+    setStudents(ss => [...ss, { id: nextSId, name: name.trim(), pin, history: [] }]);
+    setNextSId(n => n+1); setName(""); setPin(""); setMsg("✅ Lagt til!"); setTimeout(() => setMsg(""), 1500);
+  }
+  function addGlose() {
+    if (!newNo.trim() || !newEn.trim()) return;
+    setGloser(g => [...g, { no: newNo.trim().toLowerCase(), en: newEn.trim().toLowerCase(), id: nextGId }]);
+    setNextGId(n => n+1); setNewNo(""); setNewEn(""); setAddMsg("✅ Lagt til!"); setTimeout(() => setAddMsg(""), 1500);
+  }
+  return (
+    <div style={s.page}>
+      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Logg ut</button><span style={s.topTitle}>Admin</span></div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        {["students","gloser","report"].map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid", borderColor: tab===t ? "var(--purple)" : "#ddd", background: tab===t ? "var(--purple-light)" : "#fafafa", color: tab===t ? "var(--purple-dark)" : "#555", fontWeight: tab===t ? 500 : 400, cursor: "pointer", fontSize: 13 }}>
+            {t === "students" ? "👤 Elever" : t === "gloser" ? "📚 Gloser" : "📋 Rapport"}
+          </button>
+        ))}
+      </div>
+      {tab === "students" && <>
+        <div style={s.addBox}>
+          <input style={s.input} placeholder="Elevnavn" value={name} onChange={e => setName(e.target.value)} />
+          <input style={s.input} placeholder="PIN-kode (4 siffer)" value={pin} maxLength={4} onChange={e => setPin(e.target.value.replace(/\D/g,""))} />
+          <button style={s.bigBtn} onClick={addStudent}>Legg til elev +</button>
+          {msg && <div style={{ color: msg.startsWith("✅") ? "green" : "#e53935", fontWeight: 500 }}>{msg}</div>}
+        </div>
+        <div style={s.gloseList}>
+          {students.map(st => (
+            <div key={st.id} style={s.gloseRow}>
+              <span style={{ flex: 1, fontSize: 15 }}>👤 {st.name} <span style={{ color: "#bbb", fontSize: 12 }}>PIN: {st.pin}</span></span>
+              <button style={s.deleteBtn} onClick={() => setStudents(ss => ss.filter(s => s.id !== st.id))}>✕</button>
+            </div>
+          ))}
+        </div>
+      </>}
+      {tab === "gloser" && <>
+        <div style={s.addBox}>
+          <input style={s.input} placeholder="🇳🇴 Norsk ord" value={newNo} onChange={e => setNewNo(e.target.value)} />
+          <input style={s.input} placeholder="🇬🇧 Engelsk ord" value={newEn} onChange={e => setNewEn(e.target.value)} />
+          <button style={s.bigBtn} onClick={addGlose}>Legg til glose +</button>
+          {addMsg && <div style={{ color: "green", fontWeight: 500 }}>{addMsg}</div>}
+        </div>
+        <div style={s.gloseList}>
+          {[...gloser].sort((a,b) => b.id-a.id).map((g,i) => (
+            <div key={g.id} style={s.gloseRow}>
+              {i < NEW_COUNT && <span style={{ fontSize: 10, background: "#fff3e0", color: "#e65100", borderRadius: 4, padding: "1px 5px", marginRight: 6 }}>NY</span>}
+              <span style={s.glosePair}>{g.no} <span style={{ color: "#aaa" }}>→</span> {g.en}</span>
+              <button style={s.deleteBtn} onClick={() => setGloser(g2 => g2.filter(x => x.id !== g.id))}>✕</button>
+            </div>
+          ))}
+        </div>
+      </>}
+      {tab === "report" && <TeacherReport gloser={gloser} students={students} onBack={() => setTab("gloser")} />}
+    </div>
+  );
+}
+
+function App() {
+  const [students, setStudents] = useState(initStudents);
+  const [gloser, setGloser] = useState(defaultGloser);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loginError, setLoginError] = useState("");
+  const [selectingStudent, setSelectingStudent] = useState(null);
+  const [screen, setScreen] = useState("home");
+  const [quizDeck, setQuizDeck] = useState([]);
+  const [quizIdx, setQuizIdx] = useState(0);
+  const [quizChoices, setQuizChoices] = useState([]);
+  const [quizAnswer, setQuizAnswer] = useState(null);
+  const [quizScore, setQuizScore] = useState(0);
+  const [quizDone, setQuizDone] = useState(false);
+  const [fcDeck, setFcDeck] = useState([]);
+  const [fcIdx, setFcIdx] = useState(0);
+  const [fcFlipped, setFcFlipped] = useState(false);
+  const [fcDir, setFcDir] = useState("no→en");
+
+  function recordHistory(en, correct) {
+    setStudents(ss => ss.map(st => st.id === currentUser.id ? { ...st, history: [...st.history, { en, correct }] } : st));
+  }
+
+  if (!currentUser) {
+    if (!selectingStudent) return (
+      <div style={{ maxWidth: 380, margin: "0 auto", padding: "40px 16px", textAlign: "center" }}>
+        <div style={{ fontSize: 48 }}>🎓</div>
+        <div style={{ fontSize: 22, fontWeight: 500, marginTop: 8 }}>Glose-appen</div>
+        <div style={{ fontSize: 14, color: "var(--text2)", marginTop: 4, marginBottom: 28 }}>Hvem er du?</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
+          {students.map(st => (
+            <button key={st.id} style={{ padding: "16px 20px", borderRadius: 14, border: "1px solid #ddd", background: "#fafafa", fontSize: 16, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 12 }}
+              onClick={() => { setSelectingStudent(st); setLoginError(""); }}>
+              <span style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--purple-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 500, color: "var(--purple)" }}>
+                {st.name.charAt(0).toUpperCase()}
+              </span>
+              {st.name}
+            </button>
+          ))}
+        </div>
+        <button style={{ width: "100%", padding: "12px", borderRadius: 12, border: "1px solid #ddd", background: "#f5f5f5", color: "#888", fontSize: 14, cursor: "pointer" }}
+          onClick={() => { setSelectingStudent("admin"); setLoginError(""); }}>🔒 Admin / Lærer</button>
+      </div>
+    );
+    if (selectingStudent === "admin") return <PinPad title="Admin-innlogging" subtitle="Admin PIN" error={loginError} onBack={() => { setSelectingStudent(null); setLoginError(""); }} onSubmit={pin => { if (pin === ADMIN_PIN) { setCurrentUser("admin"); setSelectingStudent(null); setLoginError(""); } else setLoginError("Feil PIN, prøv igjen."); }} />;
+    return <PinPad title={selectingStudent.name} subtitle="Skriv inn PIN-koden din" error={loginError} onBack={() => { setSelectingStudent(null); setLoginError(""); }} onSubmit={pin => { if (pin === selectingStudent.pin) { setCurrentUser(selectingStudent); setSelectingStudent(null); setLoginError(""); setScreen("home"); } else setLoginError("Feil PIN, prøv igjen."); }} />;
+  }
+
+  if (currentUser === "admin") return <AdminPanel students={students} setStudents={setStudents} gloser={gloser} setGloser={setGloser} onBack={() => setCurrentUser(null)} />;
+
+  function startFlashcards() { setFcDeck(shuffle(gloser)); setFcIdx(0); setFcFlipped(false); setScreen("flashcard"); }
+  function startQuiz() {
+    const deck = buildQuizDeck(gloser);
+    setQuizDeck(deck); setQuizIdx(0); setQuizScore(0); setQuizDone(false); setQuizAnswer(null);
+    makeChoices(deck, 0); setScreen("quiz");
+  }
+  function makeChoices(deck, idx) {
+    const correct = deck[idx];
+    setQuizChoices(shuffle([correct, ...shuffle(gloser.filter(g => g.en !== correct.en)).slice(0,3)]));
+  }
+  function handleQuizAnswer(choice) {
+    if (quizAnswer !== null) return;
+    const correct = quizDeck[quizIdx];
+    const isCorrect = choice.en === correct.en;
+    setQuizAnswer(choice.en);
+    recordHistory(correct.en, isCorrect);
+    if (isCorrect) setQuizScore(sc => sc+1);
+    setTimeout(() => {
+      const next = quizIdx+1;
+      if (next >= quizDeck.length) setQuizDone(true);
+      else { setQuizIdx(next); setQuizAnswer(null); makeChoices(quizDeck, next); }
+    }, 900);
+  }
+
+  if (screen === "hangman") return <HangmanGame gloser={gloser} onBack={() => setScreen("home")} />;
+  if (screen === "report") {
+    const st = students.find(s => s.id === currentUser.id);
+    return <TeacherReport gloser={gloser} students={[st]} onBack={() => setScreen("home")} />;
+  }
+  if (screen === "flashcard") {
+    const card = fcDeck[fcIdx];
+    const front = fcDir === "no→en" ? card.no : card.en, back = fcDir === "no→en" ? card.en : card.no;
+    return (
+      <div style={s.page}>
+        <div style={s.topBar}><button style={s.back} onClick={() => setScreen("home")}>← Hjem</button><span style={s.topTitle}>Flashcards</span>
+          <button style={s.smallBtn} onClick={() => setFcDir(d => d === "no→en" ? "en→no" : "no→en")}>{fcDir === "no→en" ? "🇳🇴→🇬🇧" : "🇬🇧→🇳🇴"}</button>
+        </div>
+        <div style={s.progress}>{fcIdx+1} / {fcDeck.length}</div>
+        <div style={{ ...s.card, cursor: "pointer" }} onClick={() => setFcFlipped(f => !f)}>
+          <div style={s.cardLang}>{fcFlipped ? (fcDir==="no→en"?"🇬🇧 Engelsk":"🇳🇴 Norsk") : (fcDir==="no→en"?"🇳🇴 Norsk":"🇬🇧 Engelsk")}</div>
+          <div style={s.cardWord}>{fcFlipped ? back : front}</div>
+          {!fcFlipped && <div style={s.cardHint}>Trykk for å snu</div>}
+        </div>
+        <div style={s.row}>
+          <button style={s.navBtn} onClick={() => { setFcIdx(i => Math.max(0,i-1)); setFcFlipped(false); }} disabled={fcIdx===0}>◀ Forrige</button>
+          <button style={s.navBtn} onClick={() => { if (fcIdx<fcDeck.length-1){setFcIdx(i=>i+1);setFcFlipped(false);}else setScreen("home"); }}>{fcIdx<fcDeck.length-1?"Neste ▶":"Ferdig ✓"}</button>
+        </div>
+      </div>
+    );
+  }
+  if (screen === "quiz") {
+    if (quizDone) return (
+      <div style={s.page}><div style={s.resultBox}>
+        <div style={{ fontSize: 64 }}>{quizScore===quizDeck.length?"🏆":quizScore>=quizDeck.length*0.7?"🌟":"💪"}</div>
+        <div style={s.resultTitle}>Quiz ferdig!</div>
+        <div style={s.resultScore}>{quizScore} av {quizDeck.length} riktige</div>
+        <button style={s.bigBtn} onClick={startQuiz}>Prøv igjen</button>
+        <button style={{ ...s.bigBtn, background: "#e8f5e9", color: "#2e7d32" }} onClick={() => setScreen("report")}>📋 Se sammendrag</button>
+        <button style={{ ...s.bigBtn, ...s.btnGray }} onClick={() => setScreen("home")}>Hjem</button>
+      </div></div>
+    );
+    const q = quizDeck[quizIdx];
+    const isNew = [...gloser].sort((a,b)=>b.id-a.id).slice(0,NEW_COUNT).some(g=>g.en===q.en);
+    return (
+      <div style={s.page}>
+        <div style={s.topBar}><button style={s.back} onClick={() => setScreen("home")}>← Hjem</button><span style={s.topTitle}>Quiz</span><span style={s.scoreTag}>⭐ {quizScore}</span></div>
+        <div style={s.progress}>{quizIdx+1} / {quizDeck.length}</div>
+        <div style={s.questionBox}>
+          {isNew && <div style={{ fontSize: 11, background: "#fff3e0", color: "#e65100", borderRadius: 6, padding: "2px 8px", display: "inline-block", marginBottom: 8 }}>Ny glose</div>}
+          <div style={s.questionLabel}>Hva er engelsk for:</div>
+          <div style={s.questionWord}>{q.no}</div>
+        </div>
+        <div style={s.choicesGrid}>
+          {quizChoices.map((c,i) => {
+            let bg = "#fff";
+            if (quizAnswer !== null) { if (c.en===q.en) bg="#d4f7d4"; else if (c.en===quizAnswer) bg="#fdd"; }
+            return <button key={i} style={{ ...s.choice, background: bg }} onClick={() => handleQuizAnswer(c)}>{c.en}</button>;
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={s.page}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 0 4px" }}>
+        <div><div style={{ fontSize: 18, fontWeight: 500 }}>Hei, {currentUser.name}! 👋</div><div style={{ fontSize: 13, color: "var(--text3)" }}>{gloser.length} gloser i listen</div></div>
+        <button style={{ background: "none", border: "1px solid #ddd", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#888", cursor: "pointer" }} onClick={() => setCurrentUser(null)}>Logg ut</button>
+      </div>
+      <div style={s.menuGrid}>
+        <button style={{ ...s.menuBtn, background: "#e3f2fd" }} onClick={startFlashcards}><span style={s.menuIcon}>🃏</span><span style={s.menuLabel}>Flashcards</span></button>
+        <button style={{ ...s.menuBtn, background: "#f3e5f5" }} onClick={() => gloser.length>=4?startQuiz():alert("Trenger minst 4 gloser!")}><span style={s.menuIcon}>🎯</span><span style={s.menuLabel}>Quiz</span></button>
+        <button style={{ ...s.menuBtn, background: "#fce4ec" }} onClick={() => setScreen("hangman")}><span style={s.menuIcon}>🪢</span><span style={s.menuLabel}>Hangman</span></button>
+        <button style={{ ...s.menuBtn, background: "#fff8e1" }} onClick={() => setScreen("report")}><span style={s.menuIcon}>📋</span><span style={s.menuLabel}>Sammendrag</span></button>
+      </div>
+    </div>
+  );
+}
+
+const s = {
+  page: { maxWidth: 480, margin: "0 auto", padding: "0 16px 32px" },
+  topBar: { display: "flex", alignItems: "center", padding: "16px 0 8px", gap: 8 },
+  topTitle: { flex: 1, textAlign: "center", fontWeight: 500, fontSize: 17 },
+  back: { background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#555", padding: 0 },
+  smallBtn: { background: "none", border: "1px solid #ccc", borderRadius: 8, padding: "4px 8px", fontSize: 12, cursor: "pointer" },
+  scoreTag: { fontSize: 14, fontWeight: 500, minWidth: 40, textAlign: "right" },
+  progress: { textAlign: "center", fontSize: 13, color: "var(--text3)", marginBottom: 12 },
+  menuGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16 },
+  menuBtn: { border: "none", borderRadius: 16, padding: "20px 12px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 },
+  menuIcon: { fontSize: 32 },
+  menuLabel: { fontSize: 15, fontWeight: 500 },
+  card: { background: "#fff", border: "1px solid #ddd", borderRadius: 20, padding: "40px 24px", textAlign: "center", minHeight: 160, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", margin: "0 0 20px" },
+  cardLang: { fontSize: 13, color: "var(--text3)", marginBottom: 8 },
+  cardWord: { fontSize: 36, fontWeight: 500 },
+  cardHint: { fontSize: 12, color: "#bbb", marginTop: 16 },
+  row: { display: "flex", gap: 12 },
+  navBtn: { flex: 1, padding: "14px", borderRadius: 12, border: "1px solid #ddd", background: "#f9f9f9", fontSize: 15, cursor: "pointer" },
+  questionBox: { background: "#f5f0ff", borderRadius: 16, padding: "22px 20px", textAlign: "center", marginBottom: 20 },
+  questionLabel: { fontSize: 14, color: "var(--text2)", marginBottom: 8 },
+  questionWord: { fontSize: 34, fontWeight: 500 },
+  choicesGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 },
+  choice: { padding: "18px 8px", borderRadius: 12, border: "1px solid #ddd", fontSize: 17, cursor: "pointer" },
+  resultBox: { display: "flex", flexDirection: "column", alignItems: "center", gap: 12, paddingTop: 48 },
+  resultTitle: { fontSize: 26, fontWeight: 500 },
+  resultScore: { fontSize: 18, color: "var(--text2)" },
+  bigBtn: { width: "100%", padding: "14px", borderRadius: 12, border: "none", background: "var(--purple)", color: "#fff", fontSize: 16, cursor: "pointer", fontWeight: 500 },
+  btnGray: { background: "#f0f0f0", color: "#333" },
+  addBox: { display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 },
+  input: { padding: "12px 14px", borderRadius: 10, border: "1px solid #ccc", fontSize: 16 },
+  gloseList: { display: "flex", flexDirection: "column", gap: 8 },
+  gloseRow: { display: "flex", alignItems: "center", background: "#fafafa", borderRadius: 10, padding: "10px 14px", border: "1px solid #eee" },
+  glosePair: { flex: 1, fontSize: 15 },
+  deleteBtn: { background: "none", border: "none", color: "#ccc", fontSize: 16, cursor: "pointer" },
+  letterBox: { width: 36, height: 44, border: "1px solid #ccc", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, background: "#fafafa" },
+  keyboard: { display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" },
+  key: { width: 36, height: 40, border: "1px solid #ddd", borderRadius: 8, fontSize: 15, fontWeight: 500 },
+  pinBtn: { padding: "16px", borderRadius: 12, border: "1px solid #ddd", background: "#fafafa", fontSize: 22, cursor: "pointer" },
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
