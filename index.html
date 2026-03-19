@@ -374,7 +374,107 @@ function MathMenu({onBack,addCoins,onStart}){
   );
 }
 
-// ── TEACHER REPORT ──
+// ── FLAG QUIZ ──
+const FLAGS = [
+  {code:"NO",name:"Norge"},{code:"SE",name:"Sverige"},{code:"DK",name:"Danmark"},
+  {code:"FI",name:"Finland"},{code:"IS",name:"Island"},{code:"GB",name:"Storbritannia"},
+  {code:"DE",name:"Tyskland"},{code:"FR",name:"Frankrike"},{code:"ES",name:"Spania"},
+  {code:"IT",name:"Italia"},{code:"PT",name:"Portugal"},{code:"NL",name:"Nederland"},
+  {code:"BE",name:"Belgia"},{code:"CH",name:"Sveits"},{code:"AT",name:"Østerrike"},
+  {code:"PL",name:"Polen"},{code:"CZ",name:"Tsjekkia"},{code:"HU",name:"Ungarn"},
+  {code:"RO",name:"Romania"},{code:"GR",name:"Hellas"},{code:"TR",name:"Tyrkia"},
+  {code:"RU",name:"Russland"},{code:"UA",name:"Ukraina"},{code:"US",name:"USA"},
+  {code:"CA",name:"Canada"},{code:"MX",name:"Mexico"},{code:"BR",name:"Brasil"},
+  {code:"AR",name:"Argentina"},{code:"CL",name:"Chile"},{code:"CO",name:"Colombia"},
+  {code:"JP",name:"Japan"},{code:"CN",name:"Kina"},{code:"KR",name:"Sør-Korea"},
+  {code:"IN",name:"India"},{code:"AU",name:"Australia"},{code:"NZ",name:"New Zealand"},
+  {code:"ZA",name:"Sør-Afrika"},{code:"NG",name:"Nigeria"},{code:"EG",name:"Egypt"},
+  {code:"MA",name:"Marokko"},{code:"KE",name:"Kenya"},{code:"GH",name:"Ghana"},
+  {code:"SA",name:"Saudi-Arabia"},{code:"AE",name:"De forente arabiske emirater"},
+  {code:"IL",name:"Israel"},{code:"TH",name:"Thailand"},{code:"ID",name:"Indonesia"},
+  {code:"PH",name:"Filippinene"},{code:"VN",name:"Vietnam"},
+];
+
+function getDailyFlags() {
+  const seed = Math.floor(Date.now() / 86400000);
+  const shuffled = [...FLAGS].sort((a,b) => {
+    const ha = (seed * 1103515245 + a.code.charCodeAt(0) * 12345) & 0x7fffffff;
+    const hb = (seed * 1103515245 + b.code.charCodeAt(0) * 12345) & 0x7fffffff;
+    return ha - hb;
+  });
+  return shuffled.slice(0, 20);
+}
+
+function FlagQuiz({onBack, addCoins}) {
+  const [deck] = useState(() => getDailyFlags());
+  const [idx, setIdx] = useState(0);
+  const [chosen, setChosen] = useState(null);
+  const [score, setScore] = useState(0);
+  const [done, setDone] = useState(false);
+  const [choices, setChoices] = useState([]);
+
+  function makeChoices(i) {
+    const correct = deck[i];
+    const others = shuffle(FLAGS.filter(f => f.code !== correct.code)).slice(0, 3);
+    setChoices(shuffle([correct, ...others]));
+    setChosen(null);
+  }
+
+  useEffect(() => { makeChoices(0); }, []);
+
+  function pick(flag) {
+    if (chosen) return;
+    setChosen(flag.code);
+    const correct = flag.code === deck[idx].code;
+    if (correct) { setScore(s => s + 1); addCoins(1); }
+    setTimeout(() => {
+      if (idx + 1 >= deck.length) setDone(true);
+      else { setIdx(i => { makeChoices(i + 1); return i + 1; }); }
+    }, 1000);
+  }
+
+  if (done) return (
+    <div style={s.page}><div style={s.resultBox}>
+      <div style={{fontSize:64}}>{score >= 18 ? "🏆" : score >= 12 ? "🌟" : "💪"}</div>
+      <div style={s.resultTitle}>Flaggquiz ferdig!</div>
+      <div style={s.resultScore}>{score} av {deck.length} riktige</div>
+      <div style={{fontSize:16,color:"#f9a825",fontWeight:500}}>+{score} 🪙 coins!</div>
+      <div style={{fontSize:13,color:"var(--text3)"}}>Nye flagg i morgen!</div>
+      <button style={{...s.bigBtn,...s.btnGray}} onClick={onBack}>Hjem</button>
+    </div></div>
+  );
+
+  const current = deck[idx];
+  return (
+    <div style={s.page}>
+      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>🌍 Flaggquiz</span><span style={{fontSize:14,fontWeight:500}}>⭐{score}</span></div>
+      <div style={s.progress}>{idx+1} / {deck.length}</div>
+
+      <div style={{textAlign:"center",marginBottom:20}}>
+        <div style={{fontSize:13,color:"var(--text3)",marginBottom:8}}>Hvilket land er dette?</div>
+        <div style={{fontSize:90,lineHeight:1,marginBottom:4}}>
+          {String.fromCodePoint(...current.code.split("").map(c=>0x1F1E0-65+c.charCodeAt(0)))}
+        </div>
+      </div>
+
+      <div style={s.choicesGrid}>
+        {choices.map((f,i) => {
+          let bg = "#fff";
+          if (chosen) {
+            if (f.code === current.code) bg = "#d4f7d4";
+            else if (f.code === chosen) bg = "#fdd";
+          }
+          return (
+            <button key={i} style={{...s.choice, background:bg, fontSize:15, padding:"18px 8px"}}
+              onClick={() => pick(f)}>
+              {String.fromCodePoint(...f.code.split("").map(c=>0x1F1E0-65+c.charCodeAt(0)))} {f.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 function TeacherReport({gloser,students,singleStudent,onBack}){
   const [sel,setSel]=useState(singleStudent||students[0]?.id||null);
   const [copied,setCopied]=useState(false);
@@ -637,6 +737,7 @@ function App(){
     </div></div>
   );
 
+  if(screen==="flags")return<FlagQuiz onBack={()=>setScreen("home")} addCoins={addCoins}/>;
   if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)}/>;
   if(screen==="leaderboard")return<Leaderboard students={students} onBack={()=>setScreen("home")}/>;
   if(screen==="shop")return<AvatarShop student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("home")}/>;
@@ -744,6 +845,7 @@ function App(){
         <button style={{...s.menuBtn,background:"#f3e5f5"}} onClick={()=>gloser.length>=4?startQuiz():alert("Trenger minst 4 gloser!")}><span style={s.menuIcon}>🎯</span><span style={s.menuLabel}>Quiz</span></button>
         <button style={{...s.menuBtn,background:"#fce4ec"}} onClick={()=>setScreen("hangman")}><span style={s.menuIcon}>🪢</span><span style={s.menuLabel}>Hangman</span></button>
         <button style={{...s.menuBtn,background:"#e0f7fa"}} onClick={()=>setScreen("maths")}><span style={s.menuIcon}>🔢</span><span style={s.menuLabel}>Matte</span></button>
+        <button style={{...s.menuBtn,background:"#e8f5e9"}} onClick={()=>setScreen("flags")}><span style={s.menuIcon}>🌍</span><span style={s.menuLabel}>Flagg</span></button>
         <button style={{...s.menuBtn,background:"#fff8e1"}} onClick={()=>setScreen("shop")}><span style={s.menuIcon}>🛒</span><span style={s.menuLabel}>Butikk</span></button>
         <button style={{...s.menuBtn,background:"#e8f5e9"}} onClick={()=>setScreen("squad")}><span style={s.menuIcon}>⚽</span><span style={s.menuLabel}>Mitt lag</span></button>
         <button style={{...s.menuBtn,background:"#f9fbe7"}} onClick={()=>setScreen("leaderboard")}><span style={s.menuIcon}>🏆</span><span style={s.menuLabel}>Poengtavle</span></button>
