@@ -46,10 +46,11 @@ const initStudents = [
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
 
 function buildQuizDeck(gloser) {
+  if (gloser.length <= 10) return shuffle([...gloser]);
   const sorted = [...gloser].sort((a, b) => b.id - a.id);
   const newest = sorted.slice(0, NEW_COUNT);
   const older = sorted.slice(NEW_COUNT);
-  const oldPart = shuffle(older).slice(0, Math.max(0, Math.floor(newest.length * 0.4)));
+  const oldPart = shuffle(older).slice(0, Math.round(older.length * 0.3));
   return shuffle([...newest, ...oldPart]);
 }
 
