@@ -721,7 +721,7 @@ function HangmanGame({gloser,onBack,onCorrect}){
     const nx=new Set(guessed);nx.add(l);setGuessed(nx);
     if(letters.every(c=>nx.has(c))){setScore(sc=>sc+1);onCorrect&&onCorrect();}
   }
-  function next(){if(idx+1>=deck.length){setDone(true);return;}setIdx(i=>i+1);setGuessed(new Set());}
+  function next(){if(idx+1>=deck.length){onDone&&onDone();setDone(true);return;}setIdx(i=>i+1);setGuessed(new Set());}
   const alpha="abcdefghijklmnopqrstuvwxyz".split("");
   if(done)return(<div style={s.page}><div style={s.resultBox}><div style={{fontSize:64}}>{score===deck.length?"🏆":score>=deck.length*0.6?"🌟":"💪"}</div><div style={s.resultTitle}>Ferdig!</div><div style={s.resultScore}>{score} av {deck.length}!</div><div style={{fontSize:16,color:"#f9a825",fontWeight:500}}>+{score} 🪙</div><button style={s.bigBtn} onClick={()=>{setIdx(0);setGuessed(new Set());setScore(0);setDone(false);}}>Prøv igjen</button><button style={{...s.bigBtn,...s.btnGray}} onClick={onBack}>Hjem</button></div></div>);
   return(
@@ -759,7 +759,7 @@ function HangmanGame({gloser,onBack,onCorrect}){
 }
 
 // ── MATHS ──
-function MathGame({onBack,addCoins,mode}){
+function MathGame({onBack, addCoins, mode, onDone}) {
   const [score,setScore]=useState(0);
   const [q,setQ]=useState(null);
   const [chosen,setChosen]=useState(null);
@@ -779,7 +779,7 @@ function MathGame({onBack,addCoins,mode}){
   function pick(val){
     if(chosen!==null)return;setChosen(val);
     if(val===q.answer){setScore(sc=>sc+1);addCoins(1);}
-    setTimeout(()=>{if(round+1>=TOTAL)setDone(true);else{setRound(r=>r+1);newQ();}},900);
+    setTimeout(()=>{if(round+1>=TOTAL){onDone&&onDone();setDone(true);}else{setRound(r=>r+1);newQ();}},900);
   }
   const colors={multiply:"#e0f7fa",add:"#e8f5e9",subtract:"#fff3e0"};
   const titles={multiply:"✖️ Ganging",add:"➕ Addisjon",subtract:"➖ Subtraksjon"};
@@ -799,17 +799,17 @@ function MathGame({onBack,addCoins,mode}){
     </div>
   );
 }
-function MathMenu({onBack,addCoins,onStart}){
-  const [mode,setMode]=useState(null);
-  if(mode)return<MathGame onBack={()=>setMode(null)} addCoins={addCoins} mode={mode}/>;
-  return(
+function MathMenu({onBack, addCoins, onDone}) {
+  const [mode, setMode] = useState(null);
+  if (mode) return <MathGame onBack={()=>setMode(null)} addCoins={addCoins} mode={mode} onDone={()=>onDone&&onDone(mode)}/>;
+  return (
     <div style={s.page}>
       <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>🔢 Matte</span></div>
       <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:8}}>
         {[{mode:"add",icon:"➕",label:"Addisjon",desc:"Pluss opp til 40",bg:"#e8f5e9"},{mode:"subtract",icon:"➖",label:"Subtraksjon",desc:"Minus opp til 30",bg:"#fff3e0"},{mode:"multiply",icon:"✖️",label:"Gangetabell",desc:"1–10 gangen",bg:"#e0f7fa"}].map(({mode:m,icon,label,desc,bg})=>(
-          <button key={m} onClick={()=>{onStart&&onStart(m);setMode(m);}} style={{background:bg,border:"1px solid #eee",borderRadius:16,padding:"18px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",textAlign:"left"}}>
+          <button key={m} onClick={()=>setMode(m)} style={{background:bg,border:"1px solid #eee",borderRadius:16,padding:"18px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",textAlign:"left"}}>
             <span style={{fontSize:34}}>{icon}</span>
-            <div><div style={{fontWeight:500,fontSize:16}}>{label}</div><div style={{fontSize:13,color:"var(--text2)",marginTop:2}}>{desc}</div></div>
+            <div><div style={{fontWeight:700,fontSize:16}}>{label}</div><div style={{fontSize:13,color:"var(--text2)",marginTop:2}}>{desc}</div></div>
           </button>
         ))}
       </div>
@@ -1164,11 +1164,18 @@ function App(){
   async function updateStudent(id, updates) {
     const current = students.find(s => s.id === id) || {};
     const merged = {...current, ...updates};
+    console.log("updateStudent called:", id, updates);
+    console.log("merged result:", merged);
     // Update local state immediately
     setStudentsState(prev => prev.map(st => st.id !== id ? st : merged));
     if (currentUser && currentUser.id === id) setCurrentUser(u => ({...u, ...updates}));
     // Write to Firebase
-    try { await window.fbSet("glose/students/" + id, merged); } catch(e) { console.error("Firebase write failed:", e); }
+    try {
+      await window.fbSet("glose/students/" + id, merged);
+      console.log("Firebase write OK for student", id);
+    } catch(e) {
+      console.error("Firebase write FAILED:", e);
+    }
   }
 
   function addCoins(c){
@@ -1231,11 +1238,10 @@ function App(){
   );
 
   if(screen==="flags")return<FlagQuiz onBack={()=>setScreen("home")} addCoins={addCoins}/>;
-  if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>{
+  if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)} onDone={()=>{
     const st=getStudent();
     updateStudent(currentUser.id,{hangmanSessions:(st.hangmanSessions||0)+1});
-    setScreen("home");
-  }} onCorrect={()=>addCoins(1)}/>;
+  }}/>;
   if(screen==="leaderboard")return<Leaderboard students={students} onBack={()=>setScreen("home")}/>;
   if(screen==="shop")return<AvatarShop student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("home")}/>;
   if(screen==="report")return<TeacherReport gloser={gloser} students={students} singleStudent={stData.id} onBack={()=>setScreen("home")}/>;
