@@ -1119,15 +1119,8 @@ function App(){
   if(screen==="shop")return<AvatarShop student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("home")}/>;
   if(screen==="report")return<TeacherReport gloser={gloser} students={students} singleStudent={stData.id} onBack={()=>setScreen("home")}/>;
   if(screen==="maths")return<MathMenu onBack={()=>setScreen("home")} addCoins={addCoins} onStart={()=>updateStudent(currentUser.id,{mathSessions:(stData.mathSessions||0)+1})}/>;
-  if(screen==="packs")return<PackStore student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("home")}/>;
-  if(screen==="squad")return(
-    <div style={s.page}>
-      <div style={s.topBar}><button style={s.back} onClick={()=>setScreen("home")}>← Hjem</button><span style={s.topTitle}>⚽ Mitt lag</span></div>
-      <div style={{textAlign:"center",marginBottom:10}}><div style={{fontSize:15,fontWeight:700}}>{club.name}</div><div style={{fontSize:13,color:"#888"}}>{stData.squad?.length||0}/11 · {stData.playerCards?.length||0} spillere i samling</div></div>
-      <SquadDisplay squad={stData.squad||[]} clubColor={club.color} playerCards={stData.playerCards||[]}/>
-      <button style={{...s.bigBtn,marginTop:14,background:"linear-gradient(135deg,#f9a825,#ff8f00)"}} onClick={()=>setScreen("packs")}>🎴 Kjøp spillerpakker</button>
-    </div>
-  );
+  if(screen==="packs")return<PackStore student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("squad")}/>;
+  if(screen==="squad")return<SquadBuilder student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>{setScreen("home");}}/>;
   if(screen==="flashcard"){
     const card=fcDeck[fcIdx];
     const front=fcDir==="no→en"?card.no:card.en,back=fcDir==="no→en"?card.en:card.no;
