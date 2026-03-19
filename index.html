@@ -25,10 +25,13 @@
 </script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f7; min-height: 100vh; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: linear-gradient(135deg, #fff9f0 0%, #f0f4ff 100%); min-height: 100vh; }
 input, button { font-family: inherit; }
-:root { --purple: #5c6bc0; --purple-light: #ede7f6; --purple-dark: #4527a0; --text: #1a1a1a; --text2: #666; --text3: #aaa; }
-@keyframes coinPop { 0%{transform:scale(1)} 50%{transform:scale(1.5)} 100%{transform:scale(1)} }
+:root { --purple: #7c4dff; --purple-light: #ede7f6; --purple-dark: #4527a0; --text: #1a1a1a; --text2: #666; --text3: #aaa; }
+@keyframes coinPop { 0%{transform:scale(1) rotate(0deg)} 50%{transform:scale(1.6) rotate(15deg)} 100%{transform:scale(1) rotate(0deg)} }
+@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+@keyframes wiggle { 0%,100%{transform:rotate(0deg)} 25%{transform:rotate(-8deg)} 75%{transform:rotate(8deg)} }
+@keyframes pop { 0%{transform:scale(0.8);opacity:0} 100%{transform:scale(1);opacity:1} }
 </style>
 </head>
 <body><div id="root"></div>
@@ -749,19 +752,22 @@ function App(){
 
   if(!currentUser){
     if(!selecting)return(
-      <div style={{maxWidth:380,margin:"0 auto",padding:"40px 16px",textAlign:"center"}}>
-        <div style={{fontSize:48}}>🎓</div>
-        <div style={{fontSize:22,fontWeight:500,marginTop:8}}>Glose-appen</div>
-        <div style={{fontSize:14,color:"var(--text2)",marginTop:4,marginBottom:24}}>Hvem er du?</div>
+      <div style={{maxWidth:380,margin:"0 auto",padding:"32px 16px",textAlign:"center"}}>
+        <div style={{fontSize:64,animation:"bounce 1.5s infinite"}}>🎓</div>
+        <div style={{fontSize:26,fontWeight:800,marginTop:8,background:"linear-gradient(135deg,#7c4dff,#448aff)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Glose-appen</div>
+        <div style={{fontSize:14,color:"var(--text2)",marginTop:4,marginBottom:24}}>Hvem er du? 👇</div>
         <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
-          {students.map(st=>(
-            <button key={st.id} style={{padding:"12px 18px",borderRadius:14,border:"1px solid #ddd",background:"#fafafa",fontSize:16,cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:12}} onClick={()=>{setSelecting(st);setLoginError("");}}>
-              <AvatarDisplay avatar={st.avatar} name={st.name} size={46}/>
-              <div><div style={{fontWeight:500}}>{st.name}</div><div style={{fontSize:11,color:"#888"}}>{(st.club||CLUBS[0]).name} · 🪙{st.coins||0}</div></div>
-            </button>
-          ))}
+          {students.map((st,i)=>{
+            const colors=["linear-gradient(135deg,#bbdefb,#90caf9)","linear-gradient(135deg,#e1bee7,#ce93d8)","linear-gradient(135deg,#c8e6c9,#a5d6a7)","linear-gradient(135deg,#ffcdd2,#ef9a9a)","linear-gradient(135deg,#fff9c4,#fff176)","linear-gradient(135deg,#ffe0b2,#ffcc80)"];
+            return(
+              <button key={st.id} style={{padding:"14px 18px",borderRadius:20,border:"none",background:colors[i%colors.length],fontSize:16,cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:12,boxShadow:"0 4px 12px rgba(0,0,0,0.08)",fontWeight:600}} onClick={()=>{setSelecting(st);setLoginError("");}}>
+                <AvatarDisplay avatar={st.avatar} name={st.name} size={46}/>
+                <div><div style={{fontWeight:700}}>{st.name}</div><div style={{fontSize:11,color:"#555"}}>{(st.club||CLUBS[0]).name} · 🪙{st.coins||0}</div></div>
+              </button>
+            );
+          })}
         </div>
-        <button style={{width:"100%",padding:"12px",borderRadius:12,border:"1px solid #ddd",background:"#f5f5f5",color:"#888",fontSize:14,cursor:"pointer"}} onClick={()=>{setSelecting("admin");setLoginError("");}}>🔒 Admin / Lærer</button>
+        <button style={{width:"100%",padding:"12px",borderRadius:14,border:"none",background:"#ede7f6",color:"#7c4dff",fontSize:14,cursor:"pointer",fontWeight:700}} onClick={()=>{setSelecting("admin");setLoginError("");}}>🔒 Admin / Lærer</button>
       </div>
     );
     if(selecting==="admin")return<PinPad title="Admin" subtitle="Admin PIN" error={loginError} onBack={()=>{setSelecting(null);setLoginError("");}} onSubmit={p=>{if(p===ADMIN_PIN){setCurrentUser("admin");setSelecting(null);setLoginError("");}else setLoginError("Feil PIN.");}}/>;
@@ -894,51 +900,51 @@ function App(){
         <div style={{color:"white",fontSize:15,fontWeight:500}}>🪙{stData.coins||0}</div>
       </div>
       <div style={s.menuGrid}>
-        <button style={{...s.menuBtn,background:"#e3f2fd"}} onClick={startFlashcards}><span style={s.menuIcon}>🃏</span><span style={s.menuLabel}>Flashcards</span></button>
-        <button style={{...s.menuBtn,background:"#f3e5f5"}} onClick={()=>gloser.length>=4?startQuiz():alert("Trenger minst 4 gloser!")}><span style={s.menuIcon}>🎯</span><span style={s.menuLabel}>Quiz</span></button>
-        <button style={{...s.menuBtn,background:"#fce4ec"}} onClick={()=>setScreen("hangman")}><span style={s.menuIcon}>🪢</span><span style={s.menuLabel}>Hangman</span></button>
-        <button style={{...s.menuBtn,background:"#e0f7fa"}} onClick={()=>setScreen("maths")}><span style={s.menuIcon}>🔢</span><span style={s.menuLabel}>Matte</span></button>
-        <button style={{...s.menuBtn,background:"#e8f5e9"}} onClick={()=>setScreen("flags")}><span style={s.menuIcon}>🌍</span><span style={s.menuLabel}>Flagg</span></button>
-        <button style={{...s.menuBtn,background:"#fff8e1"}} onClick={()=>setScreen("shop")}><span style={s.menuIcon}>🛒</span><span style={s.menuLabel}>Butikk</span></button>
-        <button style={{...s.menuBtn,background:"#e8f5e9"}} onClick={()=>setScreen("squad")}><span style={s.menuIcon}>⚽</span><span style={s.menuLabel}>Mitt lag</span></button>
-        <button style={{...s.menuBtn,background:"#f9fbe7"}} onClick={()=>setScreen("leaderboard")}><span style={s.menuIcon}>🏆</span><span style={s.menuLabel}>Poengtavle</span></button>
-        <button style={{...s.menuBtn,background:"#ede7f6"}} onClick={()=>setScreen("report")}><span style={s.menuIcon}>📋</span><span style={s.menuLabel}>Rapport</span></button>
+        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#bbdefb,#90caf9)"}} onClick={startFlashcards}><span style={s.menuIcon}>🃏</span><span style={s.menuLabel}>Flashcards</span></button>
+        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#e1bee7,#ce93d8)"}} onClick={()=>gloser.length>=4?startQuiz():alert("Trenger minst 4 gloser!")}><span style={s.menuIcon}>🎯</span><span style={s.menuLabel}>Quiz</span></button>
+        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#ffcdd2,#ef9a9a)"}} onClick={()=>setScreen("hangman")}><span style={s.menuIcon}>🪢</span><span style={s.menuLabel}>Hangman</span></button>
+        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#b2ebf2,#80deea)"}} onClick={()=>setScreen("maths")}><span style={s.menuIcon}>🔢</span><span style={s.menuLabel}>Matte</span></button>
+        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#c8e6c9,#a5d6a7)"}} onClick={()=>setScreen("flags")}><span style={s.menuIcon}>🌍</span><span style={s.menuLabel}>Flagg</span></button>
+        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#fff9c4,#fff176)"}} onClick={()=>setScreen("shop")}><span style={s.menuIcon}>🛒</span><span style={s.menuLabel}>Butikk</span></button>
+        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#dcedc8,#c5e1a5)"}} onClick={()=>setScreen("squad")}><span style={s.menuIcon}>⚽</span><span style={s.menuLabel}>Mitt lag</span></button>
+        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#ffe0b2,#ffcc80)"}} onClick={()=>setScreen("leaderboard")}><span style={s.menuIcon}>🏆</span><span style={s.menuLabel}>Poengtavle</span></button>
+        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#f8bbd0,#f48fb1)",gridColumn:"span 2"}} onClick={()=>setScreen("report")}><span style={s.menuIcon}>📋</span><span style={s.menuLabel}>Rapport</span></button>
       </div>
     </div>
   );
 }
 
 const s={
-  page:{maxWidth:480,margin:"0 auto",padding:"0 16px 32px"},
-  topBar:{display:"flex",alignItems:"center",padding:"14px 0 8px",gap:8},
-  topTitle:{flex:1,textAlign:"center",fontWeight:500,fontSize:17},
-  back:{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"#555",padding:0},
-  smallBtn:{background:"none",border:"1px solid #ccc",borderRadius:8,padding:"4px 8px",fontSize:12,cursor:"pointer"},
-  smallBtn2:{padding:"7px 12px",borderRadius:8,border:"none",fontSize:13,cursor:"pointer",fontWeight:500},
-  progress:{textAlign:"center",fontSize:13,color:"var(--text3)",marginBottom:10},
-  menuGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:4},
-  menuBtn:{border:"none",borderRadius:14,padding:"16px 10px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:6},
-  menuIcon:{fontSize:28},menuLabel:{fontSize:13,fontWeight:500},
-  card:{background:"#fff",border:"1px solid #ddd",borderRadius:20,padding:"36px 24px",textAlign:"center",minHeight:150,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",margin:"0 0 16px"},
-  cardLang:{fontSize:13,color:"var(--text3)",marginBottom:6},cardWord:{fontSize:34,fontWeight:500},cardHint:{fontSize:12,color:"#bbb",marginTop:12},
-  row:{display:"flex",gap:10},navBtn:{flex:1,padding:"13px",borderRadius:12,border:"1px solid #ddd",background:"#f9f9f9",fontSize:14,cursor:"pointer"},
-  questionBox:{background:"#f5f0ff",borderRadius:16,padding:"20px",textAlign:"center",marginBottom:16},
-  questionLabel:{fontSize:14,color:"var(--text2)",marginBottom:6},questionWord:{fontSize:32,fontWeight:500},
+  menuGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginTop:4},
+  menuBtn:{border:"none",borderRadius:20,padding:"18px 10px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:8,boxShadow:"0 4px 12px rgba(0,0,0,0.08)",transition:"transform 0.15s",},
+  menuIcon:{fontSize:32},menuLabel:{fontSize:13,fontWeight:700},
+  card:{background:"#fff",border:"none",borderRadius:24,padding:"36px 24px",textAlign:"center",minHeight:150,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",margin:"0 0 16px",boxShadow:"0 4px 16px rgba(0,0,0,0.08)"},
+  cardLang:{fontSize:13,color:"var(--text3)",marginBottom:6},cardWord:{fontSize:34,fontWeight:700},cardHint:{fontSize:12,color:"#bbb",marginTop:12},
+  row:{display:"flex",gap:10},navBtn:{flex:1,padding:"13px",borderRadius:16,border:"none",background:"#fff",fontSize:14,cursor:"pointer",fontWeight:600,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"},
+  questionBox:{background:"linear-gradient(135deg,#f3e5f5,#e8eaf6)",borderRadius:20,padding:"20px",textAlign:"center",marginBottom:16},
+  questionLabel:{fontSize:14,color:"#7c4dff",marginBottom:6,fontWeight:600},questionWord:{fontSize:32,fontWeight:700},
   choicesGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
-  choice:{padding:"16px 8px",borderRadius:12,border:"1px solid #ddd",fontSize:17,cursor:"pointer"},
+  choice:{padding:"16px 8px",borderRadius:16,border:"none",fontSize:16,cursor:"pointer",fontWeight:600,boxShadow:"0 2px 8px rgba(0,0,0,0.07)",background:"#fff"},
   resultBox:{display:"flex",flexDirection:"column",alignItems:"center",gap:12,paddingTop:28},
-  resultTitle:{fontSize:24,fontWeight:500},resultScore:{fontSize:17,color:"var(--text2)"},
-  bigBtn:{width:"100%",padding:"14px",borderRadius:12,border:"none",background:"var(--purple)",color:"#fff",fontSize:16,cursor:"pointer",fontWeight:500},
-  btnGray:{background:"#f0f0f0",color:"#333"},
+  resultTitle:{fontSize:26,fontWeight:800},resultScore:{fontSize:17,color:"var(--text2)"},
+  bigBtn:{width:"100%",padding:"15px",borderRadius:16,border:"none",background:"linear-gradient(135deg,#7c4dff,#448aff)",color:"#fff",fontSize:16,cursor:"pointer",fontWeight:700,boxShadow:"0 4px 12px rgba(124,77,255,0.3)"},
+  btnGray:{background:"#f0f0f0",color:"#333",boxShadow:"none"},
   addBox:{display:"flex",flexDirection:"column",gap:10,marginBottom:16},
-  input:{padding:"12px 14px",borderRadius:10,border:"1px solid #ccc",fontSize:16},
+  input:{padding:"12px 14px",borderRadius:14,border:"2px solid #e0e0e0",fontSize:16,background:"#fff"},
   gloseList:{display:"flex",flexDirection:"column",gap:8},
-  gloseRow:{display:"flex",alignItems:"center",background:"#fafafa",borderRadius:10,padding:"10px 12px",border:"1px solid #eee"},
-  glosePair:{flex:1,fontSize:15},deleteBtn:{background:"none",border:"none",color:"#ccc",fontSize:16,cursor:"pointer"},
-  letterBox:{width:34,height:42,border:"1px solid #ccc",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,background:"#fafafa"},
+  gloseRow:{display:"flex",alignItems:"center",background:"#fff",borderRadius:14,padding:"10px 12px",boxShadow:"0 2px 6px rgba(0,0,0,0.06)"},
+  glosePair:{flex:1,fontSize:15},deleteBtn:{background:"none",border:"none",color:"#ffab91",fontSize:18,cursor:"pointer"},
+  letterBox:{width:36,height:44,border:"3px solid #e0e0e0",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,background:"#fff",fontWeight:700},
   keyboard:{display:"flex",flexWrap:"wrap",gap:5,justifyContent:"center"},
-  key:{width:34,height:38,border:"1px solid #ddd",borderRadius:8,fontSize:14,fontWeight:500},
-  pinBtn:{padding:"16px",borderRadius:12,border:"1px solid #ddd",background:"#fafafa",fontSize:22,cursor:"pointer"},
+  key:{width:34,height:38,border:"none",borderRadius:10,fontSize:14,fontWeight:700,background:"#fff",boxShadow:"0 2px 6px rgba(0,0,0,0.08)"},
+  pinBtn:{padding:"16px",borderRadius:16,border:"none",background:"#fff",fontSize:22,cursor:"pointer",fontWeight:700,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"},
+  smallBtn:{background:"#fff",border:"none",borderRadius:10,padding:"4px 10px",fontSize:12,cursor:"pointer",boxShadow:"0 2px 6px rgba(0,0,0,0.08)"},
+  smallBtn2:{padding:"7px 14px",borderRadius:10,border:"none",fontSize:13,cursor:"pointer",fontWeight:700},
+  progress:{textAlign:"center",fontSize:13,color:"var(--text3)",marginBottom:10},
+  back:{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"#7c4dff",padding:0,fontWeight:600},
+  topBar:{display:"flex",alignItems:"center",padding:"14px 0 8px",gap:8},
+  topTitle:{flex:1,textAlign:"center",fontWeight:800,fontSize:18},
+  page:{maxWidth:480,margin:"0 auto",padding:"0 16px 32px"},
 };
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
