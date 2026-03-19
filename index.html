@@ -449,8 +449,8 @@ function TeacherReport({gloser, students, singleStudent, onBack}) {
   const today = new Date().toLocaleDateString("no-NO", {day:"numeric",month:"long",year:"numeric"});
 
   function status(en) {
-    if (!st) return "ikke øvd";
-    const items = st.history.filter(h => h.en === en && h.source === "quiz");
+    const history = st?.history || [];
+    const items = history.filter(h => h.en === en && h.source === "quiz");
     if (!items.length) return "ikke øvd";
     const p = items.filter(h => h.correct).length / items.length;
     return p >= 0.75 ? "kan" : p >= 0.4 ? "nesten" : "trenger øving";
