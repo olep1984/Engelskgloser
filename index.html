@@ -777,9 +777,18 @@ function MathGame({onBack, addCoins, mode, onDone}) {
   }
   useEffect(()=>{newQ();},[]);
   function pick(val){
-    if(chosen!==null)return;setChosen(val);
-    if(val===q.answer){setScore(sc=>sc+1);addCoins(1);}
-    setTimeout(()=>{if(round+1>=TOTAL){onDone&&onDone();setDone(true);}else{setRound(r=>r+1);newQ();}},900);
+    if(chosen!==null)return;
+    setChosen(val);
+    if(val===q.answer){setScore(sc=>sc+1);if(addCoins)addCoins(1);}
+    setTimeout(()=>{
+      if(round+1>=TOTAL){
+        if(onDone)onDone();
+        setDone(true);
+      } else {
+        setRound(r=>r+1);
+        newQ();
+      }
+    },900);
   }
   const colors={multiply:"#e0f7fa",add:"#e8f5e9",subtract:"#fff3e0"};
   const titles={multiply:"✖️ Ganging",add:"➕ Addisjon",subtract:"➖ Subtraksjon"};
