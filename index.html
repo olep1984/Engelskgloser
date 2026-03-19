@@ -388,7 +388,179 @@ function PenaltyGame({onDone}){
   );
 }
 
-// ── SQUAD ──
+// ── PLAYER CARDS ──
+const PLAYERS = [
+  // Norske spillere
+  {id:"haaland",name:"Erling Haaland",club:"Man City",league:"Premier League",pos:"ST",rating:91,rarity:"legend",emoji:"⚽"},
+  {id:"odegaard",name:"Martin Ødegaard",club:"Arsenal",league:"Premier League",pos:"CAM",rating:88,rarity:"gold",emoji:"🎯"},
+  {id:"sorloth",name:"Alexander Sørloth",club:"Atlético",league:"La Liga",pos:"ST",rating:83,rarity:"gold",emoji:"⚽"},
+  {id:"nusa",name:"Antonio Nusa",club:"Leipzig",league:"Bundesliga",pos:"RW",rating:78,rarity:"silver",emoji:"💨"},
+  {id:"thorsby",name:"Morten Thorsby",club:"Genoa",league:"Serie A",pos:"CM",rating:74,rarity:"silver",emoji:"🛡️"},
+  {id:"berge",name:"Sander Berge",club:"Fulham",league:"Premier League",pos:"CM",rating:76,rarity:"silver",emoji:"💪"},
+  // Premier League
+  {id:"salah",name:"Mohamed Salah",club:"Liverpool",league:"Premier League",pos:"RW",rating:90,rarity:"legend",emoji:"🔥"},
+  {id:"mbappe2",name:"Bukayo Saka",club:"Arsenal",league:"Premier League",pos:"RW",rating:87,rarity:"gold",emoji:"⚡"},
+  {id:"palmer",name:"Cole Palmer",club:"Chelsea",league:"Premier League",pos:"CAM",rating:86,rarity:"gold",emoji:"🎩"},
+  {id:"foden",name:"Phil Foden",club:"Man City",league:"Premier League",pos:"LW",rating:87,rarity:"gold",emoji:"🌟"},
+  {id:"kane",name:"Harry Kane",club:"Bayern",league:"Bundesliga",pos:"ST",rating:89,rarity:"gold",emoji:"👑"},
+  {id:"brunofernandes",name:"Bruno Fernandes",club:"Man Utd",league:"Premier League",pos:"CAM",rating:85,rarity:"gold",emoji:"🎯"},
+  // La Liga
+  {id:"vinicius",name:"Vinícius Jr.",club:"Real Madrid",league:"La Liga",pos:"LW",rating:92,rarity:"legend",emoji:"💃"},
+  {id:"bellingham",name:"Jude Bellingham",club:"Real Madrid",league:"La Liga",pos:"CAM",rating:90,rarity:"legend",emoji:"🏆"},
+  {id:"yamal",name:"Lamine Yamal",club:"Barcelona",league:"La Liga",pos:"RW",rating:85,rarity:"gold",emoji:"✨"},
+  {id:"pedri",name:"Pedri",club:"Barcelona",league:"La Liga",pos:"CM",rating:86,rarity:"gold",emoji:"🎨"},
+  {id:"lewandowski",name:"Lewandowski",club:"Barcelona",league:"La Liga",pos:"ST",rating:87,rarity:"gold",emoji:"🥅"},
+  // Bundesliga
+  {id:"musiala",name:"Jamal Musiala",club:"Bayern",league:"Bundesliga",pos:"CAM",rating:87,rarity:"gold",emoji:"🌈"},
+  {id:"wirtz",name:"Florian Wirtz",club:"Leverkusen",league:"Bundesliga",pos:"CAM",rating:87,rarity:"gold",emoji:"⚗️"},
+  {id:"gnabry",name:"Serge Gnabry",club:"Bayern",league:"Bundesliga",pos:"RW",rating:82,rarity:"silver",emoji:"🚀"},
+  // Blandede stjerner
+  {id:"mbappe",name:"Kylian Mbappé",club:"Real Madrid",league:"La Liga",pos:"ST",rating:93,rarity:"legend",emoji:"💨"},
+  {id:"modric",name:"Luka Modrić",club:"Real Madrid",league:"La Liga",pos:"CM",rating:85,rarity:"gold",emoji:"🦅"},
+  {id:"debruyne",name:"Kevin De Bruyne",club:"Man City",league:"Premier League",pos:"CAM",rating:91,rarity:"legend",emoji:"🎪"},
+  {id:"alisson",name:"Alisson",club:"Liverpool",league:"Premier League",pos:"GK",rating:89,rarity:"gold",emoji:"🧤"},
+  {id:"vanDijk",name:"Van Dijk",club:"Liverpool",league:"Premier League",pos:"CB",rating:88,rarity:"gold",emoji:"🗿"},
+  {id:"rudiger",name:"Rüdiger",club:"Real Madrid",league:"La Liga",pos:"CB",rating:85,rarity:"gold",emoji:"🦁"},
+];
+
+const PACK_TYPES = [
+  {id:"bronze",label:"Bronsepakke",price:20,count:3,minRating:70,color:"#cd7f32",bg:"linear-gradient(135deg,#8B4513,#cd7f32)",desc:"3 spillere · vanlige kort"},
+  {id:"silver",label:"Sølvpakke",price:50,count:3,minRating:78,color:"#aaa",bg:"linear-gradient(135deg,#607d8b,#b0bec5)",desc:"3 spillere · bedre odds"},
+  {id:"gold",label:"Gullpakke",price:120,count:3,minRating:82,color:"#f9a825",bg:"linear-gradient(135deg,#f9a825,#ff8f00)",desc:"3 spillere · gold+ garantert"},
+  {id:"legend",label:"Legendarisk pakke",price:300,count:3,minRating:85,color:"#7c4dff",bg:"linear-gradient(135deg,#7c4dff,#e91e63)",desc:"3 spillere · sjanse for legend!"},
+];
+
+const RARITY_COLORS = {
+  silver:{bg:"linear-gradient(135deg,#78909c,#b0bec5)",text:"#fff",border:"#b0bec5"},
+  gold:{bg:"linear-gradient(135deg,#f9a825,#ff8f00)",text:"#fff",border:"#f9a825"},
+  legend:{bg:"linear-gradient(135deg,#7c4dff,#e91e63)",text:"#fff",border:"#ce93d8"},
+};
+
+function openPack(packType) {
+  const pool = PLAYERS.filter(p => p.rating >= packType.minRating);
+  const result = [];
+  for (let i = 0; i < packType.count; i++) {
+    result.push(pool[Math.floor(Math.random() * pool.length)]);
+  }
+  return result;
+}
+
+function PlayerCard({player, size="normal", owned=false}) {
+  const rarity = RARITY_COLORS[player.rarity] || RARITY_COLORS.silver;
+  const isSmall = size === "small";
+  return (
+    <div style={{background:rarity.bg,borderRadius:isSmall?10:14,padding:isSmall?"8px 6px":"14px 10px",textAlign:"center",border:`2px solid ${rarity.border}`,boxShadow:owned?"none":`0 4px 12px rgba(0,0,0,0.2)`,position:"relative",opacity:owned?1:0.95,minWidth:isSmall?60:80}}>
+      {player.rarity==="legend"&&<div style={{position:"absolute",top:-6,left:"50%",transform:"translateX(-50%)",fontSize:10,background:"#f9a825",color:"#fff",borderRadius:8,padding:"1px 6px",fontWeight:800,whiteSpace:"nowrap"}}>LEGEND</div>}
+      <div style={{fontSize:isSmall?18:28,marginBottom:2}}>{player.emoji}</div>
+      <div style={{fontSize:isSmall?16:22,fontWeight:900,color:"#fff",lineHeight:1}}>{player.rating}</div>
+      <div style={{fontSize:isSmall?8:10,color:"rgba(255,255,255,0.8)",fontWeight:700,letterSpacing:0.5}}>{player.pos}</div>
+      <div style={{fontSize:isSmall?9:11,color:"#fff",fontWeight:800,marginTop:2,lineHeight:1.2}}>{isSmall?player.name.split(" ").pop():player.name}</div>
+      <div style={{fontSize:isSmall?8:10,color:"rgba(255,255,255,0.75)",marginTop:1}}>{isSmall?"":player.club}</div>
+    </div>
+  );
+}
+
+function PackStore({student, onUpdate, onBack}) {
+  const [phase, setPhase] = useState("store"); // store | opening | reveal
+  const [selectedPack, setSelectedPack] = useState(null);
+  const [revealedPlayers, setRevealedPlayers] = useState([]);
+  const [revealIdx, setRevealIdx] = useState(0);
+  const [msg, setMsg] = useState("");
+  const coins = student.coins || 0;
+  const ownedIds = student.playerCards || [];
+
+  function buyPack(pack) {
+    if (coins < pack.price) { setMsg("Ikke nok coins! 🪙"); setTimeout(()=>setMsg(""),2000); return; }
+    const players = openPack(pack);
+    onUpdate({ coins: coins - pack.price });
+    setSelectedPack(pack);
+    setRevealedPlayers(players);
+    setRevealIdx(0);
+    setPhase("opening");
+  }
+
+  function revealNext() {
+    const p = revealedPlayers[revealIdx];
+    // Add to collection if not already owned
+    const existing = student.playerCards || [];
+    if (!existing.includes(p.id)) {
+      onUpdate({ playerCards: [...existing, p.id] });
+    }
+    if (revealIdx + 1 >= revealedPlayers.length) {
+      setPhase("reveal");
+    } else {
+      setRevealIdx(i => i + 1);
+    }
+  }
+
+  if (phase === "opening") {
+    const current = revealedPlayers[revealIdx];
+    return (
+      <div style={s.page}>
+        <div style={{textAlign:"center",padding:"20px 0"}}>
+          <div style={{fontSize:14,color:"var(--text3)",marginBottom:4}}>{selectedPack.label} · Kort {revealIdx+1} av {revealedPlayers.length}</div>
+          <div style={{fontSize:22,fontWeight:800,marginBottom:20}}>🎴 Hvem får du?</div>
+          <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
+            <PlayerCard player={current} size="normal"/>
+          </div>
+          <div style={{fontSize:13,color:"var(--text2)",marginBottom:16}}>
+            {(student.playerCards||[]).includes(current.id) ? "⚠️ Allerede i samlingen din" : "🆕 Ny spiller!"}
+          </div>
+          <button style={s.bigBtn} onClick={revealNext}>
+            {revealIdx + 1 < revealedPlayers.length ? "Neste kort ▶" : "Se alle ✓"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "reveal") {
+    return (
+      <div style={s.page}>
+        <div style={{textAlign:"center",padding:"16px 0 8px"}}>
+          <div style={{fontSize:40}}>🎉</div>
+          <div style={{fontSize:20,fontWeight:800,margin:"8px 0"}}>Pakke åpnet!</div>
+        </div>
+        <div style={{display:"flex",gap:10,justifyContent:"center",marginBottom:20,flexWrap:"wrap"}}>
+          {revealedPlayers.map((p,i) => <PlayerCard key={i} player={p} size="normal"/>)}
+        </div>
+        <button style={s.bigBtn} onClick={()=>setPhase("store")}>Kjøp flere pakker</button>
+        <button style={{...s.bigBtn,...s.btnGray,marginTop:10}} onClick={onBack}>Tilbake</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={s.page}>
+      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Tilbake</button><span style={s.topTitle}>🎴 Spillerpakker</span></div>
+      <div style={{background:"linear-gradient(135deg,#1a237e,#283593)",borderRadius:16,padding:"12px 16px",marginBottom:16,display:"flex",alignItems:"center",gap:10}}>
+        <span style={{fontSize:24}}>🪙</span>
+        <div><div style={{color:"white",fontWeight:800,fontSize:16}}>{coins} coins</div><div style={{color:"rgba(255,255,255,0.7)",fontSize:12}}>{ownedIds.length} spillere i samlingen</div></div>
+      </div>
+      {msg&&<div style={{background:"#ffcdd2",borderRadius:10,padding:"10px",marginBottom:10,fontSize:14,fontWeight:700,color:"#c62828",textAlign:"center"}}>{msg}</div>}
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        {PACK_TYPES.map(pack => (
+          <div key={pack.id} style={{background:pack.bg,borderRadius:18,padding:"16px",boxShadow:"0 4px 16px rgba(0,0,0,0.15)"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+              <div><div style={{fontWeight:800,fontSize:18,color:"#fff"}}>{pack.label}</div><div style={{fontSize:12,color:"rgba(255,255,255,0.8)"}}>{pack.desc}</div></div>
+              <div style={{textAlign:"right"}}><div style={{fontSize:22,fontWeight:900,color:"#fff"}}>🪙 {pack.price}</div></div>
+            </div>
+            <button onClick={()=>buyPack(pack)} style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:"rgba(255,255,255,0.25)",color:"#fff",fontSize:15,fontWeight:800,cursor:"pointer",backdropFilter:"blur(4px)"}}>
+              {coins >= pack.price ? "🎴 Åpne pakke!" : "🔒 Ikke nok coins"}
+            </button>
+          </div>
+        ))}
+      </div>
+      <div style={{fontSize:13,fontWeight:700,color:"var(--text2)",margin:"20px 0 10px"}}>Din samling ({ownedIds.length} spillere)</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+        {PLAYERS.filter(p => ownedIds.includes(p.id)).map(p => <PlayerCard key={p.id} player={p} size="small" owned/>)}
+        {ownedIds.length === 0 && <div style={{gridColumn:"span 4",textAlign:"center",color:"var(--text3)",padding:"20px",fontSize:14}}>Ingen spillere ennå — kjøp en pakke! 🎴</div>}
+      </div>
+    </div>
+  );
+}
+
+// ── SQUAD BUILDER WITH PLAYERS ──
 function SquadDisplay({squad,clubColor}){
   return(
     <div style={{position:"relative",width:"100%",maxWidth:320,margin:"0 auto",height:260,background:"linear-gradient(180deg,#2d8a2d,#1a5c1a 50%,#2d8a2d)",borderRadius:12,overflow:"hidden"}}>
@@ -947,11 +1119,13 @@ function App(){
   if(screen==="shop")return<AvatarShop student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("home")}/>;
   if(screen==="report")return<TeacherReport gloser={gloser} students={students} singleStudent={stData.id} onBack={()=>setScreen("home")}/>;
   if(screen==="maths")return<MathMenu onBack={()=>setScreen("home")} addCoins={addCoins} onStart={()=>updateStudent(currentUser.id,{mathSessions:(stData.mathSessions||0)+1})}/>;
+  if(screen==="packs")return<PackStore student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("home")}/>;
   if(screen==="squad")return(
     <div style={s.page}>
-      <div style={s.topBar}><button style={s.back} onClick={()=>setScreen("home")}>← Hjem</button><span style={s.topTitle}>Mitt lag</span></div>
-      <div style={{textAlign:"center",marginBottom:10}}><div style={{fontSize:15,fontWeight:500}}>{club.name}</div><div style={{fontSize:13,color:"#888"}}>{stData.squad?.length||0}/11 spillere</div></div>
-      <SquadDisplay squad={stData.squad||[]} clubColor={club.color}/>
+      <div style={s.topBar}><button style={s.back} onClick={()=>setScreen("home")}>← Hjem</button><span style={s.topTitle}>⚽ Mitt lag</span></div>
+      <div style={{textAlign:"center",marginBottom:10}}><div style={{fontSize:15,fontWeight:700}}>{club.name}</div><div style={{fontSize:13,color:"#888"}}>{stData.squad?.length||0}/11 · {stData.playerCards?.length||0} spillere i samling</div></div>
+      <SquadDisplay squad={stData.squad||[]} clubColor={club.color} playerCards={stData.playerCards||[]}/>
+      <button style={{...s.bigBtn,marginTop:14,background:"linear-gradient(135deg,#f9a825,#ff8f00)"}} onClick={()=>setScreen("packs")}>🎴 Kjøp spillerpakker</button>
     </div>
   );
   if(screen==="flashcard"){
@@ -1058,6 +1232,7 @@ function App(){
         <button style={{...s.menuBtn,background:"linear-gradient(135deg,#fff9c4,#fff176)"}} onClick={()=>setScreen("shop")}><span style={s.menuIcon}>🛒</span><span style={s.menuLabel}>Butikk</span></button>
         <button style={{...s.menuBtn,background:"linear-gradient(135deg,#dcedc8,#c5e1a5)"}} onClick={()=>setScreen("squad")}><span style={s.menuIcon}>⚽</span><span style={s.menuLabel}>Mitt lag</span></button>
         <button style={{...s.menuBtn,background:"linear-gradient(135deg,#ffe0b2,#ffcc80)"}} onClick={()=>setScreen("leaderboard")}><span style={s.menuIcon}>🏆</span><span style={s.menuLabel}>Poengtavle</span></button>
+        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#fff9c4,#fff176)"}} onClick={()=>setScreen("packs")}><span style={s.menuIcon}>🎴</span><span style={s.menuLabel}>Pakker</span></button>
         <button style={{...s.menuBtn,background:"linear-gradient(135deg,#f8bbd0,#f48fb1)",gridColumn:"span 2"}} onClick={()=>setScreen("report")}><span style={s.menuIcon}>📋</span><span style={s.menuLabel}>Rapport</span></button>
       </div>
     </div>
