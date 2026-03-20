@@ -10,76 +10,65 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-database-compat.min.js"></script>
 <script>
-  try {
-    firebase.initializeApp({ databaseURL: "https://rengaard-e82c6-default-rtdb.europe-west1.firebasedatabase.app" });
-    const db = firebase.database();
-    window.fbGet = async (key) => { const s = await db.ref(key).get(); return s.exists() ? s.val() : null; };
-    window.fbSet = async (key, val) => { await db.ref(key).set(val); };
-    window.fbOn = (key, cb) => {
-      const ref = db.ref(key);
-      ref.on("value", snap => cb(snap.exists() ? snap.val() : null));
-      return () => ref.off("value");
-    };
-    window.firebaseReady = true;
-  } catch(e) {
-    console.error("Firebase init failed:", e);
-    window.firebaseReady = false;
-    window.fbGet = async () => null;
-    window.fbSet = async () => {};
-    window.fbOn = (key, cb) => () => {};
-  }
+try {
+  firebase.initializeApp({ databaseURL: "https://rengaard-e82c6-default-rtdb.europe-west1.firebasedatabase.app" });
+  const db = firebase.database();
+  window.fbGet = async (key) => { const s = await db.ref(key).get(); return s.exists() ? s.val() : null; };
+  window.fbSet = async (key, val) => { await db.ref(key).set(val); };
+  window.fbOn  = (key, cb) => { const r = db.ref(key); r.on("value", s => cb(s.exists() ? s.val() : null)); return () => r.off("value"); };
+} catch(e) {
+  window.fbGet = async () => null;
+  window.fbSet = async () => {};
+  window.fbOn  = (k,cb) => () => {};
+}
 </script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: linear-gradient(135deg, #fff9f0 0%, #f0f4ff 100%); min-height: 100vh; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: linear-gradient(135deg,#fff9f0,#f0f4ff); min-height: 100vh; }
 input, button { font-family: inherit; }
-:root { --purple: #7c4dff; --purple-light: #ede7f6; --purple-dark: #4527a0; --text: #1a1a1a; --text2: #666; --text3: #aaa; }
-@keyframes coinPop { 0%{transform:scale(1) rotate(0deg)} 50%{transform:scale(1.6) rotate(15deg)} 100%{transform:scale(1) rotate(0deg)} }
-@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
-@keyframes wiggle { 0%,100%{transform:rotate(0deg)} 25%{transform:rotate(-8deg)} 75%{transform:rotate(8deg)} }
-@keyframes pop { 0%{transform:scale(0.8);opacity:0} 100%{transform:scale(1);opacity:1} }
+:root { --purple:#7c4dff; --pl:#ede7f6; --pd:#4527a0; --t:#1a1a1a; --t2:#666; --t3:#aaa; }
+@keyframes coinPop { 0%{transform:scale(1)}50%{transform:scale(1.6)}100%{transform:scale(1)} }
+@keyframes bounce { 0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)} }
 </style>
 </head>
 <body><div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect } = React;
+const {useState,useEffect,useRef} = React;
 
-const ADMIN_PIN = "1234";
-const MAX_WRONG = 3;
-const NEW_COUNT = 5;
+const ADMIN_PIN="1234", MAX_WRONG=3, NEW_COUNT=5;
 
-const MALE_HAIR = [
+const MALE_HAIR=[
   {id:"short",label:"Kort hår",top:"〰️",cost:0},
   {id:"curly",label:"Krøllete",top:"🌀",cost:30},
   {id:"mohawk",label:"Mohawk",top:"⚡",cost:60},
   {id:"crown",label:"Kongekrone",top:"👑",cost:150},
   {id:"fire",label:"Ildtopp",top:"🔥",cost:200},
 ];
-const FEMALE_HAIR = [
+const FEMALE_HAIR=[
   {id:"long",label:"Langt hår",top:"〰️",cost:0},
   {id:"bun",label:"Hårknut",top:"🎀",cost:30},
   {id:"ponytail",label:"Hestehale",top:"🌸",cost:60},
   {id:"crown",label:"Tiara",top:"👑",cost:150},
   {id:"sparkle",label:"Glitter",top:"✨",cost:200},
 ];
-const MALE_KITS = [
+const MALE_KITS=[
   {id:"basic",label:"Vanlig drakt",body:"👕",color:"#90a4ae",cost:0},
   {id:"club",label:"Klubbdrakt",body:"🥈",color:"#5c6bc0",cost:50},
   {id:"pro",label:"Proffdrakt",body:"🥇",color:"#e65100",cost:120},
   {id:"legendary",label:"Legendarisk",body:"💎",color:"#7b1fa2",cost:250},
   {id:"golden",label:"Gulldrakt",body:"✨",color:"#f9a825",cost:500},
 ];
-const FEMALE_KITS = [
+const FEMALE_KITS=[
   {id:"basic",label:"Enkel kjole",body:"👗",color:"#f48fb1",cost:0},
   {id:"party",label:"Festkjole",body:"🌸",color:"#e91e63",cost:50},
   {id:"elegant",label:"Elegant kjole",body:"💜",color:"#9c27b0",cost:120},
   {id:"princess",label:"Prinsessekjole",body:"🌟",color:"#ff9800",cost:250},
   {id:"golden",label:"Gullkjole",body:"✨",color:"#f9a825",cost:500},
 ];
-const ARMBAND = {id:"captain",label:"Kapteinsbind",emoji:"💛",cost:80};
-const TIARA_ITEM = {id:"tiara",label:"Gulltiara",emoji:"💍",cost:80};
+const ARMBAND={id:"captain",label:"Kapteinsbind",emoji:"💛",cost:80};
+const TIARA_ITEM={id:"tiara",label:"Gulltiara",emoji:"💍",cost:80};
 
-const CLUBS = [
+const CLUBS=[
   {name:"Real Madrid",color:"#ffd700",bg:"#1a1a6e"},{name:"Barcelona",color:"#a50044",bg:"#004d98"},
   {name:"Man City",color:"#6caae4",bg:"#1c2c5b"},{name:"Liverpool",color:"#c8102e",bg:"#00b2a9"},
   {name:"Bayern",color:"#dc052d",bg:"#0066b2"},{name:"PSG",color:"#da291c",bg:"#004170"},
@@ -87,7 +76,8 @@ const CLUBS = [
   {name:"Dortmund",color:"#fde100",bg:"#000"},{name:"Ajax",color:"#d2122e",bg:"#eee"},
   {name:"Inter",color:"#010e80",bg:"#333"},{name:"Chelsea",color:"#034694",bg:"#87ceeb"},
 ];
-const POSITIONS = [
+
+const POSITIONS=[
   {id:"gk",label:"Keeper",x:50,y:85},{id:"lb",label:"VB",x:15,y:65},
   {id:"cb1",label:"MST",x:35,y:65},{id:"cb2",label:"MST",x:65,y:65},
   {id:"rb",label:"HB",x:85,y:65},{id:"cm1",label:"MB",x:25,y:45},
@@ -95,201 +85,143 @@ const POSITIONS = [
   {id:"lw",label:"VV",x:15,y:22},{id:"st",label:"ST",x:50,y:18},{id:"rw",label:"HV",x:85,y:22},
 ];
 
-const defaultGloser = [
+const PLAYERS=[
+  {id:"haaland",name:"Erling Haaland",club:"Man City",league:"Premier League",pos:"ST",rating:91,rarity:"legend",emoji:"⚽"},
+  {id:"odegaard",name:"Martin Ødegaard",club:"Arsenal",league:"Premier League",pos:"CAM",rating:88,rarity:"gold",emoji:"🎯"},
+  {id:"sorloth",name:"Alexander Sørloth",club:"Atlético",league:"La Liga",pos:"ST",rating:83,rarity:"gold",emoji:"⚽"},
+  {id:"nusa",name:"Antonio Nusa",club:"Leipzig",league:"Bundesliga",pos:"RW",rating:78,rarity:"silver",emoji:"💨"},
+  {id:"berge",name:"Sander Berge",club:"Fulham",league:"Premier League",pos:"CM",rating:76,rarity:"silver",emoji:"💪"},
+  {id:"salah",name:"Mohamed Salah",club:"Liverpool",league:"Premier League",pos:"RW",rating:90,rarity:"legend",emoji:"🔥"},
+  {id:"saka",name:"Bukayo Saka",club:"Arsenal",league:"Premier League",pos:"RW",rating:87,rarity:"gold",emoji:"⚡"},
+  {id:"palmer",name:"Cole Palmer",club:"Chelsea",league:"Premier League",pos:"CAM",rating:86,rarity:"gold",emoji:"🎩"},
+  {id:"foden",name:"Phil Foden",club:"Man City",league:"Premier League",pos:"LW",rating:87,rarity:"gold",emoji:"🌟"},
+  {id:"kane",name:"Harry Kane",club:"Bayern",league:"Bundesliga",pos:"ST",rating:89,rarity:"gold",emoji:"👑"},
+  {id:"bruno",name:"Bruno Fernandes",club:"Man Utd",league:"Premier League",pos:"CAM",rating:85,rarity:"gold",emoji:"🎯"},
+  {id:"vinicius",name:"Vinícius Jr.",club:"Real Madrid",league:"La Liga",pos:"LW",rating:92,rarity:"legend",emoji:"💃"},
+  {id:"bellingham",name:"Jude Bellingham",club:"Real Madrid",league:"La Liga",pos:"CAM",rating:90,rarity:"legend",emoji:"🏆"},
+  {id:"yamal",name:"Lamine Yamal",club:"Barcelona",league:"La Liga",pos:"RW",rating:85,rarity:"gold",emoji:"✨"},
+  {id:"pedri",name:"Pedri",club:"Barcelona",league:"La Liga",pos:"CM",rating:86,rarity:"gold",emoji:"🎨"},
+  {id:"lewandowski",name:"Lewandowski",club:"Barcelona",league:"La Liga",pos:"ST",rating:87,rarity:"gold",emoji:"🥅"},
+  {id:"musiala",name:"Jamal Musiala",club:"Bayern",league:"Bundesliga",pos:"CAM",rating:87,rarity:"gold",emoji:"🌈"},
+  {id:"wirtz",name:"Florian Wirtz",club:"Leverkusen",league:"Bundesliga",pos:"CAM",rating:87,rarity:"gold",emoji:"⚗️"},
+  {id:"mbappe",name:"Kylian Mbappé",club:"Real Madrid",league:"La Liga",pos:"ST",rating:93,rarity:"legend",emoji:"💨"},
+  {id:"debruyne",name:"Kevin De Bruyne",club:"Man City",league:"Premier League",pos:"CAM",rating:91,rarity:"legend",emoji:"🎪"},
+  {id:"alisson",name:"Alisson",club:"Liverpool",league:"Premier League",pos:"GK",rating:89,rarity:"gold",emoji:"🧤"},
+  {id:"vandijk",name:"Van Dijk",club:"Liverpool",league:"Premier League",pos:"CB",rating:88,rarity:"gold",emoji:"🗿"},
+  {id:"modric",name:"Luka Modrić",club:"Real Madrid",league:"La Liga",pos:"CM",rating:85,rarity:"gold",emoji:"🦅"},
+  {id:"rudiger",name:"Rüdiger",club:"Real Madrid",league:"La Liga",pos:"CB",rating:85,rarity:"gold",emoji:"🦁"},
+  {id:"gnabry",name:"Serge Gnabry",club:"Bayern",league:"Bundesliga",pos:"RW",rating:82,rarity:"silver",emoji:"🚀"},
+];
+
+const PACK_TYPES=[
+  {id:"bronze",label:"Bronsepakke",price:20,count:3,minRating:70,bg:"linear-gradient(135deg,#8B4513,#cd7f32)",desc:"3 spillere · vanlige kort"},
+  {id:"silver",label:"Sølvpakke",price:50,count:3,minRating:78,bg:"linear-gradient(135deg,#607d8b,#b0bec5)",desc:"3 spillere · bedre odds"},
+  {id:"gold",label:"Gullpakke",price:120,count:3,minRating:82,bg:"linear-gradient(135deg,#f9a825,#ff8f00)",desc:"3 spillere · gold+ garantert"},
+  {id:"legend",label:"Legendarisk",price:300,count:3,minRating:85,bg:"linear-gradient(135deg,#7c4dff,#e91e63)",desc:"3 spillere · sjanse for legend!"},
+];
+
+const RARITY_COLORS={
+  silver:{bg:"linear-gradient(135deg,#78909c,#b0bec5)",border:"#b0bec5"},
+  gold:{bg:"linear-gradient(135deg,#f9a825,#ff8f00)",border:"#f9a825"},
+  legend:{bg:"linear-gradient(135deg,#7c4dff,#e91e63)",border:"#ce93d8"},
+};
+
+const FLAGS=[
+  {code:"NO",name:"Norge"},{code:"SE",name:"Sverige"},{code:"DK",name:"Danmark"},
+  {code:"FI",name:"Finland"},{code:"IS",name:"Island"},{code:"GB",name:"Storbritannia"},
+  {code:"DE",name:"Tyskland"},{code:"FR",name:"Frankrike"},{code:"ES",name:"Spania"},
+  {code:"IT",name:"Italia"},{code:"PT",name:"Portugal"},{code:"NL",name:"Nederland"},
+  {code:"BE",name:"Belgia"},{code:"CH",name:"Sveits"},{code:"AT",name:"Østerrike"},
+  {code:"PL",name:"Polen"},{code:"CZ",name:"Tsjekkia"},{code:"HU",name:"Ungarn"},
+  {code:"GR",name:"Hellas"},{code:"TR",name:"Tyrkia"},{code:"RU",name:"Russland"},
+  {code:"UA",name:"Ukraina"},{code:"US",name:"USA"},{code:"CA",name:"Canada"},
+  {code:"MX",name:"Mexico"},{code:"BR",name:"Brasil"},{code:"AR",name:"Argentina"},
+  {code:"JP",name:"Japan"},{code:"CN",name:"Kina"},{code:"KR",name:"Sør-Korea"},
+  {code:"IN",name:"India"},{code:"AU",name:"Australia"},{code:"ZA",name:"Sør-Afrika"},
+  {code:"NG",name:"Nigeria"},{code:"EG",name:"Egypt"},{code:"MA",name:"Marokko"},
+  {code:"SA",name:"Saudi-Arabia"},{code:"TH",name:"Thailand"},{code:"ID",name:"Indonesia"},
+  {code:"VN",name:"Vietnam"},{code:"PH",name:"Filippinene"},{code:"IL",name:"Israel"},
+  {code:"AE",name:"Emiratene"},{code:"CL",name:"Chile"},{code:"CO",name:"Colombia"},
+  {code:"KE",name:"Kenya"},{code:"GH",name:"Ghana"},{code:"NZ",name:"New Zealand"},
+  {code:"RO",name:"Romania"},{code:"PT",name:"Portugal"},
+];
+
+const defaultGloser=[
   {no:"hund",en:"dog",id:1},{no:"katt",en:"cat",id:2},{no:"hus",en:"house",id:3},
   {no:"bil",en:"car",id:4},{no:"bok",en:"book",id:5},{no:"skole",en:"school",id:6},
   {no:"venn",en:"friend",id:7},{no:"mat",en:"food",id:8},
 ];
-const defaultStudents = [
-  {id:1,name:"Elev 1",pin:"1111",history:[],quizSessions:0,hangmanSessions:0,flashcardSessions:0,mathSessions:0,points:0,coins:0,squad:[],club:CLUBS[0],avatar:{gender:"male",kit:"basic",hair:"short",extra:false},purchased:[]},
-  {id:2,name:"Elev 2",pin:"2222",history:[],quizSessions:0,hangmanSessions:0,flashcardSessions:0,mathSessions:0,points:0,coins:0,squad:[],club:CLUBS[1],avatar:{gender:"female",kit:"basic",hair:"long",extra:false},purchased:[]},
+const defaultStudents=[
+  {id:1,name:"Elev 1",pin:"1111",history:[],quizSessions:0,hangmanSessions:0,flashcardSessions:0,mathAddSessions:0,mathSubtractSessions:0,mathMultiplySessions:0,flagSessions:0,points:0,coins:0,squad:[],club:CLUBS[0],avatar:{gender:"male",kit:"basic",hair:"short",extra:false},purchased:[],playerCards:[],lineup:Array(11).fill(null)},
+  {id:2,name:"Elev 2",pin:"2222",history:[],quizSessions:0,hangmanSessions:0,flashcardSessions:0,mathAddSessions:0,mathSubtractSessions:0,mathMultiplySessions:0,flagSessions:0,points:0,coins:0,squad:[],club:CLUBS[1],avatar:{gender:"female",kit:"basic",hair:"long",extra:false},purchased:[],playerCards:[],lineup:Array(11).fill(null)},
 ];
 
-const dict={"hund":"dog","katt":"cat","hus":"house","bil":"car","bok":"book","skole":"school","venn":"friend","mat":"food","fisk":"fish","fugl":"bird","tre":"tree","blomst":"flower","sol":"sun","måne":"moon","stjerne":"star","vann":"water","ild":"fire","jord":"earth","luft":"air","is":"ice","snø":"snow","regn":"rain","vind":"wind","dag":"day","natt":"night","tid":"time","år":"year","uke":"week","måned":"month","time":"hour","mann":"man","kvinne":"woman","barn":"child","gutt":"boy","jente":"girl","familie":"family","mor":"mother","far":"father","bror":"brother","søster":"sister","hjem":"home","by":"city","land":"country","gate":"street","park":"park","butikk":"shop","drikke":"drink","brød":"bread","melk":"milk","egg":"egg","ost":"cheese","frukt":"fruit","grønnsak":"vegetable","eple":"apple","banan":"banana","appelsin":"orange","jordbær":"strawberry","fotball":"football","ball":"ball","spill":"game","sang":"song","musikk":"music","film":"movie","penn":"pen","bord":"table","stol":"chair","vindu":"window","dør":"door","vegg":"wall","gulv":"floor","tak":"ceiling","seng":"bed","lampe":"lamp","telefon":"phone","datamaskin":"computer","skjerm":"screen","nøkkel":"key","penger":"money","klær":"clothes","sko":"shoes","jakke":"jacket","lykke":"happiness","kjærlighet":"love","fred":"peace","krig":"war","god":"good","dårlig":"bad","stor":"big","liten":"small","rask":"fast","langsom":"slow","ny":"new","gammel":"old","varm":"warm","kald":"cold","lett":"easy","vanskelig":"difficult"};
+const dict={hund:"dog",katt:"cat",hus:"house",bil:"car",bok:"book",skole:"school",venn:"friend",mat:"food",fisk:"fish",fugl:"bird",tre:"tree",blomst:"flower",sol:"sun",måne:"moon",stjerne:"star",vann:"water",ild:"fire",snø:"snow",regn:"rain",vind:"wind",dag:"day",natt:"night",år:"year",uke:"week",mann:"man",kvinne:"woman",barn:"child",gutt:"boy",jente:"girl",familie:"family",mor:"mother",far:"father",bror:"brother",søster:"sister",hjem:"home",by:"city",land:"country",gate:"street",butikk:"shop",drikke:"drink",brød:"bread",melk:"milk",egg:"egg",ost:"cheese",frukt:"fruit",eple:"apple",banan:"banana",appelsin:"orange",fotball:"football",ball:"ball",sang:"song",musikk:"music",film:"movie",penn:"pen",bord:"table",stol:"chair",vindu:"window",dør:"door",seng:"bed",telefon:"phone",datamaskin:"computer",nøkkel:"key",penger:"money",klær:"clothes",sko:"shoes",jakke:"jacket",kjærlighet:"love",fred:"peace",god:"good",dårlig:"bad",stor:"big",liten:"small",rask:"fast",ny:"new",gammel:"old",varm:"warm",kald:"cold"};
 
-async function dbGet(key){try{return await window.fbGet("glose/"+key);}catch{return null;}}
-async function dbSet(key,val){try{await window.fbSet("glose/"+key,val);}catch{}}
+async function dbGet(k){try{return await window.fbGet("glose/"+k);}catch{return null;}}
+async function dbSet(k,v){try{await window.fbSet("glose/"+k,v);}catch{}}
 
 function shuffle(a){return[...a].sort(()=>Math.random()-0.5);}
 function buildQuizDeck(g){if(g.length<=10)return shuffle([...g]);const s=[...g].sort((a,b)=>b.id-a.id);return shuffle([...s.slice(0,NEW_COUNT),...shuffle(s.slice(NEW_COUNT)).slice(0,Math.round(s.slice(NEW_COUNT).length*0.3))]);}
 
+function getDailyFlags(){
+  const seed=Math.floor(Date.now()/86400000);
+  return [...FLAGS].sort((a,b)=>((seed*1103515245+a.code.charCodeAt(0)*12345)&0x7fffffff)-((seed*1103515245+b.code.charCodeAt(0)*12345)&0x7fffffff)).slice(0,20);
+}
+
+function openPack(pack){
+  const pool=PLAYERS.filter(p=>p.rating>=pack.minRating);
+  return Array(pack.count).fill(0).map(()=>pool[Math.floor(Math.random()*pool.length)]);
+}
+
 // ── AVATAR ──
-function AvatarDisplay({avatar, name, size=80, coins, showCoins=false}) {
-  const gender = avatar?.gender || "male";
-  const isMale = gender === "male";
-  const kits = isMale ? MALE_KITS : FEMALE_KITS;
-  const hairs = isMale ? MALE_HAIR : FEMALE_HAIR;
-  const kit = kits.find(k => k.id === (avatar?.kit || "basic")) || kits[0];
-  const hair = hairs.find(h => h.id === (avatar?.hair || (isMale ? "short" : "long"))) || hairs[0];
-  const hasExtra = avatar?.extra;
-  const sc = size;
-
-  // Skin tones
-  const skin = isMale ? "#f5c89a" : "#f9d4b0";
-  const skinDark = isMale ? "#e8a876" : "#f0b882";
-  const bodyColor = kit.color;
-
-  // Hair colors by style
-  const hairColors = {short:"#5d3a1a",curly:"#2c1810",mohawk:"#1a1a1a",crown:"#f9a825",fire:"#e53935",long:"#8b4513",bun:"#3e2723",ponytail:"#c0392b",sparkle:"#7b1fa2"};
-  const hairColor = hairColors[hair.id] || "#5d3a1a";
-
-  const w = sc, h = sc * 1.5;
-
-  return (
+function AvatarDisplay({avatar,name,size=80,coins,showCoins=false}){
+  const gender=avatar?.gender||"male",isMale=gender==="male";
+  const kits=isMale?MALE_KITS:FEMALE_KITS,hairs=isMale?MALE_HAIR:FEMALE_HAIR;
+  const kit=kits.find(k=>k.id===(avatar?.kit||"basic"))||kits[0];
+  const hair=hairs.find(h=>h.id===(avatar?.hair||(isMale?"short":"long")))||hairs[0];
+  const hasExtra=avatar?.extra;
+  const skin=isMale?"#f5c89a":"#f9d4b0",skinD=isMale?"#e8a876":"#f0b882";
+  const bodyColor=kit.color;
+  const hairColors={short:"#5d3a1a",curly:"#2c1810",mohawk:"#1a1a1a",crown:"#f9a825",fire:"#e53935",long:"#8b4513",bun:"#3e2723",ponytail:"#c0392b",sparkle:"#7b1fa2"};
+  const hc=hairColors[hair.id]||"#5d3a1a";
+  const w=size,h=size*1.5;
+  return(
     <div style={{position:"relative",display:"inline-block",width:w,height:h}}>
-      <svg width={w} height={h} viewBox={`0 0 100 150`} xmlns="http://www.w3.org/2000/svg">
-
-        {/* ── LEGS ── */}
-        {isMale ? <>
-          <rect x="35" y="105" width="12" height="28" rx="4" fill="#37474f"/>
-          <rect x="53" y="105" width="12" height="28" rx="4" fill="#37474f"/>
-          <rect x="33" y="128" width="16" height="8" rx="3" fill="#212121"/>
-          <rect x="51" y="128" width="16" height="8" rx="3" fill="#212121"/>
-        </> : <>
-          <rect x="36" y="108" width="11" height="26" rx="4" fill={bodyColor}/>
-          <rect x="53" y="108" width="11" height="26" rx="4" fill={bodyColor}/>
-          <rect x="34" y="128" width="15" height="7" rx="3" fill="#e91e63"/>
-          <rect x="51" y="128" width="15" height="7" rx="3" fill="#e91e63"/>
-        </>}
-
-        {/* ── BODY ── */}
-        {isMale ? (
-          <rect x="28" y="72" width="44" height="38" rx="8" fill={bodyColor}/>
-        ) : (
-          <path d="M28 72 Q50 68 72 72 L76 110 Q50 118 24 110 Z" fill={bodyColor}/>
-        )}
-
-        {/* Kit emoji / number */}
+      <svg width={w} height={h} viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg">
+        {isMale?<><rect x="35" y="105" width="12" height="28" rx="4" fill="#37474f"/><rect x="53" y="105" width="12" height="28" rx="4" fill="#37474f"/><rect x="33" y="128" width="16" height="8" rx="3" fill="#212121"/><rect x="51" y="128" width="16" height="8" rx="3" fill="#212121"/></>:<><rect x="36" y="108" width="11" height="26" rx="4" fill={bodyColor}/><rect x="53" y="108" width="11" height="26" rx="4" fill={bodyColor}/><rect x="34" y="128" width="15" height="7" rx="3" fill="#e91e63"/><rect x="51" y="128" width="15" height="7" rx="3" fill="#e91e63"/></>}
+        {isMale?<rect x="28" y="72" width="44" height="38" rx="8" fill={bodyColor}/>:<path d="M28 72 Q50 68 72 72 L76 110 Q50 118 24 110 Z" fill={bodyColor}/>}
         <text x="50" y="95" textAnchor="middle" fontSize="14" fill="rgba(255,255,255,0.9)" fontWeight="bold">{kit.body}</text>
-
-        {/* ── ARMS ── */}
         <rect x="14" y="73" width="15" height="10" rx="5" fill={bodyColor}/>
         <rect x="71" y="73" width="15" height="10" rx="5" fill={bodyColor}/>
-        {/* Hands */}
         <circle cx="13" cy="82" r="5" fill={skin}/>
         <circle cx="87" cy="82" r="5" fill={skin}/>
-        {/* Armband */}
-        {hasExtra && isMale && <rect x="70" y="78" width="16" height="5" rx="2.5" fill="#f9a825" opacity="0.9"/>}
-        {hasExtra && !isMale && <rect x="71" y="78" width="14" height="5" rx="2.5" fill="#e91e63" opacity="0.9"/>}
-
-        {/* ── NECK ── */}
+        {hasExtra&&isMale&&<rect x="70" y="78" width="16" height="5" rx="2.5" fill="#f9a825" opacity="0.9"/>}
+        {hasExtra&&!isMale&&<rect x="71" y="78" width="14" height="5" rx="2.5" fill="#e91e63" opacity="0.9"/>}
         <rect x="44" y="62" width="12" height="14" rx="3" fill={skin}/>
-
-        {/* ── HEAD ── */}
         <ellipse cx="50" cy="48" rx="22" ry="24" fill={skin}/>
-        {/* Ears */}
-        <ellipse cx="28" cy="50" rx="4" ry="5" fill={skin}/>
-        <ellipse cx="72" cy="50" rx="4" ry="5" fill={skin}/>
-        <ellipse cx="28" cy="50" rx="2.5" ry="3.5" fill={skinDark}/>
-        <ellipse cx="72" cy="50" rx="2.5" ry="3.5" fill={skinDark}/>
-
-        {/* ── FACE ── */}
-        {/* Eyes whites */}
-        <ellipse cx="42" cy="46" rx="5" ry="5.5" fill="white"/>
-        <ellipse cx="58" cy="46" rx="5" ry="5.5" fill="white"/>
-        {/* Iris */}
-        <circle cx="42" cy="47" r="3.2" fill="#4a2c2a"/>
-        <circle cx="58" cy="47" r="3.2" fill="#4a2c2a"/>
-        {/* Pupil */}
-        <circle cx="42.5" cy="47" r="1.6" fill="#111"/>
-        <circle cx="58.5" cy="47" r="1.6" fill="#111"/>
-        {/* Eye shine */}
-        <circle cx="44" cy="45.5" r="0.9" fill="white"/>
-        <circle cx="60" cy="45.5" r="0.9" fill="white"/>
-        {/* Eyebrows */}
-        {isMale ? <>
-          <path d="M37 40 Q42 38 47 40" stroke="#4a2c2a" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
-          <path d="M53 40 Q58 38 63 40" stroke="#4a2c2a" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
-        </> : <>
-          <path d="M37 39 Q42 36.5 47 39" stroke="#4a2c2a" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-          <path d="M53 39 Q58 36.5 63 39" stroke="#4a2c2a" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-        </>}
-        {/* Nose */}
-        <path d="M49 50 Q50 54 51 50" stroke={skinDark} strokeWidth="1.2" fill="none" strokeLinecap="round"/>
-        {/* Smile */}
+        <ellipse cx="28" cy="50" rx="4" ry="5" fill={skin}/><ellipse cx="72" cy="50" rx="4" ry="5" fill={skin}/>
+        <ellipse cx="28" cy="50" rx="2.5" ry="3.5" fill={skinD}/><ellipse cx="72" cy="50" rx="2.5" ry="3.5" fill={skinD}/>
+        <ellipse cx="42" cy="46" rx="5" ry="5.5" fill="white"/><ellipse cx="58" cy="46" rx="5" ry="5.5" fill="white"/>
+        <circle cx="42" cy="47" r="3.2" fill="#4a2c2a"/><circle cx="58" cy="47" r="3.2" fill="#4a2c2a"/>
+        <circle cx="42.5" cy="47" r="1.6" fill="#111"/><circle cx="58.5" cy="47" r="1.6" fill="#111"/>
+        <circle cx="44" cy="45.5" r="0.9" fill="white"/><circle cx="60" cy="45.5" r="0.9" fill="white"/>
+        {isMale?<><path d="M37 40 Q42 38 47 40" stroke="#4a2c2a" strokeWidth="1.8" fill="none" strokeLinecap="round"/><path d="M53 40 Q58 38 63 40" stroke="#4a2c2a" strokeWidth="1.8" fill="none" strokeLinecap="round"/></>:<><path d="M37 39 Q42 36.5 47 39" stroke="#4a2c2a" strokeWidth="1.5" fill="none" strokeLinecap="round"/><path d="M53 39 Q58 36.5 63 39" stroke="#4a2c2a" strokeWidth="1.5" fill="none" strokeLinecap="round"/></>}
+        <path d="M49 50 Q50 54 51 50" stroke={skinD} strokeWidth="1.2" fill="none" strokeLinecap="round"/>
         <path d="M43 57 Q50 63 57 57" stroke="#c0392b" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
-        {/* Cheeks */}
-        <circle cx="36" cy="55" r="4" fill="#ffb3b3" opacity="0.4"/>
-        <circle cx="64" cy="55" r="4" fill="#ffb3b3" opacity="0.4"/>
-        {/* Teeth */}
-        <path d="M44 58.5 Q50 63 56 58.5" fill="white" opacity="0.7"/>
-
-        {/* ── HAIR ── */}
-        {hair.id === "short" && <>
-          <ellipse cx="50" cy="28" rx="22" ry="12" fill={hairColor}/>
-          <rect x="28" y="28" width="4" height="14" rx="2" fill={hairColor}/>
-          <rect x="68" y="28" width="4" height="14" rx="2" fill={hairColor}/>
-        </>}
-        {hair.id === "curly" && <>
-          <ellipse cx="50" cy="26" rx="24" ry="14" fill={hairColor}/>
-          <circle cx="30" cy="34" r="7" fill={hairColor}/>
-          <circle cx="70" cy="34" r="7" fill={hairColor}/>
-          <circle cx="40" cy="22" r="6" fill={hairColor}/>
-          <circle cx="60" cy="22" r="6" fill={hairColor}/>
-          <circle cx="50" cy="19" r="7" fill={hairColor}/>
-        </>}
-        {hair.id === "mohawk" && <>
-          <ellipse cx="50" cy="30" rx="22" ry="10" fill={hairColor}/>
-          <rect x="47" y="5" width="6" height="28" rx="3" fill={hairColor}/>
-          <rect x="28" y="30" width="4" height="10" rx="2" fill={hairColor}/>
-          <rect x="68" y="30" width="4" height="10" rx="2" fill={hairColor}/>
-        </>}
-        {hair.id === "crown" && <>
-          <ellipse cx="50" cy="28" rx="22" ry="10" fill={hairColor}/>
-          <path d="M32 30 L35 15 L42 25 L50 10 L58 25 L65 15 L68 30 Z" fill="#f9a825"/>
-          <circle cx="50" cy="12" r="3" fill="#f44336"/>
-          <circle cx="37" cy="18" r="2" fill="#4caf50"/>
-          <circle cx="63" cy="18" r="2" fill="#2196f3"/>
-        </>}
-        {hair.id === "fire" && <>
-          <ellipse cx="50" cy="30" rx="22" ry="10" fill="#b71c1c"/>
-          <path d="M35 30 Q30 15 40 8 Q36 20 45 18 Q38 10 50 2 Q46 14 55 12 Q50 5 60 8 Q54 18 62 16 Q68 20 65 30 Z" fill="#ff6d00"/>
-          <path d="M40 30 Q38 20 44 15 Q42 22 48 20 Q45 14 52 8 Q50 18 56 16 Q62 20 60 30 Z" fill="#ffca28"/>
-        </>}
-        {hair.id === "long" && <>
-          <ellipse cx="50" cy="26" rx="22" ry="13" fill={hairColor}/>
-          <rect x="26" y="28" width="8" height="45" rx="4" fill={hairColor}/>
-          <rect x="66" y="28" width="8" height="45" rx="4" fill={hairColor}/>
-          <rect x="42" y="24" width="16" height="10" rx="2" fill={hairColor}/>
-        </>}
-        {hair.id === "bun" && <>
-          <ellipse cx="50" cy="28" rx="22" ry="12" fill={hairColor}/>
-          <circle cx="50" cy="16" r="10" fill={hairColor}/>
-          <rect x="28" y="28" width="4" height="16" rx="2" fill={hairColor}/>
-          <rect x="68" y="28" width="4" height="16" rx="2" fill={hairColor}/>
-          <path d="M45 16 Q50 11 55 16" stroke="#ff69b4" strokeWidth="2" fill="none"/>
-          <circle cx="50" cy="10" r="3" fill="#ff69b4"/>
-        </>}
-        {hair.id === "ponytail" && <>
-          <ellipse cx="50" cy="27" rx="22" ry="12" fill={hairColor}/>
-          <rect x="28" y="27" width="4" height="14" rx="2" fill={hairColor}/>
-          <rect x="68" y="27" width="4" height="14" rx="2" fill={hairColor}/>
-          <path d="M60 32 Q80 40 75 65" stroke={hairColor} strokeWidth="8" fill="none" strokeLinecap="round"/>
-          <circle cx="60" cy="34" r="4" fill="#e91e63"/>
-        </>}
-        {hair.id === "sparkle" && <>
-          <ellipse cx="50" cy="26" rx="22" ry="13" fill={hairColor}/>
-          <rect x="26" y="28" width="8" height="40" rx="4" fill={hairColor}/>
-          <rect x="66" y="28" width="8" height="40" rx="4" fill={hairColor}/>
-          <text x="28" y="22" fontSize="10">✨</text>
-          <text x="58" y="18" fontSize="10">✨</text>
-          <text x="44" y="12" fontSize="10">⭐</text>
-        </>}
-
-        {/* Tiara for female extra */}
-        {hasExtra && !isMale && <>
-          <path d="M32 30 L36 20 L42 28 L50 15 L58 28 L64 20 L68 30 Z" fill="#f9a825" opacity="0.95"/>
-          <circle cx="50" cy="17" r="3" fill="#e91e63"/>
-          <circle cx="38" cy="23" r="2" fill="#7c4dff"/>
-          <circle cx="62" cy="23" r="2" fill="#2196f3"/>
-        </>}
-
+        <circle cx="36" cy="55" r="4" fill="#ffb3b3" opacity="0.4"/><circle cx="64" cy="55" r="4" fill="#ffb3b3" opacity="0.4"/>
+        {hair.id==="short"&&<><ellipse cx="50" cy="28" rx="22" ry="12" fill={hc}/><rect x="28" y="28" width="4" height="14" rx="2" fill={hc}/><rect x="68" y="28" width="4" height="14" rx="2" fill={hc}/></>}
+        {hair.id==="curly"&&<><ellipse cx="50" cy="26" rx="24" ry="14" fill={hc}/><circle cx="30" cy="34" r="7" fill={hc}/><circle cx="70" cy="34" r="7" fill={hc}/><circle cx="40" cy="22" r="6" fill={hc}/><circle cx="60" cy="22" r="6" fill={hc}/><circle cx="50" cy="19" r="7" fill={hc}/></>}
+        {hair.id==="mohawk"&&<><ellipse cx="50" cy="30" rx="22" ry="10" fill={hc}/><rect x="47" y="5" width="6" height="28" rx="3" fill={hc}/><rect x="28" y="30" width="4" height="10" rx="2" fill={hc}/><rect x="68" y="30" width="4" height="10" rx="2" fill={hc}/></>}
+        {hair.id==="crown"&&<><ellipse cx="50" cy="28" rx="22" ry="10" fill={hc}/><path d="M32 30 L35 15 L42 25 L50 10 L58 25 L65 15 L68 30 Z" fill="#f9a825"/><circle cx="50" cy="12" r="3" fill="#f44336"/><circle cx="37" cy="18" r="2" fill="#4caf50"/><circle cx="63" cy="18" r="2" fill="#2196f3"/></>}
+        {hair.id==="fire"&&<><ellipse cx="50" cy="30" rx="22" ry="10" fill="#b71c1c"/><path d="M35 30 Q30 15 40 8 Q36 20 45 18 Q38 10 50 2 Q46 14 55 12 Q50 5 60 8 Q54 18 62 16 Q68 20 65 30 Z" fill="#ff6d00"/><path d="M40 30 Q38 20 44 15 Q42 22 48 20 Q45 14 52 8 Q50 18 56 16 Q62 20 60 30 Z" fill="#ffca28"/></>}
+        {hair.id==="long"&&<><ellipse cx="50" cy="26" rx="22" ry="13" fill={hc}/><rect x="26" y="28" width="8" height="45" rx="4" fill={hc}/><rect x="66" y="28" width="8" height="45" rx="4" fill={hc}/></>}
+        {hair.id==="bun"&&<><ellipse cx="50" cy="28" rx="22" ry="12" fill={hc}/><circle cx="50" cy="16" r="10" fill={hc}/><rect x="28" y="28" width="4" height="16" rx="2" fill={hc}/><rect x="68" y="28" width="4" height="16" rx="2" fill={hc}/><path d="M45 16 Q50 11 55 16" stroke="#ff69b4" strokeWidth="2" fill="none"/></>}
+        {hair.id==="ponytail"&&<><ellipse cx="50" cy="27" rx="22" ry="12" fill={hc}/><rect x="28" y="27" width="4" height="14" rx="2" fill={hc}/><rect x="68" y="27" width="4" height="14" rx="2" fill={hc}/><path d="M60 32 Q80 40 75 65" stroke={hc} strokeWidth="8" fill="none" strokeLinecap="round"/><circle cx="60" cy="34" r="4" fill="#e91e63"/></>}
+        {hair.id==="sparkle"&&<><ellipse cx="50" cy="26" rx="22" ry="13" fill={hc}/><rect x="26" y="28" width="8" height="40" rx="4" fill={hc}/><rect x="66" y="28" width="8" height="40" rx="4" fill={hc}/><text x="28" y="22" fontSize="10">✨</text><text x="58" y="18" fontSize="10">✨</text></>}
+        {hasExtra&&!isMale&&<><path d="M32 30 L36 20 L42 28 L50 15 L58 28 L64 20 L68 30 Z" fill="#f9a825" opacity="0.95"/><circle cx="50" cy="17" r="3" fill="#e91e63"/><circle cx="38" cy="23" r="2" fill="#7c4dff"/><circle cx="62" cy="23" r="2" fill="#2196f3"/></>}
       </svg>
-      {showCoins && (
-        <div style={{position:"absolute",top:-8,right:-8,background:"linear-gradient(135deg,#f9a825,#ff6f00)",borderRadius:20,padding:"3px 7px",fontSize:11,fontWeight:800,color:"#fff",zIndex:4,boxShadow:"0 2px 6px rgba(249,168,37,0.4)"}}>
-          🪙{coins||0}
-        </div>
-      )}
+      {showCoins&&<div style={{position:"absolute",top:-8,right:-8,background:"linear-gradient(135deg,#f9a825,#ff6f00)",borderRadius:20,padding:"3px 7px",fontSize:11,fontWeight:800,color:"#fff",zIndex:4}}>🪙{coins||0}</div>}
     </div>
   );
 }
@@ -298,65 +230,584 @@ function AvatarDisplay({avatar, name, size=80, coins, showCoins=false}) {
 function AvatarShop({student,onUpdate,onBack}){
   const [tab,setTab]=useState("gender");
   const [msg,setMsg]=useState("");
-  const purchased=student.purchased||[];
-  const coins=student.coins||0;
+  const purchased=student.purchased||[],coins=student.coins||0;
   const avatar=student.avatar||{gender:"male",kit:"basic",hair:"short",extra:false};
   const isMale=(avatar.gender||"male")==="male";
-  const kits=isMale?MALE_KITS:FEMALE_KITS;
-  const hairs=isMale?MALE_HAIR:FEMALE_HAIR;
+  const kits=isMale?MALE_KITS:FEMALE_KITS,hairs=isMale?MALE_HAIR:FEMALE_HAIR;
   const extraItem=isMale?ARMBAND:TIARA_ITEM;
-
-  function buy(itemId,cost,type){
-    if(coins<cost){setMsg("Ikke nok coins! 🪙");setTimeout(()=>setMsg(""),2000);return;}
-    if(purchased.includes(itemId)){setMsg("Allerede kjøpt!");setTimeout(()=>setMsg(""),1500);return;}
-    onUpdate({coins:coins-cost,purchased:[...purchased,itemId],avatar:{...avatar,[type]:type==="extra"?true:itemId}});
+  function buy(id,cost,type){
+    if(coins<cost){setMsg("Ikke nok coins!");setTimeout(()=>setMsg(""),2000);return;}
+    if(purchased.includes(id)){setMsg("Allerede kjøpt!");setTimeout(()=>setMsg(""),1500);return;}
+    onUpdate({coins:coins-cost,purchased:[...purchased,id],avatar:{...avatar,[type]:type==="extra"?true:id}});
     setMsg(`✅ Kjøpt! -${cost} 🪙`);setTimeout(()=>setMsg(""),1500);
   }
-  function equip(itemId,type){
-    const isFree=type==="kit"?kits.find(k=>k.id===itemId)?.cost===0:type==="hair"?hairs.find(h=>h.id===itemId)?.cost===0:true;
-    if(!isFree&&!purchased.includes(itemId))return;
-    onUpdate({avatar:{...avatar,[type]:type==="extra"?!avatar.extra:itemId}});
-  }
-  function switchGender(g){
-    onUpdate({avatar:{gender:g,kit:"basic",hair:g==="male"?"short":"long",extra:false}});
+  function equip(id,type){
+    const free=type==="kit"?kits.find(k=>k.id===id)?.cost===0:type==="hair"?hairs.find(h=>h.id===id)?.cost===0:true;
+    if(!free&&!purchased.includes(id))return;
+    onUpdate({avatar:{...avatar,[type]:type==="extra"?!avatar.extra:id}});
   }
   const Row=({icon,bg,label,owned,active,cost,onBuy,onEquip})=>(
     <div style={{background:"#fff",border:`2px solid ${active?"var(--purple)":"#eee"}`,borderRadius:14,padding:"12px 14px",display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
       <div style={{width:40,height:40,borderRadius:"50%",background:bg||"#f5f5f5",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{icon}</div>
-      <div style={{flex:1}}><div style={{fontWeight:500,fontSize:14}}>{label}</div><div style={{fontSize:12,color:"var(--text3)"}}>{owned?"Eid":"🪙 "+cost}</div></div>
-      {owned?<button style={{...s.smallBtn2,background:active?"var(--purple)":"#f0f0f0",color:active?"#fff":"#333"}} onClick={onEquip}>{active?"På":"Bruk"}</button>
-            :<button style={{...s.smallBtn2,background:"#f9a825",color:"#fff"}} onClick={onBuy}>Kjøp</button>}
+      <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{label}</div><div style={{fontSize:12,color:"var(--t3)"}}>{owned?"Eid":"🪙 "+cost}</div></div>
+      {owned?<button style={{...s.sb2,background:active?"var(--purple)":"#f0f0f0",color:active?"#fff":"#333"}} onClick={onEquip}>{active?"På":"Bruk"}</button>
+            :<button style={{...s.sb2,background:"#f9a825",color:"#fff"}} onClick={onBuy}>Kjøp</button>}
     </div>
   );
   return(
     <div style={s.page}>
-      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Tilbake</button><span style={s.topTitle}>🛒 Butikk</span></div>
-      <div style={{display:"flex",alignItems:"center",gap:16,background:"#fff",borderRadius:16,padding:"14px",marginBottom:14,border:"1px solid #eee"}}>
+      <div style={s.tb}><button style={s.back} onClick={onBack}>← Tilbake</button><span style={s.tt}>🛒 Butikk</span></div>
+      <div style={{display:"flex",alignItems:"center",gap:14,background:"#fff",borderRadius:16,padding:"14px",marginBottom:14,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
         <AvatarDisplay avatar={avatar} name={student.name} size={64} coins={coins} showCoins/>
-        <div><div style={{fontWeight:500,fontSize:15}}>{student.name}</div><div style={{fontSize:14,color:"#f9a825",fontWeight:500}}>🪙 {coins} coins</div></div>
+        <div><div style={{fontWeight:700,fontSize:15}}>{student.name}</div><div style={{fontSize:14,color:"#f9a825",fontWeight:700}}>🪙 {coins}</div></div>
       </div>
-      {msg&&<div style={{background:"#e8f5e9",borderRadius:10,padding:"10px 14px",marginBottom:10,fontSize:14,fontWeight:500,color:"#2e7d32"}}>{msg}</div>}
+      {msg&&<div style={{background:"#e8f5e9",borderRadius:10,padding:"10px",marginBottom:10,fontSize:14,fontWeight:700,color:"#2e7d32"}}>{msg}</div>}
       <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
         {["gender","kit","hair","extra"].map(t=>(
-          <button key={t} onClick={()=>setTab(t)} style={{flex:1,minWidth:55,padding:"8px 4px",borderRadius:10,border:"1px solid",borderColor:tab===t?"var(--purple)":"#ddd",background:tab===t?"var(--purple-light)":"#fafafa",color:tab===t?"var(--purple-dark)":"#555",fontSize:12,cursor:"pointer",fontWeight:tab===t?500:400}}>
+          <button key={t} onClick={()=>setTab(t)} style={{flex:1,minWidth:55,padding:"8px 4px",borderRadius:10,border:"1px solid",borderColor:tab===t?"var(--purple)":"#ddd",background:tab===t?"var(--pl)":"#fafafa",color:tab===t?"var(--pd)":"#555",fontSize:12,cursor:"pointer",fontWeight:tab===t?700:400}}>
             {t==="gender"?"⚧ Kjønn":t==="kit"?(isMale?"👕 Drakt":"👗 Kjole"):t==="hair"?"💇 Hår":"⭐ Ekstra"}
           </button>
         ))}
       </div>
-      {tab==="gender"&&(
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {[{g:"male",icon:"⚽",label:"Gutt / Mann",desc:"Fotballtema",bg:"#e3f2fd"},{g:"female",icon:"👗",label:"Jente / Kvinne",desc:"Kjoletema",bg:"#fce4ec"}].map(({g,icon,label,desc,bg})=>(
-            <div key={g} onClick={()=>switchGender(g)} style={{background:bg,border:`2px solid ${avatar.gender===g?"var(--purple)":"transparent"}`,borderRadius:16,padding:"18px",cursor:"pointer",display:"flex",alignItems:"center",gap:14}}>
-              <span style={{fontSize:36}}>{icon}</span>
-              <div style={{flex:1}}><div style={{fontWeight:500,fontSize:15}}>{label}</div><div style={{fontSize:13,color:"var(--text2)"}}>{desc}</div></div>
-              {avatar.gender===g&&<span style={{fontSize:20}}>✅</span>}
-            </div>
-          ))}
+      {tab==="gender"&&[{g:"male",icon:"⚽",label:"Gutt/Mann",desc:"Fotballtema",bg:"#e3f2fd"},{g:"female",icon:"👗",label:"Jente/Kvinne",desc:"Kjoletema",bg:"#fce4ec"}].map(({g,icon,label,desc,bg})=>(
+        <div key={g} onClick={()=>onUpdate({avatar:{gender:g,kit:"basic",hair:g==="male"?"short":"long",extra:false}})} style={{background:bg,border:`2px solid ${avatar.gender===g?"var(--purple)":"transparent"}`,borderRadius:16,padding:"18px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,marginBottom:10}}>
+          <span style={{fontSize:36}}>{icon}</span>
+          <div style={{flex:1}}><div style={{fontWeight:700,fontSize:15}}>{label}</div><div style={{fontSize:13,color:"var(--t2)"}}>{desc}</div></div>
+          {avatar.gender===g&&<span style={{fontSize:20}}>✅</span>}
         </div>
-      )}
+      ))}
       {tab==="kit"&&kits.map(k=><Row key={k.id} icon={k.body} bg={k.color} label={k.label} owned={purchased.includes(k.id)||k.cost===0} active={avatar.kit===k.id} cost={k.cost} onBuy={()=>buy(k.id,k.cost,"kit")} onEquip={()=>equip(k.id,"kit")}/>)}
       {tab==="hair"&&hairs.map(h=><Row key={h.id} icon={h.top||"💆"} bg="#f5f5f5" label={h.label} owned={purchased.includes(h.id)||h.cost===0} active={avatar.hair===h.id} cost={h.cost} onBuy={()=>buy(h.id,h.cost,"hair")} onEquip={()=>equip(h.id,"hair")}/>)}
       {tab==="extra"&&<Row icon={extraItem.emoji} bg="#fff3e0" label={extraItem.label} owned={purchased.includes(extraItem.id)} active={avatar.extra} cost={extraItem.cost} onBuy={()=>buy(extraItem.id,extraItem.cost,"extra")} onEquip={()=>equip(extraItem.id,"extra")}/>}
+    </div>
+  );
+}
+
+// ── PLAYER CARD ──
+function PlayerCard({player,size="normal"}){
+  const r=RARITY_COLORS[player.rarity]||RARITY_COLORS.silver;
+  const sm=size==="small";
+  return(
+    <div style={{background:r.bg,borderRadius:sm?10:14,padding:sm?"6px 4px":"14px 10px",textAlign:"center",border:`2px solid ${r.border}`,position:"relative",minWidth:sm?52:80}}>
+      {player.rarity==="legend"&&!sm&&<div style={{position:"absolute",top:-6,left:"50%",transform:"translateX(-50%)",fontSize:9,background:"#f9a825",color:"#fff",borderRadius:8,padding:"1px 6px",fontWeight:800,whiteSpace:"nowrap"}}>LEGEND</div>}
+      <div style={{fontSize:sm?16:26,marginBottom:2}}>{player.emoji}</div>
+      <div style={{fontSize:sm?14:20,fontWeight:900,color:"#fff",lineHeight:1}}>{player.rating}</div>
+      <div style={{fontSize:sm?7:9,color:"rgba(255,255,255,0.8)",fontWeight:700}}>{player.pos}</div>
+      <div style={{fontSize:sm?8:11,color:"#fff",fontWeight:800,marginTop:2,lineHeight:1.2}}>{sm?player.name.split(" ").pop():player.name}</div>
+      {!sm&&<div style={{fontSize:9,color:"rgba(255,255,255,0.7)",marginTop:1}}>{player.club}</div>}
+    </div>
+  );
+}
+
+// ── PACK STORE ──
+function PackStore({student,onUpdate,onBack}){
+  const [phase,setPhase]=useState("store");
+  const [selPack,setSelPack]=useState(null);
+  const [revealed,setRevealed]=useState([]);
+  const [revIdx,setRevIdx]=useState(0);
+  const [msg,setMsg]=useState("");
+  const coins=student.coins||0,owned=student.playerCards||[];
+  function buyPack(pack){
+    if(coins<pack.price){setMsg("Ikke nok coins! 🪙");setTimeout(()=>setMsg(""),2000);return;}
+    const players=openPack(pack);
+    onUpdate({coins:coins-pack.price});
+    setSelPack(pack);setRevealed(players);setRevIdx(0);setPhase("opening");
+  }
+  function revealNext(){
+    const p=revealed[revIdx];
+    const ex=student.playerCards||[];
+    if(!ex.includes(p.id))onUpdate({playerCards:[...ex,p.id]});
+    if(revIdx+1>=revealed.length)setPhase("reveal");
+    else setRevIdx(i=>i+1);
+  }
+  if(phase==="opening"){
+    const cur=revealed[revIdx];
+    return(
+      <div style={s.page}>
+        <div style={{textAlign:"center",padding:"20px 0"}}>
+          <div style={{fontSize:13,color:"var(--t3)",marginBottom:4}}>{selPack.label} · Kort {revIdx+1} av {revealed.length}</div>
+          <div style={{fontSize:22,fontWeight:800,marginBottom:20}}>🎴 Hvem får du?</div>
+          <div style={{display:"flex",justifyContent:"center",marginBottom:20}}><PlayerCard player={cur}/></div>
+          <div style={{fontSize:13,color:"var(--t2)",marginBottom:14}}>{(student.playerCards||[]).includes(cur.id)?"⚠️ Allerede i samlingen":"🆕 Ny spiller!"}</div>
+          <button style={s.bigBtn} onClick={revealNext}>{revIdx+1<revealed.length?"Neste kort ▶":"Se alle ✓"}</button>
+        </div>
+      </div>
+    );
+  }
+  if(phase==="reveal")return(
+    <div style={s.page}>
+      <div style={{textAlign:"center",padding:"16px 0 8px"}}><div style={{fontSize:40}}>🎉</div><div style={{fontSize:20,fontWeight:800,margin:"8px 0"}}>Pakke åpnet!</div></div>
+      <div style={{display:"flex",gap:10,justifyContent:"center",marginBottom:20,flexWrap:"wrap"}}>{revealed.map((p,i)=><PlayerCard key={i} player={p}/>)}</div>
+      <button style={s.bigBtn} onClick={()=>setPhase("store")}>Kjøp flere pakker</button>
+      <button style={{...s.bigBtn,...s.btnG,marginTop:10}} onClick={onBack}>Tilbake</button>
+    </div>
+  );
+  return(
+    <div style={s.page}>
+      <div style={s.tb}><button style={s.back} onClick={onBack}>← Tilbake</button><span style={s.tt}>🎴 Spillerpakker</span></div>
+      <div style={{background:"linear-gradient(135deg,#1a237e,#283593)",borderRadius:16,padding:"12px 16px",marginBottom:14,display:"flex",alignItems:"center",gap:10}}>
+        <span style={{fontSize:24}}>🪙</span>
+        <div><div style={{color:"white",fontWeight:800,fontSize:16}}>{coins} coins</div><div style={{color:"rgba(255,255,255,0.7)",fontSize:12}}>{owned.length} spillere i samlingen</div></div>
+      </div>
+      {msg&&<div style={{background:"#ffcdd2",borderRadius:10,padding:"10px",marginBottom:10,fontSize:14,fontWeight:700,color:"#c62828",textAlign:"center"}}>{msg}</div>}
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        {PACK_TYPES.map(pack=>(
+          <div key={pack.id} style={{background:pack.bg,borderRadius:18,padding:"16px",boxShadow:"0 4px 16px rgba(0,0,0,0.15)"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+              <div><div style={{fontWeight:800,fontSize:18,color:"#fff"}}>{pack.label}</div><div style={{fontSize:12,color:"rgba(255,255,255,0.8)"}}>{pack.desc}</div></div>
+              <div style={{fontSize:22,fontWeight:900,color:"#fff"}}>🪙{pack.price}</div>
+            </div>
+            <button onClick={()=>buyPack(pack)} style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:"rgba(255,255,255,0.25)",color:"#fff",fontSize:15,fontWeight:800,cursor:"pointer"}}>
+              {coins>=pack.price?"🎴 Åpne pakke!":"🔒 Ikke nok coins"}
+            </button>
+          </div>
+        ))}
+      </div>
+      {owned.length>0&&<><div style={{fontSize:13,fontWeight:700,color:"var(--t2)",margin:"16px 0 8px"}}>Din samling ({owned.length})</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>{PLAYERS.filter(p=>owned.includes(p.id)).map(p=><PlayerCard key={p.id} player={p} size="small"/>)}</div></>}
+    </div>
+  );
+}
+
+// ── SQUAD BUILDER ──
+function SquadBuilder({student,onUpdate,onBack}){
+  const [selPos,setSelPos]=useState(null);
+  const lineup=student.lineup||Array(11).fill(null);
+  const ownedIds=student.playerCards||[];
+  const ownedPlayers=PLAYERS.filter(p=>ownedIds.includes(p.id));
+  function assignPlayer(pid){
+    const nl=[...lineup];
+    const ei=nl.indexOf(pid);if(ei!==-1)nl[ei]=null;
+    nl[selPos]=pid;onUpdate({lineup:nl});setSelPos(null);
+  }
+  function removePlayer(i){const nl=[...lineup];nl[i]=null;onUpdate({lineup:nl});}
+  return(
+    <div style={s.page}>
+      <div style={s.tb}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.tt}>⚽ Mitt lag</span><span style={{fontSize:12,color:"var(--t3)"}}>{lineup.filter(Boolean).length}/11</span></div>
+      <div style={{position:"relative",width:"100%",maxWidth:360,margin:"0 auto 14px",height:300,background:"linear-gradient(180deg,#2d8a2d,#1a5c1a 50%,#2d8a2d)",borderRadius:16,overflow:"hidden",border:"2px solid rgba(255,255,255,0.2)"}}>
+        <div style={{position:"absolute",top:"50%",left:"10%",right:"10%",height:1,background:"rgba(255,255,255,0.3)"}}/>
+        <div style={{position:"absolute",top:8,left:"25%",width:"50%",height:"22%",border:"1px solid rgba(255,255,255,0.3)",borderBottom:"none"}}/>
+        <div style={{position:"absolute",bottom:8,left:"25%",width:"50%",height:"22%",border:"1px solid rgba(255,255,255,0.3)",borderTop:"none"}}/>
+        <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:50,height:50,border:"1px solid rgba(255,255,255,0.3)",borderRadius:"50%"}}/>
+        {POSITIONS.map((pos,i)=>{
+          const pid=lineup[i],player=pid?PLAYERS.find(p=>p.id===pid):null;
+          const isSel=selPos===i,rc=player?(RARITY_COLORS[player.rarity]?.bg||"#555"):null;
+          return(
+            <div key={pos.id} style={{position:"absolute",left:`${pos.x}%`,top:`${pos.y}%`,transform:"translate(-50%,-50%)",textAlign:"center",zIndex:isSel?10:1}} onClick={()=>setSelPos(isSel?null:i)}>
+              {player?(
+                <div style={{background:rc,borderRadius:10,padding:"3px 5px",border:isSel?"3px solid #fff":"2px solid rgba(255,255,255,0.5)",minWidth:36,cursor:"pointer",position:"relative"}}>
+                  <div style={{fontSize:9,fontWeight:900,color:"#fff",lineHeight:1}}>{player.rating}</div>
+                  <div style={{fontSize:8,color:"rgba(255,255,255,0.85)",fontWeight:700,whiteSpace:"nowrap",maxWidth:40,overflow:"hidden"}}>{player.name.split(" ").pop()}</div>
+                  <div style={{fontSize:7,color:"rgba(255,255,255,0.7)"}}>{player.pos}</div>
+                  {isSel&&<div style={{position:"absolute",top:-8,right:-8,background:"#e53935",borderRadius:"50%",width:14,height:14,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#fff",fontWeight:900,cursor:"pointer"}} onClick={e=>{e.stopPropagation();removePlayer(i);setSelPos(null);}}>✕</div>}
+                </div>
+              ):(
+                <div style={{width:30,height:30,borderRadius:"50%",background:isSel?"rgba(255,255,255,0.5)":"rgba(255,255,255,0.15)",border:`2px dashed ${isSel?"#fff":"rgba(255,255,255,0.5)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"rgba(255,255,255,0.8)",cursor:"pointer"}}>+</div>
+              )}
+              <div style={{fontSize:7,color:"rgba(255,255,255,0.6)",marginTop:2,whiteSpace:"nowrap"}}>{pos.label}</div>
+            </div>
+          );
+        })}
+      </div>
+      {selPos!==null?(
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:"var(--t2)",marginBottom:8}}>Velg spiller til <strong>{POSITIONS[selPos].label}</strong>:</div>
+          {ownedPlayers.length===0?<div style={{textAlign:"center",padding:"20px",color:"var(--t3)"}}>Ingen spillere ennå — kjøp pakker! 🎴</div>:(
+            <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:250,overflowY:"auto"}}>
+              {ownedPlayers.map(p=>{
+                const inSlot=lineup.indexOf(p.id),r=RARITY_COLORS[p.rarity]||RARITY_COLORS.silver;
+                return(
+                  <div key={p.id} onClick={()=>assignPlayer(p.id)} style={{display:"flex",alignItems:"center",gap:12,background:inSlot!==-1?"#f5f5f5":"#fff",borderRadius:12,padding:"10px 12px",cursor:"pointer",border:`2px solid ${inSlot!==-1?"#ddd":r.border}`,opacity:inSlot!==-1?0.6:1}}>
+                    <div style={{background:r.bg,borderRadius:8,padding:"4px 8px",minWidth:34,textAlign:"center"}}><div style={{fontSize:13,fontWeight:900,color:"#fff"}}>{p.rating}</div><div style={{fontSize:8,color:"rgba(255,255,255,0.8)",fontWeight:700}}>{p.pos}</div></div>
+                    <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{p.name}</div><div style={{fontSize:12,color:"var(--t3)"}}>{p.club}</div></div>
+                    <div style={{fontSize:18}}>{p.emoji}</div>
+                    {inSlot!==-1&&<div style={{fontSize:11,color:"#888",fontWeight:600}}>På banen</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <button style={{...s.bigBtn,...s.btnG,marginTop:10}} onClick={()=>setSelPos(null)}>Avbryt</button>
+        </div>
+      ):(
+        <div>
+          <div style={{fontSize:13,color:"var(--t3)",textAlign:"center",marginBottom:10}}>Trykk på en posisjon for å velge spiller</div>
+          <button style={{...s.bigBtn,background:"linear-gradient(135deg,#f9a825,#ff8f00)"}} onClick={()=>onBack("packs")}>🎴 Kjøp spillerpakker</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── LEADERBOARD ──
+function Leaderboard({students,onBack}){
+  return(
+    <div style={s.page}>
+      <div style={s.tb}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.tt}>🏆 Poengtavle</span></div>
+      <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:8}}>
+        {[...students].sort((a,b)=>(b.coins||0)-(a.coins||0)).map((st,i)=>(
+          <div key={st.id} style={{background:"#fff",borderRadius:14,padding:"14px",display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+            <div style={{fontSize:22,minWidth:28}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":`${i+1}.`}</div>
+            <AvatarDisplay avatar={st.avatar} name={st.name} size={44}/>
+            <div style={{flex:1}}><div style={{fontWeight:700,fontSize:15}}>{st.name}</div><div style={{fontSize:12,color:"#888"}}>{(st.club||CLUBS[0]).name}</div></div>
+            <div style={{textAlign:"right"}}><div style={{fontSize:20,fontWeight:700,color:"#f9a825"}}>🪙{st.coins||0}</div><div style={{fontSize:11,color:"var(--t3)"}}>{st.points||0}p</div></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── FLAG QUIZ ──
+function FlagQuiz({onBack,addCoins,onDone}){
+  const [deck]=useState(()=>getDailyFlags());
+  const [idx,setIdx]=useState(0);
+  const [chosen,setChosen]=useState(null);
+  const [score,setScore]=useState(0);
+  const [done,setDone]=useState(false);
+  const [choices,setChoices]=useState([]);
+  function makeChoices(i){
+    const correct=deck[i];
+    setChoices(shuffle([correct,...shuffle(FLAGS.filter(f=>f.code!==correct.code)).slice(0,3)]));
+    setChosen(null);
+  }
+  useEffect(()=>{makeChoices(0);},[]);
+  function pick(flag){
+    if(chosen)return;setChosen(flag.code);
+    const ok=flag.code===deck[idx].code;
+    if(ok){setScore(sc=>sc+1);if(addCoins)addCoins(1);}
+    setTimeout(()=>{
+      if(idx+1>=deck.length){if(onDone)onDone();setDone(true);}
+      else{setIdx(i=>{makeChoices(i+1);return i+1;});}
+    },1000);
+  }
+  if(done)return(
+    <div style={s.page}><div style={s.rb}>
+      <div style={{fontSize:64}}>{score>=18?"🏆":score>=12?"🌟":"💪"}</div>
+      <div style={s.rt}>Flaggquiz ferdig!</div>
+      <div style={s.rs}>{score} av {deck.length} riktige</div>
+      <div style={{fontSize:16,color:"#f9a825",fontWeight:700}}>+{score} 🪙</div>
+      <div style={{fontSize:13,color:"var(--t3)"}}>Nye flagg i morgen!</div>
+      <button style={{...s.bigBtn,...s.btnG}} onClick={onBack}>Hjem</button>
+    </div></div>
+  );
+  const cur=deck[idx];
+  return(
+    <div style={s.page}>
+      <div style={s.tb}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.tt}>🌍 Flaggquiz</span><span style={{fontSize:14,fontWeight:700}}>⭐{score}</span></div>
+      <div style={s.prog}>{idx+1}/{deck.length}</div>
+      <div style={{textAlign:"center",marginBottom:20}}>
+        <div style={{fontSize:13,color:"var(--t3)",marginBottom:12}}>Hvilket land er dette?</div>
+        <img src={`https://flagcdn.com/w160/${cur.code.toLowerCase()}.png`} alt={cur.code} style={{width:160,height:100,objectFit:"cover",borderRadius:10,border:"1px solid #ddd",boxShadow:"0 4px 12px rgba(0,0,0,0.15)"}}/>
+      </div>
+      <div style={s.cg}>
+        {choices.map((f,i)=>{
+          let bg="#fff",border="1px solid #ddd";
+          if(chosen){if(f.code===cur.code){bg="#d4f7d4";border="2px solid #43a047";}else if(f.code===chosen){bg="#fdd";border="2px solid #e53935";}}
+          return<button key={i} style={{...s.choice,background:bg,border,fontSize:14,padding:"16px 8px",fontWeight:600}} onClick={()=>pick(f)}>{f.name}</button>;
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── HANGMAN ──
+function HangmanGame({gloser,onBack,onCorrect,onDone}){
+  const [deck]=useState(()=>shuffle(gloser));
+  const [idx,setIdx]=useState(0);
+  const [guessed,setGuessed]=useState(new Set());
+  const [score,setScore]=useState(0);
+  const [done,setDone]=useState(false);
+  const word=deck[idx]?.en||"",hint=deck[idx]?.no||"";
+  const letters=word.split("");
+  const wrong=[...guessed].filter(l=>!letters.includes(l));
+  const wc=wrong.length,won=letters.every(l=>guessed.has(l)),lost=wc>=MAX_WRONG,fin=won||lost;
+  function guess(l){
+    if(fin||guessed.has(l))return;
+    const nx=new Set(guessed);nx.add(l);setGuessed(nx);
+    if(letters.every(c=>nx.has(c))){setScore(sc=>sc+1);if(onCorrect)onCorrect();}
+  }
+  function next(){
+    if(idx+1>=deck.length){if(onDone)onDone();setDone(true);return;}
+    setIdx(i=>i+1);setGuessed(new Set());
+  }
+  const alpha="abcdefghijklmnopqrstuvwxyz".split("");
+  if(done)return(
+    <div style={s.page}><div style={s.rb}>
+      <div style={{fontSize:64}}>{score===deck.length?"🏆":score>=deck.length*0.6?"🌟":"💪"}</div>
+      <div style={s.rt}>Ferdig!</div><div style={s.rs}>{score} av {deck.length}!</div>
+      <div style={{fontSize:16,color:"#f9a825",fontWeight:700}}>+{score} 🪙</div>
+      <button style={s.bigBtn} onClick={()=>{setIdx(0);setGuessed(new Set());setScore(0);setDone(false);}}>Prøv igjen</button>
+      <button style={{...s.bigBtn,...s.btnG}} onClick={onBack}>Hjem</button>
+    </div></div>
+  );
+  return(
+    <div style={s.page}>
+      <div style={s.tb}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.tt}>Hangman</span><span style={{fontSize:14,fontWeight:700}}>⭐{score}</span></div>
+      <div style={s.prog}>{idx+1}/{deck.length}</div>
+      <div style={{display:"flex",justifyContent:"center",marginBottom:4}}>
+        <svg viewBox="0 0 120 130" width="120" height="130">
+          <line x1="10" y1="125" x2="110" y2="125" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
+          <line x1="30" y1="125" x2="30" y2="10" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
+          <line x1="30" y1="10" x2="75" y2="10" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
+          <line x1="75" y1="10" x2="75" y2="25" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
+          {wc>=1&&<circle cx="75" cy="33" r="8" stroke="#e53935" strokeWidth="2.5" fill="none"/>}
+          {wc>=2&&<><line x1="75" y1="41" x2="75" y2="70" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="50" x2="58" y2="62" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="50" x2="92" y2="62" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/></>}
+          {wc>=3&&<><line x1="75" y1="70" x2="62" y2="88" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="70" x2="88" y2="88" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/></>}
+        </svg>
+      </div>
+      <div style={{textAlign:"center",fontSize:13,color:"var(--t2)",marginBottom:6}}>Norsk: <strong>{hint}</strong></div>
+      <div style={{display:"flex",justifyContent:"center",gap:6,flexWrap:"wrap",margin:"8px 0 12px"}}>
+        {letters.map((l,i)=><div key={i} style={s.lb}>{guessed.has(l)?<span style={{fontSize:20,fontWeight:700}}>{l}</span>:<span style={{color:"#ddd"}}>_</span>}</div>)}
+      </div>
+      {wrong.length>0&&<div style={{textAlign:"center",fontSize:12,color:"#e57373",marginBottom:6}}>Feil: {wrong.join("  ")} ({MAX_WRONG-wc} igjen)</div>}
+      {fin?(
+        <div style={{textAlign:"center",marginBottom:14}}>
+          {won?<div style={{fontSize:20,color:"#43a047",fontWeight:700}}>🎉 Bra!</div>:<div style={{fontSize:15,color:"#e53935"}}>Ordet var: <strong>{word}</strong></div>}
+          <button style={{...s.bigBtn,marginTop:12}} onClick={next}>{idx+1<deck.length?"Neste ▶":"Se resultat"}</button>
+        </div>
+      ):(
+        <div style={s.kb}>
+          {alpha.map(l=><button key={l} style={{...s.key,background:guessed.has(l)?(letters.includes(l)?"#c8e6c9":"#ffcdd2"):"#f5f5f5",color:guessed.has(l)?"#999":"#222",cursor:guessed.has(l)?"default":"pointer"}} onClick={()=>guess(l)}>{l}</button>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── MATHS ──
+function MathGame({onBack,addCoins,mode,onDone}){
+  const [score,setScore]=useState(0);
+  const [q,setQ]=useState(null);
+  const [chosen,setChosen]=useState(null);
+  const [done,setDone]=useState(false);
+  const [round,setRound]=useState(0);
+  const TOTAL=10;
+  function newQ(){
+    let a,b,answer,op;
+    if(mode==="multiply"){a=Math.floor(Math.random()*10)+1;b=Math.floor(Math.random()*10)+1;answer=a*b;op="×";}
+    else if(mode==="add"){a=Math.floor(Math.random()*20)+1;b=Math.floor(Math.random()*20)+1;answer=a+b;op="+";}
+    else{a=Math.floor(Math.random()*20)+10;b=Math.floor(Math.random()*a)+1;answer=a-b;op="−";}
+    const wrong=new Set();
+    while(wrong.size<3){let w=answer+(Math.floor(Math.random()*8)-4);if(w!==answer&&w>0)wrong.add(w);}
+    setQ({a,b,answer,op,choices:shuffle([answer,...wrong])});setChosen(null);
+  }
+  useEffect(()=>{newQ();},[]);
+  function pick(val){
+    if(chosen!==null)return;setChosen(val);
+    if(val===q.answer){setScore(sc=>sc+1);if(addCoins)addCoins(1);}
+    setTimeout(()=>{
+      if(round+1>=TOTAL){if(onDone)onDone();setDone(true);}
+      else{setRound(r=>r+1);newQ();}
+    },900);
+  }
+  const colors={multiply:"#e0f7fa",add:"#e8f5e9",subtract:"#fff3e0"};
+  const titles={multiply:"✖️ Ganging",add:"➕ Addisjon",subtract:"➖ Subtraksjon"};
+  if(done)return(
+    <div style={s.page}><div style={s.rb}>
+      <div style={{fontSize:64}}>{score>=9?"🏆":score>=6?"🌟":"💪"}</div>
+      <div style={s.rt}>Ferdig!</div><div style={s.rs}>{score} av {TOTAL}</div>
+      <div style={{fontSize:16,color:"#f9a825",fontWeight:700}}>+{score} 🪙</div>
+      <button style={s.bigBtn} onClick={()=>{setScore(0);setRound(0);setDone(false);newQ();}}>Prøv igjen</button>
+      <button style={{...s.bigBtn,...s.btnG}} onClick={onBack}>Hjem</button>
+    </div></div>
+  );
+  if(!q)return null;
+  return(
+    <div style={s.page}>
+      <div style={s.tb}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.tt}>{titles[mode]}</span><span style={{fontSize:14,fontWeight:700}}>⭐{score}</span></div>
+      <div style={s.prog}>{round+1}/{TOTAL}</div>
+      <div style={{background:colors[mode],borderRadius:20,padding:"36px 24px",textAlign:"center",marginBottom:20}}>
+        <div style={{fontSize:13,color:"var(--t3)",marginBottom:6}}>Hva er?</div>
+        <div style={{fontSize:50,fontWeight:800}}>{q.a} {q.op} {q.b} = ?</div>
+      </div>
+      <div style={s.cg}>
+        {q.choices.map((c,i)=>{let bg="#fff";if(chosen!==null){if(c===q.answer)bg="#d4f7d4";else if(c===chosen)bg="#fdd";}return<button key={i} style={{...s.choice,background:bg,fontSize:26,fontWeight:700,padding:"20px 8px"}} onClick={()=>pick(c)}>{c}</button>;})}
+      </div>
+    </div>
+  );
+}
+function MathMenu({onBack,addCoins,onDone}){
+  const [mode,setMode]=useState(null);
+  if(mode)return<MathGame onBack={()=>setMode(null)} addCoins={addCoins} mode={mode} onDone={()=>{if(onDone)onDone(mode);setMode(null);}}/>;
+  return(
+    <div style={s.page}>
+      <div style={s.tb}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.tt}>🔢 Matte</span></div>
+      <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:8}}>
+        {[{mode:"add",icon:"➕",label:"Addisjon",desc:"Pluss opp til 40",bg:"#e8f5e9"},{mode:"subtract",icon:"➖",label:"Subtraksjon",desc:"Minus opp til 30",bg:"#fff3e0"},{mode:"multiply",icon:"✖️",label:"Gangetabell",desc:"1–10 gangen",bg:"#e0f7fa"}].map(({mode:m,icon,label,desc,bg})=>(
+          <button key={m} onClick={()=>setMode(m)} style={{background:bg,border:"1px solid #eee",borderRadius:16,padding:"18px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",textAlign:"left",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+            <span style={{fontSize:34}}>{icon}</span>
+            <div><div style={{fontWeight:700,fontSize:16}}>{label}</div><div style={{fontSize:13,color:"var(--t2)",marginTop:2}}>{desc}</div></div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── TEACHER REPORT ──
+function TeacherReport({gloser,students,singleStudent,onBack}){
+  const [sel,setSel]=useState(singleStudent||students[0]?.id||null);
+  const [copied,setCopied]=useState(false);
+  const st=students.find(s=>s.id===sel);
+  const history=st?.history||[];
+  const sorted=[...gloser].sort((a,b)=>b.id-a.id);
+  const newest=sorted.slice(0,NEW_COUNT),older=sorted.slice(NEW_COUNT);
+  const today=new Date().toLocaleDateString("no-NO",{day:"numeric",month:"long",year:"numeric"});
+  const qi=history.filter(h=>h.source==="quiz"),hi=history.filter(h=>h.source==="hangman");
+  const qp=qi.length>0?Math.round(qi.filter(h=>h.correct).length/qi.length*100):0;
+  const hp=hi.length>0?Math.round(hi.filter(h=>h.correct).length/hi.length*100):0;
+  function status(en){const items=history.filter(h=>h.en===en&&h.source==="quiz");if(!items.length)return"ikke øvd";const p=items.filter(h=>h.correct).length/items.length;return p>=0.75?"kan":p>=0.4?"nesten":"trenger øving";}
+  function sc2(x){return x==="kan"?"#2e7d32":x==="nesten"?"#e65100":x==="trenger øving"?"#c62828":"#aaa";}
+  function se(x){return x==="kan"?"✅":x==="nesten"?"🔶":x==="trenger øving"?"❌":"⬜";}
+  const can=gloser.filter(g=>status(g.en)==="kan").length;
+  const avatarKits=st?.avatar?.gender==="female"?FEMALE_KITS:MALE_KITS;
+  const kit=avatarKits.find(k=>k.id===(st?.avatar?.kit||"basic"))||avatarKits[0];
+  function buildText(){
+    let t=`Rapport – ${st?.name} – ${today}\n\nAKTIVITET\n`;
+    t+=`  🃏 Flashcards: ${st?.flashcardSessions||0} økter\n`;
+    t+=`  🎯 Quiz: ${st?.quizSessions||0} økter – ${qi.filter(h=>h.correct).length}/${qi.length} (${qp}%)\n`;
+    t+=`  🪢 Hangman: ${st?.hangmanSessions||0} økter\n`;
+    t+=`  ➕ Addisjon: ${st?.mathAddSessions||0} økter\n`;
+    t+=`  ➖ Subtraksjon: ${st?.mathSubtractSessions||0} økter\n`;
+    t+=`  ✖️ Gangetabell: ${st?.mathMultiplySessions||0} økter\n`;
+    t+=`  🌍 Flaggquiz: ${st?.flagSessions||0} økter\n`;
+    t+=`  🪙 Coins: ${st?.coins||0} | Avatar: ${kit?.label}\n\nGLOSER (${can}/${gloser.length})\n`;
+    newest.forEach(g=>{t+=`  ${se(status(g.en))} ${g.no} → ${g.en} (${status(g.en)})\n`;});
+    if(older.length){t+=`\nTIDLIGERE:\n`;older.forEach(g=>{t+=`  ${se(status(g.en))} ${g.no} → ${g.en} (${status(g.en)})\n`;});}
+    return t;
+  }
+  function SC({icon,title,sessions,correct,total,pct}){
+    return(
+      <div style={{background:"#fff",borderRadius:12,padding:"12px",marginBottom:8,boxShadow:"0 2px 6px rgba(0,0,0,0.05)"}}>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>{icon} {title}</div>
+        <div style={{display:"grid",gridTemplateColumns:total!=null?"1fr 1fr 1fr":"1fr",gap:6}}>
+          <div style={{background:"#f9f9f9",borderRadius:8,padding:"8px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:700}}>{sessions}</div><div style={{fontSize:11,color:"var(--t3)"}}>Økter</div></div>
+          {total!=null&&<><div style={{background:"#f9f9f9",borderRadius:8,padding:"8px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:700}}>{total>0?`${correct}/${total}`:"–"}</div><div style={{fontSize:11,color:"var(--t3)"}}>Riktige</div></div><div style={{background:"#f9f9f9",borderRadius:8,padding:"8px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:700,color:pct>=70?"#2e7d32":pct>=40?"#e65100":"var(--t3)"}}>{total>0?pct+"%":"–"}</div><div style={{fontSize:11,color:"var(--t3)"}}>Prosent</div></div></>}
+        </div>
+      </div>
+    );
+  }
+  function WR({g}){const x=status(g.en);const it=history.filter(h=>h.en===g.en&&h.source==="quiz");return(<div style={{display:"flex",alignItems:"center",padding:"9px 12px",borderBottom:"1px solid #f0f0f0",gap:8}}><span style={{flex:1,fontSize:14}}>{g.no} <span style={{color:"#bbb"}}>→</span> {g.en}</span>{it.length>0&&<span style={{fontSize:11,color:"var(--t3)"}}>{it.filter(h=>h.correct).length}/{it.length}</span>}<span style={{fontSize:12,fontWeight:700,color:sc2(x),minWidth:90,textAlign:"right"}}>{se(x)} {x}</span></div>);}
+  return(
+    <div style={s.page}>
+      <div style={s.tb}><button style={s.back} onClick={onBack}>← Tilbake</button><span style={s.tt}>📋 Rapport</span></div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+        {students.map(x=>(
+          <button key={x.id} onClick={()=>setSel(x.id)} style={{padding:"5px 12px",borderRadius:20,border:"1px solid",borderColor:sel===x.id?"var(--purple)":"#ddd",background:sel===x.id?"var(--pl)":"#fafafa",color:sel===x.id?"var(--pd)":"#555",fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+            <AvatarDisplay avatar={x.avatar} name={x.name} size={20}/>{x.name}
+          </button>
+        ))}
+      </div>
+      <div style={{background:"#f9f9f9",borderRadius:12,padding:"12px",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+        <AvatarDisplay avatar={st?.avatar} name={st?.name||"?"} size={40}/>
+        <div><div style={{fontWeight:700}}>{st?.name}</div><div style={{fontSize:12,color:"var(--t2)"}}>{today} · 🪙{st?.coins||0}</div></div>
+      </div>
+      <SC icon="🃏" title="Flashcards" sessions={st?.flashcardSessions||0}/>
+      <SC icon="🎯" title="Quiz" sessions={st?.quizSessions||0} correct={qi.filter(h=>h.correct).length} total={qi.length} pct={qp}/>
+      <SC icon="🪢" title="Hangman" sessions={st?.hangmanSessions||0} correct={hi.filter(h=>h.correct).length} total={hi.length} pct={hp}/>
+      <SC icon="➕" title="Addisjon" sessions={st?.mathAddSessions||0}/>
+      <SC icon="➖" title="Subtraksjon" sessions={st?.mathSubtractSessions||0}/>
+      <SC icon="✖️" title="Gangetabell" sessions={st?.mathMultiplySessions||0}/>
+      <SC icon="🌍" title="Flaggquiz" sessions={st?.flagSessions||0}/>
+      <div style={{background:"#fff",borderRadius:12,padding:"12px",marginBottom:12,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.05)"}}>
+        <AvatarDisplay avatar={st?.avatar} name={st?.name||"?"} size={50}/>
+        <div style={{fontSize:13,color:"var(--t2)"}}><div>{st?.avatar?.gender==="female"?"👧 Jente":"👦 Gutt"}</div><div>Drakt: {kit?.label}</div><div>🪙 {st?.coins||0} coins</div></div>
+      </div>
+      <div style={{fontSize:13,fontWeight:700,color:"var(--t3)",margin:"0 0 6px"}}>NYE GLOSER</div>
+      <div style={{background:"#fff",borderRadius:12,marginBottom:10,overflow:"hidden",boxShadow:"0 2px 6px rgba(0,0,0,0.05)"}}>{newest.map(g=><WR key={g.id} g={g}/>)}</div>
+      {older.length>0&&<><div style={{fontSize:13,fontWeight:700,color:"var(--t3)",margin:"0 0 6px"}}>TIDLIGERE GLOSER</div><div style={{background:"#fff",borderRadius:12,marginBottom:10,overflow:"hidden",boxShadow:"0 2px 6px rgba(0,0,0,0.05)"}}>{older.map(g=><WR key={g.id} g={g}/>)}</div></>}
+      <div style={{display:"flex",gap:8,fontSize:12,color:"var(--t3)",marginBottom:14,flexWrap:"wrap"}}><span>✅ kan</span><span>🔶 nesten</span><span>❌ trenger øving</span><span>⬜ ikke øvd</span></div>
+      <button style={s.bigBtn} onClick={()=>{navigator.clipboard.writeText(buildText());setCopied(true);setTimeout(()=>setCopied(false),2000);}}>{copied?"✅ Kopiert!":"📋 Kopier til utklippstavle"}</button>
+    </div>
+  );
+}
+
+// ── ADMIN ──
+function AdminPanel({students,gloser,onSaveStudents,onSaveGloser,onBack}){
+  const [tab,setTab]=useState("students");
+  const [name,setName]=useState("");
+  const [pinVal,setPinVal]=useState("");
+  const [msg,setMsg]=useState("");
+  const [newNo,setNewNo]=useState("");
+  const [newEn,setNewEn]=useState("");
+  const [addMsg,setAddMsg]=useState("");
+  const [nextSId,setNextSId]=useState(()=>Math.max(...students.map(s=>s.id),0)+1);
+  const [nextGId,setNextGId]=useState(()=>Math.max(...gloser.map(g=>g.id),0)+1);
+  function addStudent(){
+    if(!name.trim()||!/^\d{4}$/.test(pinVal)){setMsg("Skriv navn og 4-sifret PIN.");return;}
+    if(students.find(s=>s.pin===pinVal)){setMsg("PIN allerede i bruk.");return;}
+    const ns=[...students,{id:nextSId,name:name.trim(),pin:pinVal,history:[],quizSessions:0,hangmanSessions:0,flashcardSessions:0,mathAddSessions:0,mathSubtractSessions:0,mathMultiplySessions:0,flagSessions:0,points:0,coins:0,squad:[],club:CLUBS[nextSId%CLUBS.length],avatar:{gender:"male",kit:"basic",hair:"short",extra:false},purchased:[],playerCards:[],lineup:Array(11).fill(null)}];
+    onSaveStudents(ns);setNextSId(n=>n+1);setName("");setPinVal("");setMsg("✅ Lagt til!");setTimeout(()=>setMsg(""),1500);
+  }
+  function translateWord(w){
+    if(!w.trim()){setNewEn("");return;}
+    const hit=dict[w.trim().toLowerCase()];
+    setNewEn(hit||"");
+    if(!hit){setAddMsg("Ikke funnet – skriv engelsk selv");setTimeout(()=>setAddMsg(""),2000);}
+  }
+  function addGlose(){
+    if(!newNo.trim()||!newEn.trim())return;
+    const ng=[...gloser,{no:newNo.trim().toLowerCase(),en:newEn.trim().toLowerCase(),id:nextGId}];
+    onSaveGloser(ng);setNextGId(n=>n+1);setNewNo("");setNewEn("");setAddMsg("✅ Lagt til!");setTimeout(()=>setAddMsg(""),1500);
+  }
+  return(
+    <div style={s.page}>
+      <div style={s.tb}><button style={s.back} onClick={onBack}>← Logg ut</button><span style={s.tt}>Admin</span></div>
+      <div style={{display:"flex",gap:8,marginBottom:14}}>
+        {["students","gloser","report"].map(t=><button key={t} onClick={()=>setTab(t)} style={{flex:1,padding:"9px",borderRadius:10,border:"1px solid",borderColor:tab===t?"var(--purple)":"#ddd",background:tab===t?"var(--pl)":"#fafafa",color:tab===t?"var(--pd)":"#555",fontWeight:tab===t?700:400,cursor:"pointer",fontSize:13}}>{t==="students"?"👤 Elever":t==="gloser"?"📚 Gloser":"📋 Rapport"}</button>)}
+      </div>
+      {tab==="students"&&<>
+        <div style={s.ab}>
+          <input style={s.input} placeholder="Elevnavn" value={name} onChange={e=>setName(e.target.value)}/>
+          <input style={s.input} placeholder="PIN (4 siffer)" value={pinVal} maxLength={4} onChange={e=>setPinVal(e.target.value.replace(/\D/g,""))}/>
+          <button style={s.bigBtn} onClick={addStudent}>Legg til elev +</button>
+          {msg&&<div style={{color:msg.startsWith("✅")?"green":"#e53935",fontWeight:700}}>{msg}</div>}
+        </div>
+        <div style={s.gl}>
+          {students.map(st=><div key={st.id} style={s.gr}><AvatarDisplay avatar={st.avatar} name={st.name} size={34}/><span style={{flex:1,fontSize:14,marginLeft:8}}>{st.name} <span style={{color:"#bbb",fontSize:11}}>PIN:{st.pin}</span></span><span style={{fontSize:12,color:"#f9a825",marginRight:8}}>🪙{st.coins||0}</span><button style={s.db} onClick={()=>onSaveStudents(students.filter(s=>s.id!==st.id))}>✕</button></div>)}
+        </div>
+      </>}
+      {tab==="gloser"&&<>
+        <div style={s.ab}>
+          <input style={s.input} placeholder="🇳🇴 Skriv norsk ord..." value={newNo} onChange={e=>setNewNo(e.target.value)} onBlur={e=>translateWord(e.target.value)}/>
+          <div style={{position:"relative"}}>
+            <input style={{...s.input,width:"100%"}} placeholder="🇬🇧 Engelsk (forslag automatisk)" value={newEn} onChange={e=>setNewEn(e.target.value)}/>
+          </div>
+          {newEn&&<div style={{background:"#e8f5e9",borderRadius:10,padding:"10px 14px",fontSize:14,display:"flex",alignItems:"center",gap:10}}><span style={{flex:1}}>Forslag: <strong>{newEn}</strong></span><button style={{background:"none",border:"none",fontSize:13,color:"#e65100",cursor:"pointer"}} onClick={()=>setNewEn("")}>Endre</button></div>}
+          <button style={{...s.bigBtn,opacity:(!newNo.trim()||!newEn.trim())?0.5:1}} onClick={addGlose}>Legg til glose +</button>
+          {addMsg&&<div style={{color:addMsg.startsWith("✅")?"green":"#e65100",fontWeight:700}}>{addMsg}</div>}
+        </div>
+        <div style={s.gl}>
+          {[...gloser].sort((a,b)=>b.id-a.id).map((g,i)=><div key={g.id} style={s.gr}>{i<NEW_COUNT&&<span style={{fontSize:10,background:"#fff3e0",color:"#e65100",borderRadius:4,padding:"1px 5px",marginRight:6}}>NY</span>}<span style={s.gp}>{g.no} <span style={{color:"#aaa"}}>→</span> {g.en}</span><button style={s.db} onClick={()=>onSaveGloser(gloser.filter(x=>x.id!==g.id))}>✕</button></div>)}
+        </div>
+      </>}
+      {tab==="report"&&<TeacherReport gloser={gloser} students={students} onBack={()=>setTab("students")}/>}
+    </div>
+  );
+}
+
+// ── PIN PAD ──
+function PinPad({title,subtitle,onSubmit,error,onBack}){
+  const [pin,setPin]=useState("");
+  function press(d){if(pin.length>=4)return;const n=pin+d;setPin(n);if(n.length===4){setTimeout(()=>{onSubmit(n);setPin("");},120);}}
+  return(
+    <div style={{maxWidth:340,margin:"0 auto",padding:"32px 16px",textAlign:"center"}}>
+      {onBack&&<button style={s.back} onClick={onBack}>← Tilbake</button>}
+      <div style={{paddingTop:onBack?16:0}}>
+        <div style={{fontSize:40,marginBottom:8,animation:"bounce 1.5s infinite"}}>🎓</div>
+        <div style={{fontSize:20,fontWeight:800}}>{title}</div>
+        {subtitle&&<div style={{fontSize:13,color:"var(--t2)",marginTop:4}}>{subtitle}</div>}
+        <div style={{display:"flex",justifyContent:"center",gap:12,margin:"24px 0 8px"}}>
+          {[0,1,2,3].map(i=><div key={i} style={{width:18,height:18,borderRadius:"50%",background:pin.length>i?"var(--purple)":"#e0e0e0",transition:"background 0.15s"}}/>)}
+        </div>
+        {error&&<div style={{fontSize:12,color:"#e53935",margin:"6px 0"}}>{error}</div>}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginTop:20}}>
+          {[1,2,3,4,5,6,7,8,9].map(d=><button key={d} style={s.pb} onClick={()=>press(String(d))}>{d}</button>)}
+          <div/><button style={s.pb} onClick={()=>press("0")}>0</button>
+          <button style={{...s.pb,color:"var(--t3)"}} onClick={()=>setPin(p=>p.slice(0,-1))}>⌫</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -378,7 +829,7 @@ function PenaltyGame({onDone}){
   }
   return(
     <div style={{textAlign:"center",padding:"16px 0"}}>
-      <div style={{fontSize:13,fontWeight:500,marginBottom:10}}>Skytt {current+1} av {TOTAL} · Mål: {shots.filter(Boolean).length}</div>
+      <div style={{fontSize:13,fontWeight:700,marginBottom:10}}>Skytt {current+1} av {TOTAL} · Mål: {shots.filter(Boolean).length}</div>
       <div style={{position:"relative",width:"100%",maxWidth:320,margin:"0 auto",height:180,background:"linear-gradient(180deg,#90ee90,#228b22)",borderRadius:12,overflow:"hidden",cursor:phase==="aim"?"crosshair":"default",border:"2px solid #555"}}
         onClick={e=>{if(phase!=="aim")return;const r=e.currentTarget.getBoundingClientRect();setTarget({x:((e.clientX-r.left)/r.width)*100,y:((e.clientY-r.top)/r.height)*100});}}>
         <div style={{position:"absolute",top:10,left:"15%",width:"70%",height:"55%",border:"4px solid white",borderBottom:"none",pointerEvents:"none"}}/>
@@ -394,714 +845,7 @@ function PenaltyGame({onDone}){
   );
 }
 
-// ── PLAYER CARDS ──
-const PLAYERS = [
-  // Norske spillere
-  {id:"haaland",name:"Erling Haaland",club:"Man City",league:"Premier League",pos:"ST",rating:91,rarity:"legend",emoji:"⚽"},
-  {id:"odegaard",name:"Martin Ødegaard",club:"Arsenal",league:"Premier League",pos:"CAM",rating:88,rarity:"gold",emoji:"🎯"},
-  {id:"sorloth",name:"Alexander Sørloth",club:"Atlético",league:"La Liga",pos:"ST",rating:83,rarity:"gold",emoji:"⚽"},
-  {id:"nusa",name:"Antonio Nusa",club:"Leipzig",league:"Bundesliga",pos:"RW",rating:78,rarity:"silver",emoji:"💨"},
-  {id:"thorsby",name:"Morten Thorsby",club:"Genoa",league:"Serie A",pos:"CM",rating:74,rarity:"silver",emoji:"🛡️"},
-  {id:"berge",name:"Sander Berge",club:"Fulham",league:"Premier League",pos:"CM",rating:76,rarity:"silver",emoji:"💪"},
-  // Premier League
-  {id:"salah",name:"Mohamed Salah",club:"Liverpool",league:"Premier League",pos:"RW",rating:90,rarity:"legend",emoji:"🔥"},
-  {id:"mbappe2",name:"Bukayo Saka",club:"Arsenal",league:"Premier League",pos:"RW",rating:87,rarity:"gold",emoji:"⚡"},
-  {id:"palmer",name:"Cole Palmer",club:"Chelsea",league:"Premier League",pos:"CAM",rating:86,rarity:"gold",emoji:"🎩"},
-  {id:"foden",name:"Phil Foden",club:"Man City",league:"Premier League",pos:"LW",rating:87,rarity:"gold",emoji:"🌟"},
-  {id:"kane",name:"Harry Kane",club:"Bayern",league:"Bundesliga",pos:"ST",rating:89,rarity:"gold",emoji:"👑"},
-  {id:"brunofernandes",name:"Bruno Fernandes",club:"Man Utd",league:"Premier League",pos:"CAM",rating:85,rarity:"gold",emoji:"🎯"},
-  // La Liga
-  {id:"vinicius",name:"Vinícius Jr.",club:"Real Madrid",league:"La Liga",pos:"LW",rating:92,rarity:"legend",emoji:"💃"},
-  {id:"bellingham",name:"Jude Bellingham",club:"Real Madrid",league:"La Liga",pos:"CAM",rating:90,rarity:"legend",emoji:"🏆"},
-  {id:"yamal",name:"Lamine Yamal",club:"Barcelona",league:"La Liga",pos:"RW",rating:85,rarity:"gold",emoji:"✨"},
-  {id:"pedri",name:"Pedri",club:"Barcelona",league:"La Liga",pos:"CM",rating:86,rarity:"gold",emoji:"🎨"},
-  {id:"lewandowski",name:"Lewandowski",club:"Barcelona",league:"La Liga",pos:"ST",rating:87,rarity:"gold",emoji:"🥅"},
-  // Bundesliga
-  {id:"musiala",name:"Jamal Musiala",club:"Bayern",league:"Bundesliga",pos:"CAM",rating:87,rarity:"gold",emoji:"🌈"},
-  {id:"wirtz",name:"Florian Wirtz",club:"Leverkusen",league:"Bundesliga",pos:"CAM",rating:87,rarity:"gold",emoji:"⚗️"},
-  {id:"gnabry",name:"Serge Gnabry",club:"Bayern",league:"Bundesliga",pos:"RW",rating:82,rarity:"silver",emoji:"🚀"},
-  // Blandede stjerner
-  {id:"mbappe",name:"Kylian Mbappé",club:"Real Madrid",league:"La Liga",pos:"ST",rating:93,rarity:"legend",emoji:"💨"},
-  {id:"modric",name:"Luka Modrić",club:"Real Madrid",league:"La Liga",pos:"CM",rating:85,rarity:"gold",emoji:"🦅"},
-  {id:"debruyne",name:"Kevin De Bruyne",club:"Man City",league:"Premier League",pos:"CAM",rating:91,rarity:"legend",emoji:"🎪"},
-  {id:"alisson",name:"Alisson",club:"Liverpool",league:"Premier League",pos:"GK",rating:89,rarity:"gold",emoji:"🧤"},
-  {id:"vanDijk",name:"Van Dijk",club:"Liverpool",league:"Premier League",pos:"CB",rating:88,rarity:"gold",emoji:"🗿"},
-  {id:"rudiger",name:"Rüdiger",club:"Real Madrid",league:"La Liga",pos:"CB",rating:85,rarity:"gold",emoji:"🦁"},
-];
-
-const PACK_TYPES = [
-  {id:"bronze",label:"Bronsepakke",price:20,count:3,minRating:70,color:"#cd7f32",bg:"linear-gradient(135deg,#8B4513,#cd7f32)",desc:"3 spillere · vanlige kort"},
-  {id:"silver",label:"Sølvpakke",price:50,count:3,minRating:78,color:"#aaa",bg:"linear-gradient(135deg,#607d8b,#b0bec5)",desc:"3 spillere · bedre odds"},
-  {id:"gold",label:"Gullpakke",price:120,count:3,minRating:82,color:"#f9a825",bg:"linear-gradient(135deg,#f9a825,#ff8f00)",desc:"3 spillere · gold+ garantert"},
-  {id:"legend",label:"Legendarisk pakke",price:300,count:3,minRating:85,color:"#7c4dff",bg:"linear-gradient(135deg,#7c4dff,#e91e63)",desc:"3 spillere · sjanse for legend!"},
-];
-
-const RARITY_COLORS = {
-  silver:{bg:"linear-gradient(135deg,#78909c,#b0bec5)",text:"#fff",border:"#b0bec5"},
-  gold:{bg:"linear-gradient(135deg,#f9a825,#ff8f00)",text:"#fff",border:"#f9a825"},
-  legend:{bg:"linear-gradient(135deg,#7c4dff,#e91e63)",text:"#fff",border:"#ce93d8"},
-};
-
-function openPack(packType) {
-  const pool = PLAYERS.filter(p => p.rating >= packType.minRating);
-  const result = [];
-  for (let i = 0; i < packType.count; i++) {
-    result.push(pool[Math.floor(Math.random() * pool.length)]);
-  }
-  return result;
-}
-
-function PlayerCard({player, size="normal", owned=false}) {
-  const rarity = RARITY_COLORS[player.rarity] || RARITY_COLORS.silver;
-  const isSmall = size === "small";
-  return (
-    <div style={{background:rarity.bg,borderRadius:isSmall?10:14,padding:isSmall?"8px 6px":"14px 10px",textAlign:"center",border:`2px solid ${rarity.border}`,boxShadow:owned?"none":`0 4px 12px rgba(0,0,0,0.2)`,position:"relative",opacity:owned?1:0.95,minWidth:isSmall?60:80}}>
-      {player.rarity==="legend"&&<div style={{position:"absolute",top:-6,left:"50%",transform:"translateX(-50%)",fontSize:10,background:"#f9a825",color:"#fff",borderRadius:8,padding:"1px 6px",fontWeight:800,whiteSpace:"nowrap"}}>LEGEND</div>}
-      <div style={{fontSize:isSmall?18:28,marginBottom:2}}>{player.emoji}</div>
-      <div style={{fontSize:isSmall?16:22,fontWeight:900,color:"#fff",lineHeight:1}}>{player.rating}</div>
-      <div style={{fontSize:isSmall?8:10,color:"rgba(255,255,255,0.8)",fontWeight:700,letterSpacing:0.5}}>{player.pos}</div>
-      <div style={{fontSize:isSmall?9:11,color:"#fff",fontWeight:800,marginTop:2,lineHeight:1.2}}>{isSmall?player.name.split(" ").pop():player.name}</div>
-      <div style={{fontSize:isSmall?8:10,color:"rgba(255,255,255,0.75)",marginTop:1}}>{isSmall?"":player.club}</div>
-    </div>
-  );
-}
-
-function PackStore({student, onUpdate, onBack}) {
-  const [phase, setPhase] = useState("store"); // store | opening | reveal
-  const [selectedPack, setSelectedPack] = useState(null);
-  const [revealedPlayers, setRevealedPlayers] = useState([]);
-  const [revealIdx, setRevealIdx] = useState(0);
-  const [msg, setMsg] = useState("");
-  const coins = student.coins || 0;
-  const ownedIds = student.playerCards || [];
-
-  function buyPack(pack) {
-    if (coins < pack.price) { setMsg("Ikke nok coins! 🪙"); setTimeout(()=>setMsg(""),2000); return; }
-    const players = openPack(pack);
-    onUpdate({ coins: coins - pack.price });
-    setSelectedPack(pack);
-    setRevealedPlayers(players);
-    setRevealIdx(0);
-    setPhase("opening");
-  }
-
-  function revealNext() {
-    const p = revealedPlayers[revealIdx];
-    // Add to collection if not already owned
-    const existing = student.playerCards || [];
-    if (!existing.includes(p.id)) {
-      onUpdate({ playerCards: [...existing, p.id] });
-    }
-    if (revealIdx + 1 >= revealedPlayers.length) {
-      setPhase("reveal");
-    } else {
-      setRevealIdx(i => i + 1);
-    }
-  }
-
-  if (phase === "opening") {
-    const current = revealedPlayers[revealIdx];
-    return (
-      <div style={s.page}>
-        <div style={{textAlign:"center",padding:"20px 0"}}>
-          <div style={{fontSize:14,color:"var(--text3)",marginBottom:4}}>{selectedPack.label} · Kort {revealIdx+1} av {revealedPlayers.length}</div>
-          <div style={{fontSize:22,fontWeight:800,marginBottom:20}}>🎴 Hvem får du?</div>
-          <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
-            <PlayerCard player={current} size="normal"/>
-          </div>
-          <div style={{fontSize:13,color:"var(--text2)",marginBottom:16}}>
-            {(student.playerCards||[]).includes(current.id) ? "⚠️ Allerede i samlingen din" : "🆕 Ny spiller!"}
-          </div>
-          <button style={s.bigBtn} onClick={revealNext}>
-            {revealIdx + 1 < revealedPlayers.length ? "Neste kort ▶" : "Se alle ✓"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (phase === "reveal") {
-    return (
-      <div style={s.page}>
-        <div style={{textAlign:"center",padding:"16px 0 8px"}}>
-          <div style={{fontSize:40}}>🎉</div>
-          <div style={{fontSize:20,fontWeight:800,margin:"8px 0"}}>Pakke åpnet!</div>
-        </div>
-        <div style={{display:"flex",gap:10,justifyContent:"center",marginBottom:20,flexWrap:"wrap"}}>
-          {revealedPlayers.map((p,i) => <PlayerCard key={i} player={p} size="normal"/>)}
-        </div>
-        <button style={s.bigBtn} onClick={()=>setPhase("store")}>Kjøp flere pakker</button>
-        <button style={{...s.bigBtn,...s.btnGray,marginTop:10}} onClick={onBack}>Tilbake</button>
-      </div>
-    );
-  }
-
-  return (
-    <div style={s.page}>
-      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Tilbake</button><span style={s.topTitle}>🎴 Spillerpakker</span></div>
-      <div style={{background:"linear-gradient(135deg,#1a237e,#283593)",borderRadius:16,padding:"12px 16px",marginBottom:16,display:"flex",alignItems:"center",gap:10}}>
-        <span style={{fontSize:24}}>🪙</span>
-        <div><div style={{color:"white",fontWeight:800,fontSize:16}}>{coins} coins</div><div style={{color:"rgba(255,255,255,0.7)",fontSize:12}}>{ownedIds.length} spillere i samlingen</div></div>
-      </div>
-      {msg&&<div style={{background:"#ffcdd2",borderRadius:10,padding:"10px",marginBottom:10,fontSize:14,fontWeight:700,color:"#c62828",textAlign:"center"}}>{msg}</div>}
-      <div style={{display:"flex",flexDirection:"column",gap:12}}>
-        {PACK_TYPES.map(pack => (
-          <div key={pack.id} style={{background:pack.bg,borderRadius:18,padding:"16px",boxShadow:"0 4px 16px rgba(0,0,0,0.15)"}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-              <div><div style={{fontWeight:800,fontSize:18,color:"#fff"}}>{pack.label}</div><div style={{fontSize:12,color:"rgba(255,255,255,0.8)"}}>{pack.desc}</div></div>
-              <div style={{textAlign:"right"}}><div style={{fontSize:22,fontWeight:900,color:"#fff"}}>🪙 {pack.price}</div></div>
-            </div>
-            <button onClick={()=>buyPack(pack)} style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:"rgba(255,255,255,0.25)",color:"#fff",fontSize:15,fontWeight:800,cursor:"pointer",backdropFilter:"blur(4px)"}}>
-              {coins >= pack.price ? "🎴 Åpne pakke!" : "🔒 Ikke nok coins"}
-            </button>
-          </div>
-        ))}
-      </div>
-      <div style={{fontSize:13,fontWeight:700,color:"var(--text2)",margin:"20px 0 10px"}}>Din samling ({ownedIds.length} spillere)</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
-        {PLAYERS.filter(p => ownedIds.includes(p.id)).map(p => <PlayerCard key={p.id} player={p} size="small" owned/>)}
-        {ownedIds.length === 0 && <div style={{gridColumn:"span 4",textAlign:"center",color:"var(--text3)",padding:"20px",fontSize:14}}>Ingen spillere ennå — kjøp en pakke! 🎴</div>}
-      </div>
-    </div>
-  );
-}
-
-// ── SQUAD BUILDER WITH PLAYERS ──
-function SquadDisplay({squad,clubColor}){
-  return(
-    <div style={{position:"relative",width:"100%",maxWidth:320,margin:"0 auto",height:260,background:"linear-gradient(180deg,#2d8a2d,#1a5c1a 50%,#2d8a2d)",borderRadius:12,overflow:"hidden"}}>
-      <div style={{position:"absolute",top:"50%",left:"10%",right:"10%",height:1,background:"rgba(255,255,255,0.3)"}}/>
-      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:60,height:60,border:"1px solid rgba(255,255,255,0.3)",borderRadius:"50%"}}/>
-      {POSITIONS.map((pos,i)=>(
-        <div key={pos.id} style={{position:"absolute",left:`${pos.x}%`,top:`${pos.y}%`,transform:"translate(-50%,-50%)",textAlign:"center"}}>
-          <div style={{width:26,height:26,borderRadius:"50%",background:i<squad.length?clubColor:"rgba(255,255,255,0.2)",border:`2px solid ${i<squad.length?"white":"rgba(255,255,255,0.3)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,margin:"0 auto"}}>{i<squad.length?"⚽":""}</div>
-          <div style={{fontSize:7,color:"rgba(255,255,255,0.7)",marginTop:1,whiteSpace:"nowrap"}}>{pos.label}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── SQUAD BUILDER WITH PLAYERS ──
-function SquadBuilder({student, onUpdate, onBack}) {
-  const [selectedPos, setSelectedPos] = useState(null);
-  const lineup = student.lineup || Array(11).fill(null);
-  const ownedIds = student.playerCards || [];
-  const ownedPlayers = PLAYERS.filter(p => ownedIds.includes(p.id));
-  const club = student.club || CLUBS[0];
-
-  function assignPlayer(playerId) {
-    const newLineup = [...lineup];
-    const existingIdx = newLineup.indexOf(playerId);
-    if (existingIdx !== -1) newLineup[existingIdx] = null;
-    newLineup[selectedPos] = playerId;
-    onUpdate({ lineup: newLineup });
-    setSelectedPos(null);
-  }
-
-  function removePlayer(posIdx) {
-    const newLineup = [...lineup];
-    newLineup[posIdx] = null;
-    onUpdate({ lineup: newLineup });
-  }
-
-  const inLineup = lineup.filter(Boolean);
-
-  return (
-    <div style={s.page}>
-      <div style={s.topBar}>
-        <button style={s.back} onClick={onBack}>← Hjem</button>
-        <span style={s.topTitle}>⚽ Mitt lag</span>
-        <span style={{fontSize:12,color:"var(--text3)"}}>{inLineup.length}/11</span>
-      </div>
-      <div style={{position:"relative",width:"100%",maxWidth:360,margin:"0 auto 16px",height:320,background:"linear-gradient(180deg,#2d8a2d,#1a5c1a 50%,#2d8a2d)",borderRadius:16,overflow:"hidden",border:"2px solid rgba(255,255,255,0.2)"}}>
-        <div style={{position:"absolute",top:"50%",left:"10%",right:"10%",height:1,background:"rgba(255,255,255,0.3)"}}/>
-        <div style={{position:"absolute",top:8,left:"25%",width:"50%",height:"22%",border:"1px solid rgba(255,255,255,0.3)",borderBottom:"none"}}/>
-        <div style={{position:"absolute",bottom:8,left:"25%",width:"50%",height:"22%",border:"1px solid rgba(255,255,255,0.3)",borderTop:"none"}}/>
-        <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:56,height:56,border:"1px solid rgba(255,255,255,0.3)",borderRadius:"50%"}}/>
-        {POSITIONS.map((pos, i) => {
-          const playerId = lineup[i];
-          const player = playerId ? PLAYERS.find(p => p.id === playerId) : null;
-          const isSelected = selectedPos === i;
-          const rColor = player ? (RARITY_COLORS[player.rarity]?.bg || "#555") : null;
-          return (
-            <div key={pos.id} style={{position:"absolute",left:`${pos.x}%`,top:`${pos.y}%`,transform:"translate(-50%,-50%)",textAlign:"center",zIndex:isSelected?10:1}}
-              onClick={() => setSelectedPos(isSelected ? null : i)}>
-              {player ? (
-                <div style={{background:rColor,borderRadius:10,padding:"3px 5px",border:isSelected?"3px solid #fff":"2px solid rgba(255,255,255,0.5)",boxShadow:isSelected?"0 0 12px #fff":"0 2px 6px rgba(0,0,0,0.3)",minWidth:38,cursor:"pointer",position:"relative"}}>
-                  <div style={{fontSize:9,fontWeight:900,color:"#fff",lineHeight:1}}>{player.rating}</div>
-                  <div style={{fontSize:8,color:"rgba(255,255,255,0.85)",fontWeight:700,whiteSpace:"nowrap",maxWidth:42,overflow:"hidden"}}>{player.name.split(" ").pop()}</div>
-                  <div style={{fontSize:7,color:"rgba(255,255,255,0.7)"}}>{player.pos}</div>
-                  {isSelected && <div style={{position:"absolute",top:-8,right:-8,background:"#e53935",borderRadius:"50%",width:14,height:14,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#fff",fontWeight:900,cursor:"pointer"}}
-                    onClick={e=>{e.stopPropagation();removePlayer(i);setSelectedPos(null);}}>✕</div>}
-                </div>
-              ) : (
-                <div style={{width:32,height:32,borderRadius:"50%",background:isSelected?"rgba(255,255,255,0.5)":"rgba(255,255,255,0.15)",border:`2px dashed ${isSelected?"#fff":"rgba(255,255,255,0.5)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"rgba(255,255,255,0.8)",cursor:"pointer",boxShadow:isSelected?"0 0 12px rgba(255,255,255,0.8)":"none"}}>
-                  {isSelected ? "✓" : "+"}
-                </div>
-              )}
-              <div style={{fontSize:7,color:"rgba(255,255,255,0.6)",marginTop:2,whiteSpace:"nowrap"}}>{pos.label}</div>
-            </div>
-          );
-        })}
-      </div>
-      {selectedPos !== null ? (
-        <div>
-          <div style={{fontSize:13,fontWeight:700,color:"var(--text2)",marginBottom:8}}>
-            Velg spiller til <strong>{POSITIONS[selectedPos].label}</strong>:
-          </div>
-          {ownedPlayers.length === 0 ? (
-            <div style={{textAlign:"center",padding:"20px",color:"var(--text3)",fontSize:14}}>Ingen spillere ennå — kjøp pakker! 🎴</div>
-          ) : (
-            <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:260,overflowY:"auto"}}>
-              {ownedPlayers.map(p => {
-                const inSlot = lineup.indexOf(p.id);
-                const rarity = RARITY_COLORS[p.rarity] || RARITY_COLORS.silver;
-                return (
-                  <div key={p.id} onClick={() => assignPlayer(p.id)}
-                    style={{display:"flex",alignItems:"center",gap:12,background:inSlot!==-1?"#f5f5f5":"#fff",borderRadius:12,padding:"10px 12px",cursor:"pointer",border:`2px solid ${inSlot!==-1?"#ddd":rarity.border}`,opacity:inSlot!==-1?0.6:1}}>
-                    <div style={{background:rarity.bg,borderRadius:8,padding:"4px 8px",minWidth:36,textAlign:"center"}}>
-                      <div style={{fontSize:14,fontWeight:900,color:"#fff"}}>{p.rating}</div>
-                      <div style={{fontSize:8,color:"rgba(255,255,255,0.8)",fontWeight:700}}>{p.pos}</div>
-                    </div>
-                    <div style={{flex:1}}>
-                      <div style={{fontWeight:700,fontSize:14}}>{p.name}</div>
-                      <div style={{fontSize:12,color:"var(--text3)"}}>{p.club} · {p.league}</div>
-                    </div>
-                    <div style={{fontSize:18}}>{p.emoji}</div>
-                    {inSlot !== -1 && <div style={{fontSize:11,color:"#888",fontWeight:600}}>På banen</div>}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          <button style={{...s.bigBtn,...s.btnGray,marginTop:10}} onClick={()=>setSelectedPos(null)}>Avbryt</button>
-        </div>
-      ) : (
-        <div>
-          <div style={{fontSize:13,color:"var(--text3)",textAlign:"center",marginBottom:12}}>Trykk på en posisjon for å velge spiller</div>
-          <button style={{...s.bigBtn,background:"linear-gradient(135deg,#f9a825,#ff8f00)"}} onClick={()=>onBack()}>🎴 Kjøp flere spillere</button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── LEADERBOARD ──
-function Leaderboard({students,onBack}){  return(
-    <div style={s.page}>
-      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>🏆 Poengtavle</span></div>
-      <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:8}}>
-        {[...students].sort((a,b)=>(b.coins||0)-(a.coins||0)).map((st,i)=>(
-          <div key={st.id} style={{background:"#fff",border:"1px solid #eee",borderRadius:14,padding:"14px",display:"flex",alignItems:"center",gap:12}}>
-            <div style={{fontSize:22,minWidth:28}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":`${i+1}.`}</div>
-            <AvatarDisplay avatar={st.avatar} name={st.name} size={44}/>
-            <div style={{flex:1}}><div style={{fontWeight:500}}>{st.name}</div><div style={{fontSize:12,color:"#888"}}>{(st.club||CLUBS[0]).name}</div></div>
-            <div style={{textAlign:"right"}}><div style={{fontSize:20,fontWeight:500,color:"#f9a825"}}>🪙{st.coins||0}</div><div style={{fontSize:11,color:"#aaa"}}>{st.points||0}p</div></div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── HANGMAN ──
-function HangmanGame({gloser,onBack,onCorrect}){
-  const [deck]=useState(()=>shuffle(gloser));
-  const [idx,setIdx]=useState(0);
-  const [guessed,setGuessed]=useState(new Set());
-  const [score,setScore]=useState(0);
-  const [done,setDone]=useState(false);
-  const word=deck[idx]?.en||"",hint=deck[idx]?.no||"";
-  const letters=word.split("");
-  const wrong=[...guessed].filter(l=>!letters.includes(l));
-  const wrongCount=wrong.length,won=letters.every(l=>guessed.has(l)),lost=wrongCount>=MAX_WRONG,finished=won||lost;
-  function guess(l){
-    if(finished||guessed.has(l))return;
-    const nx=new Set(guessed);nx.add(l);setGuessed(nx);
-    if(letters.every(c=>nx.has(c))){setScore(sc=>sc+1);onCorrect&&onCorrect();}
-  }
-  function next(){if(idx+1>=deck.length){onDone&&onDone();setDone(true);return;}setIdx(i=>i+1);setGuessed(new Set());}
-  const alpha="abcdefghijklmnopqrstuvwxyz".split("");
-  if(done)return(<div style={s.page}><div style={s.resultBox}><div style={{fontSize:64}}>{score===deck.length?"🏆":score>=deck.length*0.6?"🌟":"💪"}</div><div style={s.resultTitle}>Ferdig!</div><div style={s.resultScore}>{score} av {deck.length}!</div><div style={{fontSize:16,color:"#f9a825",fontWeight:500}}>+{score} 🪙</div><button style={s.bigBtn} onClick={()=>{setIdx(0);setGuessed(new Set());setScore(0);setDone(false);}}>Prøv igjen</button><button style={{...s.bigBtn,...s.btnGray}} onClick={onBack}>Hjem</button></div></div>);
-  return(
-    <div style={s.page}>
-      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>Hangman</span><span style={{fontSize:14,fontWeight:500}}>⭐{score}</span></div>
-      <div style={s.progress}>{idx+1}/{deck.length}</div>
-      <div style={{display:"flex",justifyContent:"center",marginBottom:4}}>
-        <svg viewBox="0 0 120 130" width="120" height="130">
-          <line x1="10" y1="125" x2="110" y2="125" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
-          <line x1="30" y1="125" x2="30" y2="10" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
-          <line x1="30" y1="10" x2="75" y2="10" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
-          <line x1="75" y1="10" x2="75" y2="25" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
-          {wrongCount>=1&&<circle cx="75" cy="33" r="8" stroke="#e53935" strokeWidth="2.5" fill="none"/>}
-          {wrongCount>=2&&<><line x1="75" y1="41" x2="75" y2="70" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="50" x2="58" y2="62" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="50" x2="92" y2="62" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/></>}
-          {wrongCount>=3&&<><line x1="75" y1="70" x2="62" y2="88" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="70" x2="88" y2="88" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/></>}
-        </svg>
-      </div>
-      <div style={{textAlign:"center",fontSize:13,color:"var(--text2)",marginBottom:6}}>Norsk: <strong>{hint}</strong></div>
-      <div style={{display:"flex",justifyContent:"center",gap:6,flexWrap:"wrap",margin:"8px 0 14px"}}>
-        {letters.map((l,i)=><div key={i} style={s.letterBox}>{guessed.has(l)?<span style={{fontSize:20,fontWeight:500}}>{l}</span>:<span style={{color:"#ddd"}}>_</span>}</div>)}
-      </div>
-      {wrong.length>0&&<div style={{textAlign:"center",fontSize:12,color:"#e57373",marginBottom:6}}>Feil: {wrong.join("  ")} ({MAX_WRONG-wrongCount} igjen)</div>}
-      {finished?(
-        <div style={{textAlign:"center",marginBottom:14}}>
-          {won?<div style={{fontSize:20,color:"#43a047",fontWeight:500}}>🎉 Bra!</div>:<div style={{fontSize:15,color:"#e53935"}}>Ordet var: <strong>{word}</strong></div>}
-          <button style={{...s.bigBtn,marginTop:12}} onClick={next}>{idx+1<deck.length?"Neste ▶":"Ferdig"}</button>
-        </div>
-      ):(
-        <div style={s.keyboard}>
-          {alpha.map(l=><button key={l} style={{...s.key,background:guessed.has(l)?(letters.includes(l)?"#c8e6c9":"#ffcdd2"):"#f5f5f5",color:guessed.has(l)?"#999":"#222",cursor:guessed.has(l)?"default":"pointer"}} onClick={()=>guess(l)}>{l}</button>)}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── MATHS ──
-function MathGame({onBack, addCoins, mode, onDone}) {
-  const [score,setScore]=useState(0);
-  const [q,setQ]=useState(null);
-  const [chosen,setChosen]=useState(null);
-  const [done,setDone]=useState(false);
-  const [round,setRound]=useState(0);
-  const TOTAL=10;
-  function newQ(){
-    let a,b,answer,op;
-    if(mode==="multiply"){a=Math.floor(Math.random()*10)+1;b=Math.floor(Math.random()*10)+1;answer=a*b;op="×";}
-    else if(mode==="add"){a=Math.floor(Math.random()*20)+1;b=Math.floor(Math.random()*20)+1;answer=a+b;op="+";}
-    else{a=Math.floor(Math.random()*20)+10;b=Math.floor(Math.random()*a)+1;answer=a-b;op="−";}
-    const wrong=new Set();
-    while(wrong.size<3){let w=answer+(Math.floor(Math.random()*8)-4);if(w!==answer&&w>0)wrong.add(w);}
-    setQ({a,b,answer,op,choices:shuffle([answer,...wrong])});setChosen(null);
-  }
-  useEffect(()=>{newQ();},[]);
-  function pick(val){
-    if(chosen!==null)return;
-    setChosen(val);
-    if(val===q.answer){setScore(sc=>sc+1);if(addCoins)addCoins(1);}
-    setTimeout(()=>{
-      if(round+1>=TOTAL){
-        if(onDone)onDone();
-        setDone(true);
-      } else {
-        setRound(r=>r+1);
-        newQ();
-      }
-    },900);
-  }
-  const colors={multiply:"#e0f7fa",add:"#e8f5e9",subtract:"#fff3e0"};
-  const titles={multiply:"✖️ Ganging",add:"➕ Addisjon",subtract:"➖ Subtraksjon"};
-  if(done)return(<div style={s.page}><div style={s.resultBox}><div style={{fontSize:64}}>{score>=9?"🏆":score>=6?"🌟":"💪"}</div><div style={s.resultTitle}>Ferdig!</div><div style={s.resultScore}>{score} av {TOTAL}</div><div style={{fontSize:16,color:"#f9a825",fontWeight:500}}>+{score} 🪙</div><button style={s.bigBtn} onClick={()=>{setScore(0);setRound(0);setDone(false);newQ();}}>Prøv igjen</button><button style={{...s.bigBtn,...s.btnGray}} onClick={onBack}>Hjem</button></div></div>);
-  if(!q)return null;
-  return(
-    <div style={s.page}>
-      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>{titles[mode]}</span><span style={{fontSize:14,fontWeight:500}}>⭐{score}</span></div>
-      <div style={s.progress}>{round+1}/{TOTAL}</div>
-      <div style={{background:colors[mode],borderRadius:20,padding:"36px 24px",textAlign:"center",marginBottom:20}}>
-        <div style={{fontSize:13,color:"var(--text3)",marginBottom:6}}>Hva er?</div>
-        <div style={{fontSize:50,fontWeight:500}}>{q.a} {q.op} {q.b} = ?</div>
-      </div>
-      <div style={s.choicesGrid}>
-        {q.choices.map((c,i)=>{let bg="#fff";if(chosen!==null){if(c===q.answer)bg="#d4f7d4";else if(c===chosen)bg="#fdd";}return<button key={i} style={{...s.choice,background:bg,fontSize:26,fontWeight:500,padding:"20px 8px"}} onClick={()=>pick(c)}>{c}</button>;})}
-      </div>
-    </div>
-  );
-}
-function MathMenu({onBack, addCoins, onDone}) {
-  const [mode, setMode] = useState(null);
-  if (mode) return <MathGame onBack={()=>setMode(null)} addCoins={addCoins} mode={mode} onDone={()=>onDone&&onDone(mode)}/>;
-  return (
-    <div style={s.page}>
-      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>🔢 Matte</span></div>
-      <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:8}}>
-        {[{mode:"add",icon:"➕",label:"Addisjon",desc:"Pluss opp til 40",bg:"#e8f5e9"},{mode:"subtract",icon:"➖",label:"Subtraksjon",desc:"Minus opp til 30",bg:"#fff3e0"},{mode:"multiply",icon:"✖️",label:"Gangetabell",desc:"1–10 gangen",bg:"#e0f7fa"}].map(({mode:m,icon,label,desc,bg})=>(
-          <button key={m} onClick={()=>setMode(m)} style={{background:bg,border:"1px solid #eee",borderRadius:16,padding:"18px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",textAlign:"left"}}>
-            <span style={{fontSize:34}}>{icon}</span>
-            <div><div style={{fontWeight:700,fontSize:16}}>{label}</div><div style={{fontSize:13,color:"var(--text2)",marginTop:2}}>{desc}</div></div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── FLAG QUIZ ──
-const FLAGS = [
-  {code:"NO",name:"Norge"},{code:"SE",name:"Sverige"},{code:"DK",name:"Danmark"},
-  {code:"FI",name:"Finland"},{code:"IS",name:"Island"},{code:"GB",name:"Storbritannia"},
-  {code:"DE",name:"Tyskland"},{code:"FR",name:"Frankrike"},{code:"ES",name:"Spania"},
-  {code:"IT",name:"Italia"},{code:"PT",name:"Portugal"},{code:"NL",name:"Nederland"},
-  {code:"BE",name:"Belgia"},{code:"CH",name:"Sveits"},{code:"AT",name:"Østerrike"},
-  {code:"PL",name:"Polen"},{code:"CZ",name:"Tsjekkia"},{code:"HU",name:"Ungarn"},
-  {code:"RO",name:"Romania"},{code:"GR",name:"Hellas"},{code:"TR",name:"Tyrkia"},
-  {code:"RU",name:"Russland"},{code:"UA",name:"Ukraina"},{code:"US",name:"USA"},
-  {code:"CA",name:"Canada"},{code:"MX",name:"Mexico"},{code:"BR",name:"Brasil"},
-  {code:"AR",name:"Argentina"},{code:"CL",name:"Chile"},{code:"CO",name:"Colombia"},
-  {code:"JP",name:"Japan"},{code:"CN",name:"Kina"},{code:"KR",name:"Sør-Korea"},
-  {code:"IN",name:"India"},{code:"AU",name:"Australia"},{code:"NZ",name:"New Zealand"},
-  {code:"ZA",name:"Sør-Afrika"},{code:"NG",name:"Nigeria"},{code:"EG",name:"Egypt"},
-  {code:"MA",name:"Marokko"},{code:"KE",name:"Kenya"},{code:"GH",name:"Ghana"},
-  {code:"SA",name:"Saudi-Arabia"},{code:"AE",name:"De forente arabiske emirater"},
-  {code:"IL",name:"Israel"},{code:"TH",name:"Thailand"},{code:"ID",name:"Indonesia"},
-  {code:"PH",name:"Filippinene"},{code:"VN",name:"Vietnam"},
-];
-
-function getDailyFlags() {
-  const seed = Math.floor(Date.now() / 86400000);
-  const shuffled = [...FLAGS].sort((a,b) => {
-    const ha = (seed * 1103515245 + a.code.charCodeAt(0) * 12345) & 0x7fffffff;
-    const hb = (seed * 1103515245 + b.code.charCodeAt(0) * 12345) & 0x7fffffff;
-    return ha - hb;
-  });
-  return shuffled.slice(0, 20);
-}
-
-function FlagImg({code, size=90}) {
-  return (
-    <img
-      src={`https://flagcdn.com/w160/${code.toLowerCase()}.png`}
-      alt={code}
-      style={{width:size*1.5, height:size, objectFit:"cover", borderRadius:8, border:"1px solid #ddd", boxShadow:"0 2px 8px rgba(0,0,0,0.1)"}}
-    />
-  );
-}
-
-function FlagQuiz({onBack, addCoins, onDone}) {
-  const [deck] = useState(() => getDailyFlags());
-  const [idx, setIdx] = useState(0);
-  const [chosen, setChosen] = useState(null);
-  const [score, setScore] = useState(0);
-  const [done, setDone] = useState(false);
-  const [choices, setChoices] = useState([]);
-
-  function makeChoices(i) {
-    const correct = deck[i];
-    const others = shuffle(FLAGS.filter(f => f.code !== correct.code)).slice(0, 3);
-    setChoices(shuffle([correct, ...others]));
-    setChosen(null);
-  }
-
-  useEffect(() => { makeChoices(0); }, []);
-
-  function pick(flag) {
-    if (chosen) return;
-    setChosen(flag.code);
-    const correct = flag.code === deck[idx].code;
-    if (correct) { setScore(s => s + 1); addCoins(1); }
-    setTimeout(() => {
-      if (idx + 1 >= deck.length) { onDone&&onDone(); setDone(true); }
-      else { setIdx(i => { makeChoices(i + 1); return i + 1; }); }
-    }, 1000);
-  }
-
-  if (done) return (
-    <div style={s.page}><div style={s.resultBox}>
-      <div style={{fontSize:64}}>{score >= 18 ? "🏆" : score >= 12 ? "🌟" : "💪"}</div>
-      <div style={s.resultTitle}>Flaggquiz ferdig!</div>
-      <div style={s.resultScore}>{score} av {deck.length} riktige</div>
-      <div style={{fontSize:16,color:"#f9a825",fontWeight:500}}>+{score} 🪙 coins!</div>
-      <div style={{fontSize:13,color:"var(--text3)",marginTop:4}}>Nye flagg i morgen!</div>
-      <button style={{...s.bigBtn,...s.btnGray}} onClick={onBack}>Hjem</button>
-    </div></div>
-  );
-
-  const current = deck[idx];
-  return (
-    <div style={s.page}>
-      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.topTitle}>🌍 Flaggquiz</span><span style={{fontSize:14,fontWeight:500}}>⭐{score}</span></div>
-      <div style={s.progress}>{idx+1} / {deck.length}</div>
-
-      <div style={{textAlign:"center",marginBottom:20}}>
-        <div style={{fontSize:13,color:"var(--text3)",marginBottom:12}}>Hvilket land er dette?</div>
-        <FlagImg code={current.code} size={90}/>
-      </div>
-
-      <div style={s.choicesGrid}>
-        {choices.map((f,i) => {
-          let bg = "#fff", border = "1px solid #ddd";
-          if (chosen) {
-            if (f.code === current.code) { bg = "#d4f7d4"; border = "2px solid #43a047"; }
-            else if (f.code === chosen) { bg = "#fdd"; border = "2px solid #e53935"; }
-          }
-          return (
-            <button key={i} style={{...s.choice, background:bg, border, fontSize:14, padding:"14px 8px"}}
-              onClick={() => pick(f)}>
-              {f.name}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-function TeacherReport({gloser,students,singleStudent,onBack}){
-  const [sel,setSel]=useState(singleStudent||students[0]?.id||null);
-  const [copied,setCopied]=useState(false);
-  const st=students.find(s=>s.id===sel);
-  const history=st?.history||[];
-  const sorted=[...gloser].sort((a,b)=>b.id-a.id);
-  const newest=sorted.slice(0,NEW_COUNT),older=sorted.slice(NEW_COUNT);
-  const today=new Date().toLocaleDateString("no-NO",{day:"numeric",month:"long",year:"numeric"});
-  const qi=history.filter(h=>h.source==="quiz");
-  const hi=history.filter(h=>h.source==="hangman");
-  const qp=qi.length>0?Math.round(qi.filter(h=>h.correct).length/qi.length*100):0;
-  const hp=hi.length>0?Math.round(hi.filter(h=>h.correct).length/hi.length*100):0;
-  function status(en){const items=history.filter(h=>h.en===en&&h.source==="quiz");if(!items.length)return"ikke øvd";const p=items.filter(h=>h.correct).length/items.length;return p>=0.75?"kan":p>=0.4?"nesten":"trenger øving";}
-  function sc(x){return x==="kan"?"#2e7d32":x==="nesten"?"#e65100":x==="trenger øving"?"#c62828":"#aaa";}
-  function se(x){return x==="kan"?"✅":x==="nesten"?"🔶":x==="trenger øving"?"❌":"⬜";}
-  const can=gloser.filter(g=>status(g.en)==="kan").length;
-  const avatarKits=st?.avatar?.gender==="female"?FEMALE_KITS:MALE_KITS;
-  const kit=avatarKits.find(k=>k.id===(st?.avatar?.kit||"basic"))||avatarKits[0];
-  function buildText(){
-    let t=`Rapport – ${st?.name} – ${today}\n\nAKTIVITET\n`;
-    t+=`  🃏 Flashcards: ${st?.flashcardSessions||0} økter\n`;
-    t+=`  🎯 Quiz: ${st?.quizSessions||0} økter – ${qi.filter(h=>h.correct).length}/${qi.length} (${qp}%)\n`;
-    t+=`  🪢 Hangman: ${st?.hangmanSessions||0} økter – ${hi.filter(h=>h.correct).length}/${hi.length} (${hp}%)\n`;
-    t+=`  ✖️ Matte: ${st?.mathSessions||0} økter\n`;
-    t+=`  🪙 Coins: ${st?.coins||0} | Avatar: ${kit?.label}\n\nGLOSER (${can}/${gloser.length})\n`;
-    newest.forEach(g=>{t+=`  ${se(status(g.en))} ${g.no} → ${g.en} (${status(g.en)})\n`;});
-    if(older.length){t+=`\nTIDLIGERE:\n`;older.forEach(g=>{t+=`  ${se(status(g.en))} ${g.no} → ${g.en} (${status(g.en)})\n`;});}
-    return t;
-  }
-  function WR({g}){const x=status(g.en);const it=history.filter(h=>h.en===g.en&&h.source==="quiz");return(<div style={{display:"flex",alignItems:"center",padding:"9px 12px",borderBottom:"1px solid #f0f0f0",gap:8}}><span style={{flex:1,fontSize:14}}>{g.no} <span style={{color:"#bbb"}}>→</span> {g.en}</span>{it.length>0&&<span style={{fontSize:11,color:"#aaa"}}>{it.filter(h=>h.correct).length}/{it.length}</span>}<span style={{fontSize:12,fontWeight:500,color:sc(x),minWidth:90,textAlign:"right"}}>{se(x)} {x}</span></div>);}
-  function StatCard({icon,title,sessions,correct,total,pct}){
-    return(
-      <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:"12px",marginBottom:8}}>
-        <div style={{fontSize:13,fontWeight:500,marginBottom:6}}>{icon} {title}</div>
-        <div style={{display:"grid",gridTemplateColumns:total!=null?"1fr 1fr 1fr":"1fr",gap:6}}>
-          <div style={{background:"#f9f9f9",borderRadius:8,padding:"8px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:500}}>{sessions}</div><div style={{fontSize:11,color:"#aaa"}}>Økter</div></div>
-          {total!=null&&<><div style={{background:"#f9f9f9",borderRadius:8,padding:"8px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:500}}>{total>0?`${correct}/${total}`:"–"}</div><div style={{fontSize:11,color:"#aaa"}}>Riktige</div></div><div style={{background:"#f9f9f9",borderRadius:8,padding:"8px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:500,color:pct>=70?"#2e7d32":pct>=40?"#e65100":"#aaa"}}>{total>0?pct+"%":"–"}</div><div style={{fontSize:11,color:"#aaa"}}>Prosent</div></div></>}
-        </div>
-      </div>
-    );
-  }
-  return(
-    <div style={s.page}>
-      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Tilbake</button><span style={s.topTitle}>📋 Rapport</span></div>
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
-        {students.map(x=>(
-          <button key={x.id} onClick={()=>setSel(x.id)} style={{padding:"5px 12px",borderRadius:20,border:"1px solid",borderColor:sel===x.id?"var(--purple)":"#ddd",background:sel===x.id?"var(--purple-light)":"#fafafa",color:sel===x.id?"var(--purple-dark)":"#555",fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
-            <AvatarDisplay avatar={x.avatar} name={x.name} size={20}/>{x.name}
-          </button>
-        ))}
-      </div>
-      <div style={{background:"#f9f9f9",borderRadius:12,padding:"12px",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
-        <AvatarDisplay avatar={st?.avatar} name={st?.name||"?"} size={40}/>
-        <div><div style={{fontWeight:500}}>{st?.name}</div><div style={{fontSize:12,color:"var(--text2)"}}>{today} · 🪙{st?.coins||0}</div></div>
-      </div>
-      <StatCard icon="🃏" title="Flashcards" sessions={st?.flashcardSessions||0}/>
-      <StatCard icon="🎯" title="Quiz" sessions={st?.quizSessions||0} correct={qi.filter(h=>h.correct).length} total={qi.length} pct={qp}/>
-      <StatCard icon="🪢" title="Hangman" sessions={st?.hangmanSessions||0} correct={hi.filter(h=>h.correct).length} total={hi.length} pct={hp}/>
-      <StatCard icon="➕" title="Addisjon" sessions={st?.mathAddSessions||0}/>
-      <StatCard icon="➖" title="Subtraksjon" sessions={st?.mathSubtractSessions||0}/>
-      <StatCard icon="✖️" title="Gangetabell" sessions={st?.mathMultiplySessions||0}/>
-      <StatCard icon="🌍" title="Flaggquiz" sessions={st?.flagSessions||0}/>
-      <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:"12px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
-        <AvatarDisplay avatar={st?.avatar} name={st?.name||"?"} size={50}/>
-        <div style={{fontSize:13,color:"var(--text2)"}}><div>{st?.avatar?.gender==="female"?"👧 Jente":"👦 Gutt"}</div><div>Drakt: {kit?.label}</div><div>🪙 {st?.coins||0} coins</div></div>
-      </div>
-      <div style={{fontSize:13,fontWeight:500,color:"var(--text3)",margin:"0 0 6px"}}>NYE GLOSER</div>
-      <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,marginBottom:10,overflow:"hidden"}}>{newest.map(g=><WR key={g.id} g={g}/>)}</div>
-      {older.length>0&&<><div style={{fontSize:13,fontWeight:500,color:"var(--text3)",margin:"0 0 6px"}}>TIDLIGERE GLOSER</div><div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,marginBottom:10,overflow:"hidden"}}>{older.map(g=><WR key={g.id} g={g}/>)}</div></>}
-      <div style={{display:"flex",gap:8,fontSize:12,color:"var(--text3)",marginBottom:14,flexWrap:"wrap"}}><span>✅ kan</span><span>🔶 nesten</span><span>❌ trenger øving</span><span>⬜ ikke øvd</span></div>
-      <button style={s.bigBtn} onClick={()=>{navigator.clipboard.writeText(buildText());setCopied(true);setTimeout(()=>setCopied(false),2000);}}>{copied?"✅ Kopiert!":"📋 Kopier til utklippstavle"}</button>
-    </div>
-  );
-}
-
-// ── ADMIN ──
-function AdminPanel({students,gloser,onSaveStudents,onSaveGloser,onBack}){
-  const [tab,setTab]=useState("students");
-  const [name,setName]=useState("");
-  const [pinVal,setPinVal]=useState("");
-  const [msg,setMsg]=useState("");
-  const [newNo,setNewNo]=useState("");
-  const [newEn,setNewEn]=useState("");
-  const [addMsg,setAddMsg]=useState("");
-  const [translating,setTranslating]=useState(false);
-  const [nextSId,setNextSId]=useState(()=>Math.max(...students.map(s=>s.id),0)+1);
-  const [nextGId,setNextGId]=useState(()=>Math.max(...gloser.map(g=>g.id),0)+1);
-
-  function addStudent(){
-    if(!name.trim()||!/^\d{4}$/.test(pinVal)){setMsg("Skriv navn og 4-sifret PIN.");return;}
-    if(students.find(s=>s.pin===pinVal)){setMsg("PIN allerede i bruk.");return;}
-    const ns=[...students,{id:nextSId,name:name.trim(),pin:pinVal,history:[],quizSessions:0,hangmanSessions:0,flashcardSessions:0,mathSessions:0,points:0,coins:0,squad:[],club:CLUBS[nextSId%CLUBS.length],avatar:{gender:"male",kit:"basic",hair:"short",extra:false},purchased:[]}];
-    onSaveStudents(ns);setNextSId(n=>n+1);setName("");setPinVal("");setMsg("✅ Lagt til!");setTimeout(()=>setMsg(""),1500);
-  }
-  function translateWord(w){
-    if(!w.trim()){setNewEn("");return;}
-    const hit=dict[w.trim().toLowerCase()];
-    setNewEn(hit||"");
-    if(!hit){setAddMsg("Ikke funnet – skriv engelsk selv");setTimeout(()=>setAddMsg(""),2000);}
-  }
-  function addGlose(){
-    if(!newNo.trim()||!newEn.trim())return;
-    const ng=[...gloser,{no:newNo.trim().toLowerCase(),en:newEn.trim().toLowerCase(),id:nextGId}];
-    onSaveGloser(ng);setNextGId(n=>n+1);setNewNo("");setNewEn("");setAddMsg("✅ Lagt til!");setTimeout(()=>setAddMsg(""),1500);
-  }
-  return(
-    <div style={s.page}>
-      <div style={s.topBar}><button style={s.back} onClick={onBack}>← Logg ut</button><span style={s.topTitle}>Admin</span></div>
-      <div style={{display:"flex",gap:8,marginBottom:14}}>
-        {["students","gloser","report"].map(t=><button key={t} onClick={()=>setTab(t)} style={{flex:1,padding:"9px",borderRadius:10,border:"1px solid",borderColor:tab===t?"var(--purple)":"#ddd",background:tab===t?"var(--purple-light)":"#fafafa",color:tab===t?"var(--purple-dark)":"#555",fontWeight:tab===t?500:400,cursor:"pointer",fontSize:13}}>{t==="students"?"👤 Elever":t==="gloser"?"📚 Gloser":"📋 Rapport"}</button>)}
-      </div>
-      {tab==="students"&&<>
-        <div style={s.addBox}>
-          <input style={s.input} placeholder="Elevnavn" value={name} onChange={e=>setName(e.target.value)}/>
-          <input style={s.input} placeholder="PIN (4 siffer)" value={pinVal} maxLength={4} onChange={e=>setPinVal(e.target.value.replace(/\D/g,""))}/>
-          <button style={s.bigBtn} onClick={addStudent}>Legg til elev +</button>
-          {msg&&<div style={{color:msg.startsWith("✅")?"green":"#e53935",fontWeight:500}}>{msg}</div>}
-        </div>
-        <div style={s.gloseList}>
-          {students.map(st=><div key={st.id} style={s.gloseRow}><AvatarDisplay avatar={st.avatar} name={st.name} size={34}/><span style={{flex:1,fontSize:14,marginLeft:8}}>{st.name} <span style={{color:"#bbb",fontSize:11}}>PIN:{st.pin}</span></span><span style={{fontSize:12,color:"#f9a825",marginRight:8}}>🪙{st.coins||0}</span><button style={s.deleteBtn} onClick={()=>onSaveStudents(students.filter(s=>s.id!==st.id))}>✕</button></div>)}
-        </div>
-      </>}
-      {tab==="gloser"&&<>
-        <div style={s.addBox}>
-          <input style={s.input} placeholder="🇳🇴 Skriv norsk ord..." value={newNo} onChange={e=>setNewNo(e.target.value)} onBlur={e=>translateWord(e.target.value)}/>
-          <div style={{position:"relative"}}>
-            <input style={{...s.input,width:"100%"}} placeholder="🇬🇧 Engelsk (forslag automatisk)" value={newEn} onChange={e=>setNewEn(e.target.value)}/>
-          </div>
-          {newEn&&<div style={{background:"#e8f5e9",borderRadius:10,padding:"10px 14px",fontSize:14,display:"flex",alignItems:"center",gap:10}}><span style={{flex:1}}>Forslag: <strong>{newEn}</strong></span><button style={{background:"none",border:"none",fontSize:13,color:"#e65100",cursor:"pointer"}} onClick={()=>setNewEn("")}>Endre</button></div>}
-          <button style={{...s.bigBtn,opacity:(!newNo.trim()||!newEn.trim())?0.5:1}} onClick={addGlose}>Legg til glose +</button>
-          {addMsg&&<div style={{color:addMsg.startsWith("✅")?"green":"#e65100",fontWeight:500}}>{addMsg}</div>}
-        </div>
-        <div style={s.gloseList}>
-          {[...gloser].sort((a,b)=>b.id-a.id).map((g,i)=><div key={g.id} style={s.gloseRow}>{i<NEW_COUNT&&<span style={{fontSize:10,background:"#fff3e0",color:"#e65100",borderRadius:4,padding:"1px 5px",marginRight:6}}>NY</span>}<span style={s.glosePair}>{g.no} <span style={{color:"#aaa"}}>→</span> {g.en}</span><button style={s.deleteBtn} onClick={()=>onSaveGloser(gloser.filter(x=>x.id!==g.id))}>✕</button></div>)}
-        </div>
-      </>}
-      {tab==="report"&&<TeacherReport gloser={gloser} students={students} onBack={()=>setTab("students")}/>}
-    </div>
-  );
-}
-
-// ── PIN PAD ──
-function PinPad({title,subtitle,onSubmit,error,onBack}){
-  const [pin,setPin]=useState("");
-  function press(d){if(pin.length>=4)return;const n=pin+d;setPin(n);if(n.length===4){setTimeout(()=>{onSubmit(n);setPin("");},120);}}
-  return(
-    <div style={{maxWidth:340,margin:"0 auto",padding:"32px 16px",textAlign:"center"}}>
-      {onBack&&<button style={s.back} onClick={onBack}>← Tilbake</button>}
-      <div style={{paddingTop:onBack?16:0}}>
-        <div style={{fontSize:40,marginBottom:8}}>🎓</div>
-        <div style={{fontSize:20,fontWeight:500}}>{title}</div>
-        {subtitle&&<div style={{fontSize:13,color:"var(--text2)",marginTop:4}}>{subtitle}</div>}
-        <div style={{display:"flex",justifyContent:"center",gap:12,margin:"24px 0 8px"}}>
-          {[0,1,2,3].map(i=><div key={i} style={{width:18,height:18,borderRadius:"50%",background:pin.length>i?"var(--purple)":"#e0e0e0",transition:"background 0.15s"}}/>)}
-        </div>
-        {error&&<div style={{fontSize:12,color:"#e53935",margin:"6px 0"}}>{error}</div>}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginTop:20}}>
-          {[1,2,3,4,5,6,7,8,9].map(d=><button key={d} style={s.pinBtn} onClick={()=>press(String(d))}>{d}</button>)}
-          <div/><button style={s.pinBtn} onClick={()=>press("0")}>0</button>
-          <button style={{...s.pinBtn,color:"var(--text3)"}} onClick={()=>setPin(p=>p.slice(0,-1))}>⌫</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── MAIN ──
+// ── MAIN APP ──
 function App(){
   const [students,setStudentsState]=useState(defaultStudents);
   const [gloser,setGloserState]=useState(defaultGloser);
@@ -1122,97 +866,74 @@ function App(){
   const [fcDir,setFcDir]=useState("no→en");
   const [showPenalty,setShowPenalty]=useState(false);
   const [penaltyResult,setPenaltyResult]=useState(null);
-  const [mathMultiplySessions,setMathMultiplySessions]=useState(0);
-  const [mathAddSessions,setMathAddSessions]=useState(0);
-  const [mathSubtractSessions,setMathSubtractSessions]=useState(0);
-  const [flagSessions,setFlagSessions]=useState(0);
   const [coinAnim,setCoinAnim]=useState(null);
+  const studentsRef=useRef(students);
+  useEffect(()=>{studentsRef.current=students;},[students]);
 
   useEffect(()=>{
     async function load(){
-      const gg = await dbGet("gloser");
-      if (gg) {
-        const arr = Array.isArray(gg) ? gg.filter(Boolean) : Object.values(gg).filter(Boolean);
-        setGloserState(arr);
-      }
+      const gg=await dbGet("gloser");
+      if(gg){const arr=Array.isArray(gg)?gg.filter(Boolean):Object.values(gg).filter(Boolean);setGloserState(arr);}
       setLoaded(true);
     }
     load();
-
-    // Real-time listener for students — keyed by id
-    let unsub = null;
-    try {
-      unsub = window.fbOn("glose/students", (val) => {
-        if (val) {
-          // val is object like {"1": {...}, "2": {...}}
-          const arr = Object.values(val).filter(v => v && v.id);
-          setStudentsState(arr);
-        }
+    let unsub=null;
+    try{
+      unsub=window.fbOn("glose/students",(val)=>{
+        if(val){const arr=Object.values(val).filter(v=>v&&v.id);setStudentsState(arr);}
       });
-    } catch(e) { console.error("fbOn failed", e); }
-
-    return () => { if (unsub) unsub(); };
+    }catch(e){console.error("fbOn failed",e);}
+    return()=>{if(unsub)unsub();};
   },[]);
 
-  async function saveStudents(ns) {
-    const clean = ns.filter(Boolean);
-    setStudentsState(clean);
-    const obj = {};
-    clean.forEach(s => { if(s?.id) obj[s.id] = s; });
-    await dbSet("students", obj);
+  async function saveStudents(ns){
+    const clean=ns.filter(Boolean);setStudentsState(clean);
+    const obj={};clean.forEach(s=>{if(s?.id)obj[s.id]=s;});
+    await dbSet("students",obj);
   }
-
-  async function saveGloser(ng) {
-    const clean = ng.filter(Boolean);
-    setGloserState(clean);
-    const obj = {};
-    clean.forEach(g => { if(g?.id) obj[g.id] = g; });
-    await dbSet("gloser", obj);
+  async function saveGloser(ng){
+    const clean=ng.filter(Boolean);setGloserState(clean);
+    const obj={};clean.forEach(g=>{if(g?.id)obj[g.id]=g;});
+    await dbSet("gloser",obj);
   }
-
-  async function updateStudent(id, updates) {
-    const current = studentsRef.current.find(s => s.id === id) || {};
-    const merged = {...current, ...updates};
-    console.log("updateStudent:", id, updates, "→ hangmanSessions:", merged.hangmanSessions);
-    setStudentsState(prev => prev.map(st => st.id !== id ? st : merged));
-    if (currentUser && currentUser.id === id) setCurrentUser(u => ({...u, ...updates}));
-    try {
-      await window.fbSet("glose/students/" + id, merged);
-      console.log("Firebase write OK");
-    } catch(e) { console.error("Firebase write FAILED:", e); }
+  async function updateStudent(id,updates){
+    const current=studentsRef.current.find(s=>s.id===id)||{};
+    const merged={...current,...updates};
+    setStudentsState(prev=>prev.map(st=>st.id!==id?st:merged));
+    if(currentUser&&currentUser.id===id)setCurrentUser(u=>({...u,...updates}));
+    try{await window.fbSet("glose/students/"+id,merged);}catch(e){console.error("Firebase write failed:",e);}
   }
-
+  function getStudent(){return studentsRef.current.find(s=>s.id===currentUser?.id)||stData;}
   function addCoins(c){
     if(!c||!currentUser||currentUser==="admin")return;
     setCoinAnim(`+${c} 🪙`);setTimeout(()=>setCoinAnim(null),1500);
-    const st=students.find(s=>s.id===currentUser.id);if(!st)return;
+    const st=getStudent();
     const np=(st.points||0)+c,nc=(st.coins||0)+c;
     const os=Math.floor((st.points||0)/3),ns2=Math.floor(np/3);
     const sq=[...(st.squad||[])];
     for(let i=os;i<ns2&&sq.length<11;i++)sq.push(`p_${Date.now()}_${i}`);
     updateStudent(currentUser.id,{points:np,coins:nc,squad:sq});
   }
-
   function recordHistory(en,correct,source){
-    const st=students.find(s=>s.id===currentUser?.id);if(!st)return;
+    const st=studentsRef.current.find(s=>s.id===currentUser?.id);if(!st)return;
     updateStudent(currentUser.id,{history:[...(st.history||[]),{en,correct,source}]});
   }
 
-  if(!loaded)return(<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",gap:12}}><div style={{fontSize:48}}>🎓</div><div style={{fontSize:16,color:"var(--text2)"}}>Laster...</div></div>);
+  if(!loaded)return(<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",gap:12}}><div style={{fontSize:48,animation:"bounce 1.5s infinite"}}>🎓</div><div style={{fontSize:16,color:"var(--t2)"}}>Laster...</div></div>);
 
   if(!currentUser){
     if(!selecting)return(
       <div style={{maxWidth:380,margin:"0 auto",padding:"32px 16px",textAlign:"center"}}>
-        <div style={{fontSize:64,animation:"bounce 1.5s infinite"}}>🎓</div>
-        <div style={{fontSize:26,fontWeight:800,marginTop:8,background:"linear-gradient(135deg,#7c4dff,#448aff)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Glose-appen</div>
-        <div style={{fontSize:14,color:"var(--text2)",marginTop:4,marginBottom:24}}>Hvem er du? 👇</div>
+        <div style={{fontSize:56,animation:"bounce 1.5s infinite"}}>🎓</div>
+        <div style={{fontSize:24,fontWeight:800,marginTop:8,background:"linear-gradient(135deg,#7c4dff,#448aff)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Glose-appen</div>
+        <div style={{fontSize:14,color:"var(--t2)",marginTop:4,marginBottom:24}}>Hvem er du? 👇</div>
         <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
           {students.map((st,i)=>{
             const colors=["linear-gradient(135deg,#bbdefb,#90caf9)","linear-gradient(135deg,#e1bee7,#ce93d8)","linear-gradient(135deg,#c8e6c9,#a5d6a7)","linear-gradient(135deg,#ffcdd2,#ef9a9a)","linear-gradient(135deg,#fff9c4,#fff176)","linear-gradient(135deg,#ffe0b2,#ffcc80)"];
             return(
-              <button key={st.id} style={{padding:"14px 18px",borderRadius:20,border:"none",background:colors[i%colors.length],fontSize:16,cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:12,boxShadow:"0 4px 12px rgba(0,0,0,0.08)",fontWeight:600}} onClick={()=>{setSelecting(st);setLoginError("");}}>
+              <button key={st.id} style={{padding:"12px 18px",borderRadius:20,border:"none",background:colors[i%colors.length],fontSize:16,cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:12,boxShadow:"0 4px 12px rgba(0,0,0,0.08)",fontWeight:600}} onClick={()=>{setSelecting(st);setLoginError("");}}>
                 <AvatarDisplay avatar={st.avatar} name={st.name} size={46}/>
-                <div><div style={{fontWeight:700}}>{st.name}</div><div style={{fontSize:11,color:"#555"}}>{(st.club||CLUBS[0]).name} · 🪙{st.coins||0}</div></div>
+                <div><div style={{fontWeight:800}}>{st.name}</div><div style={{fontSize:11,color:"#555"}}>{(st.club||CLUBS[0]).name} · 🪙{st.coins||0}</div></div>
               </button>
             );
           })}
@@ -1229,70 +950,66 @@ function App(){
   const stData=students.find(s=>s.id===currentUser.id)||currentUser;
   const club=stData.club||CLUBS[0];
 
-  if(showPenalty)return(<div style={s.page}><div style={{textAlign:"center",padding:"18px 0 8px"}}><div style={{fontSize:24,fontWeight:500}}>⚽ Straffespark!</div></div><PenaltyGame onDone={goals=>{const bonus=goals*2;addCoins(quizScore+bonus);setPenaltyResult({goals,bonus});setShowPenalty(false);}}/></div>);
-
+  if(showPenalty)return(<div style={s.page}><div style={{textAlign:"center",padding:"18px 0 8px"}}><div style={{fontSize:24,fontWeight:800}}>⚽ Straffespark!</div></div><PenaltyGame onDone={goals=>{const bonus=goals*2;addCoins(quizScore+bonus);setPenaltyResult({goals,bonus});setShowPenalty(false);}}/></div>);
   if(penaltyResult)return(
-    <div style={s.page}><div style={s.resultBox}>
+    <div style={s.page}><div style={s.rb}>
       <AvatarDisplay avatar={stData.avatar} name={stData.name} size={80} coins={stData.coins} showCoins/>
-      <div style={s.resultTitle}>Økt ferdig!</div>
-      <div style={{fontSize:22,fontWeight:500,color:"#f9a825"}}>+{quizScore+penaltyResult.bonus} 🪙</div>
+      <div style={s.rt}>Økt ferdig!</div>
+      <div style={{fontSize:22,fontWeight:800,color:"#f9a825"}}>+{quizScore+penaltyResult.bonus} 🪙</div>
       <button style={s.bigBtn} onClick={()=>{setPenaltyResult(null);setScreen("shop");}}>🛒 Til butikken!</button>
-      <button style={{...s.bigBtn,...s.btnGray}} onClick={()=>{setPenaltyResult(null);setScreen("home");}}>Hjem</button>
+      <button style={{...s.bigBtn,...s.btnG}} onClick={()=>{setPenaltyResult(null);setScreen("home");}}>Hjem</button>
     </div></div>
   );
 
-  if(screen==="flags")return<FlagQuiz onBack={()=>setScreen("home")} addCoins={addCoins}/>;
-  if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)} onDone={()=>{
-    const st=getStudent();
-    updateStudent(currentUser.id,{hangmanSessions:(st.hangmanSessions||0)+1});
-  }}/>;
+  if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)} onDone={()=>{const st=getStudent();updateStudent(currentUser.id,{hangmanSessions:(st.hangmanSessions||0)+1});}}/>;
+  if(screen==="flags")return<FlagQuiz onBack={()=>setScreen("home")} addCoins={addCoins} onDone={()=>{const st=getStudent();updateStudent(currentUser.id,{flagSessions:(st.flagSessions||0)+1});}}/>;
+  if(screen==="maths")return<MathMenu onBack={()=>setScreen("home")} addCoins={addCoins} onDone={m=>{const st=getStudent();const key=m==="multiply"?"mathMultiplySessions":m==="add"?"mathAddSessions":"mathSubtractSessions";updateStudent(currentUser.id,{[key]:(st[key]||0)+1});}}/>;
   if(screen==="leaderboard")return<Leaderboard students={students} onBack={()=>setScreen("home")}/>;
   if(screen==="shop")return<AvatarShop student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("home")}/>;
-  if(screen==="report")return<TeacherReport gloser={gloser} students={students} singleStudent={stData.id} onBack={()=>setScreen("home")}/>;
-  if(screen==="maths")return<MathMenu onBack={()=>setScreen("home")} addCoins={addCoins} onStart={()=>updateStudent(currentUser.id,{mathSessions:(stData.mathSessions||0)+1})}/>;
   if(screen==="packs")return<PackStore student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("squad")}/>;
-  if(screen==="squad")return<SquadBuilder student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>{setScreen("home");}}/>;
+  if(screen==="squad")return<SquadBuilder student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={(dest)=>setScreen(dest||"home")}/>;
+  if(screen==="report")return<TeacherReport gloser={gloser} students={students} singleStudent={stData.id} onBack={()=>setScreen("home")}/>;
+
   if(screen==="flashcard"){
     const card=fcDeck[fcIdx];
     const front=fcDir==="no→en"?card.no:card.en,back=fcDir==="no→en"?card.en:card.no;
     return(
       <div style={s.page}>
-        <div style={s.topBar}><button style={s.back} onClick={()=>setScreen("home")}>← Hjem</button><span style={s.topTitle}>Flashcards</span><button style={s.smallBtn} onClick={()=>setFcDir(d=>d==="no→en"?"en→no":"no→en")}>{fcDir==="no→en"?"🇳🇴→🇬🇧":"🇬🇧→🇳🇴"}</button></div>
-        <div style={s.progress}>{fcIdx+1}/{fcDeck.length}</div>
+        <div style={s.tb}><button style={s.back} onClick={()=>setScreen("home")}>← Hjem</button><span style={s.tt}>Flashcards</span><button style={s.sm} onClick={()=>setFcDir(d=>d==="no→en"?"en→no":"no→en")}>{fcDir==="no→en"?"🇳🇴→🇬🇧":"🇬🇧→🇳🇴"}</button></div>
+        <div style={s.prog}>{fcIdx+1}/{fcDeck.length}</div>
         <div style={{...s.card,cursor:"pointer"}} onClick={()=>setFcFlipped(f=>!f)}>
-          <div style={s.cardLang}>{fcFlipped?(fcDir==="no→en"?"🇬🇧 Engelsk":"🇳🇴 Norsk"):(fcDir==="no→en"?"🇳🇴 Norsk":"🇬🇧 Engelsk")}</div>
-          <div style={s.cardWord}>{fcFlipped?back:front}</div>
-          {!fcFlipped&&<div style={s.cardHint}>Trykk for å snu</div>}
+          <div style={{fontSize:13,color:"var(--t3)",marginBottom:6}}>{fcFlipped?(fcDir==="no→en"?"🇬🇧 Engelsk":"🇳🇴 Norsk"):(fcDir==="no→en"?"🇳🇴 Norsk":"🇬🇧 Engelsk")}</div>
+          <div style={{fontSize:34,fontWeight:800}}>{fcFlipped?back:front}</div>
+          {!fcFlipped&&<div style={{fontSize:12,color:"#bbb",marginTop:12}}>Trykk for å snu</div>}
         </div>
         <div style={s.row}>
-          <button style={s.navBtn} onClick={()=>{setFcIdx(i=>Math.max(0,i-1));setFcFlipped(false);}} disabled={fcIdx===0}>◀ Forrige</button>
-          <button style={s.navBtn} onClick={()=>{if(fcIdx<fcDeck.length-1){setFcIdx(i=>i+1);setFcFlipped(false);addCoins(1);}else{addCoins(1);setScreen("home");}}}>{fcIdx<fcDeck.length-1?"Neste +🪙":"Ferdig +🪙"}</button>
+          <button style={s.nb} onClick={()=>{setFcIdx(i=>Math.max(0,i-1));setFcFlipped(false);}} disabled={fcIdx===0}>◀ Forrige</button>
+          <button style={s.nb} onClick={()=>{if(fcIdx<fcDeck.length-1){setFcIdx(i=>i+1);setFcFlipped(false);addCoins(1);}else{addCoins(1);setScreen("home");}}}>{fcIdx<fcDeck.length-1?"Neste +🪙":"Ferdig +🪙"}</button>
         </div>
       </div>
     );
   }
   if(screen==="quiz"){
     if(quizDone)return(
-      <div style={s.page}><div style={s.resultBox}>
+      <div style={s.page}><div style={s.rb}>
         <div style={{fontSize:64}}>{quizScore===quizDeck.length?"🏆":quizScore>=quizDeck.length*0.7?"🌟":"💪"}</div>
-        <div style={s.resultTitle}>Quiz ferdig!</div>
-        <div style={s.resultScore}>{quizScore} av {quizDeck.length}</div>
+        <div style={s.rt}>Quiz ferdig!</div><div style={s.rs}>{quizScore} av {quizDeck.length}</div>
         <button style={{...s.bigBtn,background:"#e53935"}} onClick={()=>{setQuizDone(false);setShowPenalty(true);}}>⚽ Straffespark!</button>
-        <button style={{...s.bigBtn,...s.btnGray}} onClick={()=>{addCoins(quizScore);setScreen("home");}}>Hjem (+{quizScore}🪙)</button>
+        <button style={{...s.bigBtn,...s.btnG}} onClick={()=>{addCoins(quizScore);setScreen("home");}}>Hjem (+{quizScore}🪙)</button>
       </div></div>
     );
     const q=quizDeck[quizIdx];
     const isNew=[...gloser].sort((a,b)=>b.id-a.id).slice(0,NEW_COUNT).some(g=>g.en===q.en);
     return(
       <div style={s.page}>
-        <div style={s.topBar}><button style={s.back} onClick={()=>setScreen("home")}>← Hjem</button><span style={s.topTitle}>Quiz</span><span style={{fontSize:14,fontWeight:500}}>⭐{quizScore} 🪙{stData.coins||0}</span></div>
-        <div style={s.progress}>{quizIdx+1}/{quizDeck.length}</div>
-        <div style={s.questionBox}>
+        <div style={s.tb}><button style={s.back} onClick={()=>setScreen("home")}>← Hjem</button><span style={s.tt}>Quiz</span><span style={{fontSize:14,fontWeight:700}}>⭐{quizScore} 🪙{stData.coins||0}</span></div>
+        <div style={s.prog}>{quizIdx+1}/{quizDeck.length}</div>
+        <div style={{background:"linear-gradient(135deg,#f3e5f5,#e8eaf6)",borderRadius:20,padding:"20px",textAlign:"center",marginBottom:16}}>
           {isNew&&<div style={{fontSize:11,background:"#fff3e0",color:"#e65100",borderRadius:6,padding:"2px 8px",display:"inline-block",marginBottom:6}}>Ny glose</div>}
-          <div style={s.questionLabel}>Hva er engelsk for:</div>
-          <div style={s.questionWord}>{q.no}</div>
+          <div style={{fontSize:14,color:"var(--purple)",marginBottom:6,fontWeight:700}}>Hva er engelsk for:</div>
+          <div style={{fontSize:32,fontWeight:800}}>{q.no}</div>
         </div>
-        <div style={s.choicesGrid}>
+        <div style={s.cg}>
           {quizChoices.map((c,i)=>{
             let bg="#fff";
             if(quizAnswer!==null){if(c.en===q.en)bg="#d4f7d4";else if(c.en===quizAnswer)bg="#fdd";}
@@ -1303,11 +1020,7 @@ function App(){
               if(ok)setQuizScore(sc=>sc+1);
               setTimeout(()=>{
                 const nx=quizIdx+1;
-                if(nx>=quizDeck.length){
-                  const st=getStudent();
-                  updateStudent(currentUser.id,{quizSessions:(st.quizSessions||0)+1});
-                  setQuizDone(true);
-                }
+                if(nx>=quizDeck.length){const st=getStudent();updateStudent(currentUser.id,{quizSessions:(st.quizSessions||0)+1});setQuizDone(true);}
                 else{setQuizIdx(nx);setQuizAnswer(null);const nc=quizDeck[nx];setQuizChoices(shuffle([nc,...shuffle(gloser.filter(g=>g.en!==nc.en)).slice(0,3)]));}
               },900);
             }}>{c.en}</button>;
@@ -1317,20 +1030,12 @@ function App(){
     );
   }
 
-  const studentsRef = React.useRef(students);
-  useEffect(() => { studentsRef.current = students; }, [students]);
-
-  function getStudent() {
-    return studentsRef.current.find(s => s.id === currentUser?.id) || stData;
-  }
-
   function startFlashcards(){
-    const st = getStudent();
+    const st=getStudent();
     setFcDeck(shuffle(gloser));setFcIdx(0);setFcFlipped(false);
     updateStudent(currentUser.id,{flashcardSessions:(st.flashcardSessions||0)+1});
     setScreen("flashcard");
   }
-
   function startQuiz(){
     const deck=buildQuizDeck(gloser);setQuizDeck(deck);setQuizIdx(0);setQuizScore(0);setQuizDone(false);setQuizAnswer(null);
     const f=deck[0];setQuizChoices(shuffle([f,...shuffle(gloser.filter(g=>g.en!==f.en)).slice(0,3)]));
@@ -1339,69 +1044,61 @@ function App(){
 
   return(
     <div style={s.page}>
-      {coinAnim&&<div style={{position:"fixed",top:80,right:20,fontSize:20,fontWeight:600,color:"#f9a825",animation:"coinPop 1s",zIndex:99,pointerEvents:"none"}}>{coinAnim}</div>}
+      {coinAnim&&<div style={{position:"fixed",top:80,right:20,fontSize:20,fontWeight:800,color:"#f9a825",animation:"coinPop 1s",zIndex:99,pointerEvents:"none"}}>{coinAnim}</div>}
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 0 6px"}}>
-        <div style={{cursor:"pointer"}} onClick={()=>setScreen("shop")}>
-          <AvatarDisplay avatar={stData.avatar} name={stData.name} size={56} coins={stData.coins||0} showCoins/>
-        </div>
-        <div style={{flex:1}}>
-          <div style={{fontSize:16,fontWeight:500}}>Hei, {stData.name}! 👋</div>
-          <div style={{fontSize:12,color:"var(--text3)"}}>{gloser.length} gloser · ⚽{stData.points||0}p</div>
-        </div>
+        <div style={{cursor:"pointer"}} onClick={()=>setScreen("shop")}><AvatarDisplay avatar={stData.avatar} name={stData.name} size={56} coins={stData.coins||0} showCoins/></div>
+        <div style={{flex:1}}><div style={{fontSize:16,fontWeight:800}}>Hei, {stData.name}! 👋</div><div style={{fontSize:12,color:"var(--t3)"}}>{gloser.length} gloser · ⚽{stData.points||0}p</div></div>
         <button style={{background:"none",border:"1px solid #ddd",borderRadius:8,padding:"6px 10px",fontSize:12,color:"#888",cursor:"pointer"}} onClick={()=>setCurrentUser(null)}>Logg ut</button>
       </div>
-      <div style={{background:club.bg,borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+      <div style={{background:club.bg,borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} onClick={()=>setScreen("squad")}>
         <span style={{fontSize:20}}>⚽</span>
-        <div style={{flex:1}}><div style={{color:"white",fontWeight:500,fontSize:13}}>{club.name}</div><div style={{color:"rgba(255,255,255,0.7)",fontSize:11}}>{stData.squad?.length||0}/11 spillere</div></div>
-        <div style={{color:"white",fontSize:15,fontWeight:500}}>🪙{stData.coins||0}</div>
+        <div style={{flex:1}}><div style={{color:"white",fontWeight:800,fontSize:13}}>{club.name}</div><div style={{color:"rgba(255,255,255,0.7)",fontSize:11}}>{(stData.lineup||[]).filter(Boolean).length}/11 spillere</div></div>
+        <div style={{color:"white",fontSize:15,fontWeight:800}}>🪙{stData.coins||0}</div>
       </div>
-      <div style={s.menuGrid}>
-        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#bbdefb,#90caf9)"}} onClick={startFlashcards}><span style={s.menuIcon}>🃏</span><span style={s.menuLabel}>Flashcards</span></button>
-        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#e1bee7,#ce93d8)"}} onClick={()=>gloser.length>=4?startQuiz():alert("Trenger minst 4 gloser!")}><span style={s.menuIcon}>🎯</span><span style={s.menuLabel}>Quiz</span></button>
-        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#ffcdd2,#ef9a9a)"}} onClick={()=>setScreen("hangman")}><span style={s.menuIcon}>🪢</span><span style={s.menuLabel}>Hangman</span></button>
-        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#b2ebf2,#80deea)"}} onClick={()=>setScreen("maths")}><span style={s.menuIcon}>🔢</span><span style={s.menuLabel}>Matte</span></button>
-        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#c8e6c9,#a5d6a7)"}} onClick={()=>setScreen("flags")}><span style={s.menuIcon}>🌍</span><span style={s.menuLabel}>Flagg</span></button>
-        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#fff9c4,#fff176)"}} onClick={()=>setScreen("shop")}><span style={s.menuIcon}>🛒</span><span style={s.menuLabel}>Butikk</span></button>
-        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#dcedc8,#c5e1a5)"}} onClick={()=>setScreen("squad")}><span style={s.menuIcon}>⚽</span><span style={s.menuLabel}>Mitt lag</span></button>
-        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#ffe0b2,#ffcc80)"}} onClick={()=>setScreen("leaderboard")}><span style={s.menuIcon}>🏆</span><span style={s.menuLabel}>Poengtavle</span></button>
-        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#fff9c4,#fff176)"}} onClick={()=>setScreen("packs")}><span style={s.menuIcon}>🎴</span><span style={s.menuLabel}>Pakker</span></button>
-        <button style={{...s.menuBtn,background:"linear-gradient(135deg,#f8bbd0,#f48fb1)",gridColumn:"span 2"}} onClick={()=>setScreen("report")}><span style={s.menuIcon}>📋</span><span style={s.menuLabel}>Rapport</span></button>
+      <div style={s.mg}>
+        <button style={{...s.mb,background:"linear-gradient(135deg,#bbdefb,#90caf9)"}} onClick={startFlashcards}><span style={s.mi}>🃏</span><span style={s.ml}>Flashcards</span></button>
+        <button style={{...s.mb,background:"linear-gradient(135deg,#e1bee7,#ce93d8)"}} onClick={()=>gloser.length>=4?startQuiz():alert("Trenger minst 4 gloser!")}><span style={s.mi}>🎯</span><span style={s.ml}>Quiz</span></button>
+        <button style={{...s.mb,background:"linear-gradient(135deg,#ffcdd2,#ef9a9a)"}} onClick={()=>setScreen("hangman")}><span style={s.mi}>🪢</span><span style={s.ml}>Hangman</span></button>
+        <button style={{...s.mb,background:"linear-gradient(135deg,#b2ebf2,#80deea)"}} onClick={()=>setScreen("maths")}><span style={s.mi}>🔢</span><span style={s.ml}>Matte</span></button>
+        <button style={{...s.mb,background:"linear-gradient(135deg,#c8e6c9,#a5d6a7)"}} onClick={()=>setScreen("flags")}><span style={s.mi}>🌍</span><span style={s.ml}>Flagg</span></button>
+        <button style={{...s.mb,background:"linear-gradient(135deg,#fff9c4,#fff176)"}} onClick={()=>setScreen("shop")}><span style={s.mi}>🛒</span><span style={s.ml}>Butikk</span></button>
+        <button style={{...s.mb,background:"linear-gradient(135deg,#dcedc8,#c5e1a5)"}} onClick={()=>setScreen("packs")}><span style={s.mi}>🎴</span><span style={s.ml}>Pakker</span></button>
+        <button style={{...s.mb,background:"linear-gradient(135deg,#ffe0b2,#ffcc80)"}} onClick={()=>setScreen("leaderboard")}><span style={s.mi}>🏆</span><span style={s.ml}>Poengtavle</span></button>
+        <button style={{...s.mb,background:"linear-gradient(135deg,#f8bbd0,#f48fb1)",gridColumn:"span 2"}} onClick={()=>setScreen("report")}><span style={s.mi}>📋</span><span style={s.ml}>Rapport</span></button>
       </div>
     </div>
   );
 }
 
 const s={
-  menuGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginTop:4},
-  menuBtn:{border:"none",borderRadius:20,padding:"18px 10px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:8,boxShadow:"0 4px 12px rgba(0,0,0,0.08)",transition:"transform 0.15s",},
-  menuIcon:{fontSize:32},menuLabel:{fontSize:13,fontWeight:700},
-  card:{background:"#fff",border:"none",borderRadius:24,padding:"36px 24px",textAlign:"center",minHeight:150,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",margin:"0 0 16px",boxShadow:"0 4px 16px rgba(0,0,0,0.08)"},
-  cardLang:{fontSize:13,color:"var(--text3)",marginBottom:6},cardWord:{fontSize:34,fontWeight:700},cardHint:{fontSize:12,color:"#bbb",marginTop:12},
-  row:{display:"flex",gap:10},navBtn:{flex:1,padding:"13px",borderRadius:16,border:"none",background:"#fff",fontSize:14,cursor:"pointer",fontWeight:600,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"},
-  questionBox:{background:"linear-gradient(135deg,#f3e5f5,#e8eaf6)",borderRadius:20,padding:"20px",textAlign:"center",marginBottom:16},
-  questionLabel:{fontSize:14,color:"#7c4dff",marginBottom:6,fontWeight:600},questionWord:{fontSize:32,fontWeight:700},
-  choicesGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
-  choice:{padding:"16px 8px",borderRadius:16,border:"none",fontSize:16,cursor:"pointer",fontWeight:600,boxShadow:"0 2px 8px rgba(0,0,0,0.07)",background:"#fff"},
-  resultBox:{display:"flex",flexDirection:"column",alignItems:"center",gap:12,paddingTop:28},
-  resultTitle:{fontSize:26,fontWeight:800},resultScore:{fontSize:17,color:"var(--text2)"},
-  bigBtn:{width:"100%",padding:"15px",borderRadius:16,border:"none",background:"linear-gradient(135deg,#7c4dff,#448aff)",color:"#fff",fontSize:16,cursor:"pointer",fontWeight:700,boxShadow:"0 4px 12px rgba(124,77,255,0.3)"},
-  btnGray:{background:"#f0f0f0",color:"#333",boxShadow:"none"},
-  addBox:{display:"flex",flexDirection:"column",gap:10,marginBottom:16},
-  input:{padding:"12px 14px",borderRadius:14,border:"2px solid #e0e0e0",fontSize:16,background:"#fff"},
-  gloseList:{display:"flex",flexDirection:"column",gap:8},
-  gloseRow:{display:"flex",alignItems:"center",background:"#fff",borderRadius:14,padding:"10px 12px",boxShadow:"0 2px 6px rgba(0,0,0,0.06)"},
-  glosePair:{flex:1,fontSize:15},deleteBtn:{background:"none",border:"none",color:"#ffab91",fontSize:18,cursor:"pointer"},
-  letterBox:{width:36,height:44,border:"3px solid #e0e0e0",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,background:"#fff",fontWeight:700},
-  keyboard:{display:"flex",flexWrap:"wrap",gap:5,justifyContent:"center"},
-  key:{width:34,height:38,border:"none",borderRadius:10,fontSize:14,fontWeight:700,background:"#fff",boxShadow:"0 2px 6px rgba(0,0,0,0.08)"},
-  pinBtn:{padding:"16px",borderRadius:16,border:"none",background:"#fff",fontSize:22,cursor:"pointer",fontWeight:700,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"},
-  smallBtn:{background:"#fff",border:"none",borderRadius:10,padding:"4px 10px",fontSize:12,cursor:"pointer",boxShadow:"0 2px 6px rgba(0,0,0,0.08)"},
-  smallBtn2:{padding:"7px 14px",borderRadius:10,border:"none",fontSize:13,cursor:"pointer",fontWeight:700},
-  progress:{textAlign:"center",fontSize:13,color:"var(--text3)",marginBottom:10},
-  back:{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"#7c4dff",padding:0,fontWeight:600},
-  topBar:{display:"flex",alignItems:"center",padding:"14px 0 8px",gap:8},
-  topTitle:{flex:1,textAlign:"center",fontWeight:800,fontSize:18},
   page:{maxWidth:480,margin:"0 auto",padding:"0 16px 32px"},
+  tb:{display:"flex",alignItems:"center",padding:"14px 0 8px",gap:8},
+  tt:{flex:1,textAlign:"center",fontWeight:800,fontSize:18},
+  back:{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"var(--purple)",padding:0,fontWeight:700},
+  sm:{background:"#fff",border:"none",borderRadius:10,padding:"4px 10px",fontSize:12,cursor:"pointer",boxShadow:"0 2px 6px rgba(0,0,0,0.08)"},
+  sb2:{padding:"7px 14px",borderRadius:10,border:"none",fontSize:13,cursor:"pointer",fontWeight:700},
+  prog:{textAlign:"center",fontSize:13,color:"var(--t3)",marginBottom:10},
+  mg:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:4},
+  mb:{border:"none",borderRadius:20,padding:"18px 10px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:8,boxShadow:"0 4px 12px rgba(0,0,0,0.08)"},
+  mi:{fontSize:30},ml:{fontSize:13,fontWeight:800},
+  card:{background:"#fff",borderRadius:24,padding:"36px 24px",textAlign:"center",minHeight:150,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",margin:"0 0 16px",boxShadow:"0 4px 16px rgba(0,0,0,0.08)"},
+  row:{display:"flex",gap:10},
+  nb:{flex:1,padding:"13px",borderRadius:16,border:"none",background:"#fff",fontSize:14,cursor:"pointer",fontWeight:700,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"},
+  cg:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
+  choice:{padding:"16px 8px",borderRadius:16,border:"none",fontSize:17,cursor:"pointer",fontWeight:700,boxShadow:"0 2px 8px rgba(0,0,0,0.07)",background:"#fff"},
+  rb:{display:"flex",flexDirection:"column",alignItems:"center",gap:12,paddingTop:28},
+  rt:{fontSize:24,fontWeight:800},rs:{fontSize:17,color:"var(--t2)"},
+  bigBtn:{width:"100%",padding:"15px",borderRadius:16,border:"none",background:"linear-gradient(135deg,#7c4dff,#448aff)",color:"#fff",fontSize:16,cursor:"pointer",fontWeight:800,boxShadow:"0 4px 12px rgba(124,77,255,0.3)"},
+  btnG:{background:"#f0f0f0",color:"#333",boxShadow:"none"},
+  ab:{display:"flex",flexDirection:"column",gap:10,marginBottom:16},
+  input:{padding:"12px 14px",borderRadius:14,border:"2px solid #e0e0e0",fontSize:16,background:"#fff"},
+  gl:{display:"flex",flexDirection:"column",gap:8},
+  gr:{display:"flex",alignItems:"center",background:"#fff",borderRadius:14,padding:"10px 12px",boxShadow:"0 2px 6px rgba(0,0,0,0.06)"},
+  gp:{flex:1,fontSize:15},db:{background:"none",border:"none",color:"#ffab91",fontSize:18,cursor:"pointer"},
+  lb:{width:36,height:44,border:"3px solid #e0e0e0",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,background:"#fff",fontWeight:700},
+  kb:{display:"flex",flexWrap:"wrap",gap:5,justifyContent:"center"},
+  key:{width:34,height:38,border:"none",borderRadius:10,fontSize:14,fontWeight:700,background:"#fff",boxShadow:"0 2px 6px rgba(0,0,0,0.08)"},
+  pb:{padding:"16px",borderRadius:16,border:"none",background:"#fff",fontSize:22,cursor:"pointer",fontWeight:700,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"},
 };
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
