@@ -480,19 +480,49 @@ function MapQuiz({onBack, addCoins, onDone}) {
     {code:"LT",name:"Litauen",lat:56,lng:24},{code:"LV",name:"Latvia",lat:57,lng:25},
     {code:"EE",name:"Estland",lat:59,lng:25},
   ];
+  const mapRef = useRef(null);
+  const leafletMap = useRef(null);
+  const markersRef = useRef([]);
 
-  // Mercator-style projection for Europe bounding box
-  // viewBox 0 0 1000 860 matching the SVG map below
-  // Map covers approx lng -25..45, lat 34..72
-  // We use a simple linear mapping tuned to the SVG paths
-  function toXY(lat, lng) {
-    const x = ((lng + 25) / 70) * 1000;
-    const latRad = lat * Math.PI / 180;
-    const mercN = Math.log(Math.tan(Math.PI/4 + latRad/2));
-    const mercTop = Math.log(Math.tan(Math.PI/4 + 72*Math.PI/360));
-    const mercBot = Math.log(Math.tan(Math.PI/4 + 34*Math.PI/360));
-    const y = ((mercTop - mercN) / (mercTop - mercBot)) * 860;
-    return {x, y};
+  useEffect(() => {
+    if (leafletMap.current) return;
+    // Load Leaflet CSS
+    if (!document.getElementById('leaflet-css')) {
+      const link = document.createElement('link');
+      link.id = 'leaflet-css';
+      link.rel = 'stylesheet';
+      link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+      document.head.appendChild(link);
+    }
+    // Load Leaflet JS
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    script.onload = () => initMap();
+    document.head.appendChild(script);
+  }, []);
+
+  function initMap() {
+    if (!mapRef.current || leafletMap.current) return;
+    const map = window.L.map(mapRef.current, {
+      center: [54, 15],
+      zoom: 4,
+      zoomControl: false,
+      attributionControl: false,
+      dragging: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      touchZoom: false,
+    });
+    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 6,
+    }).addTo(map);
+    leafletMap.current = map;
+    map.on('click', handleLeafletClick);
+  }
+
+  function handleLeafletClick(e) {
+    // called from leaflet event, need to access current state via refs
+    window._mapQuizClick && window._mapQuizClick(e.latlng.lat, e.latlng.lng);
   }
   const [questions] = useState(() => shuffle([...COUNTRIES_LATLON]).slice(0, 15));
   const [idx, setIdx] = useState(0);
