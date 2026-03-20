@@ -871,6 +871,8 @@ function App(){
   // ALL useEffects must be here, before any conditional returns
   useEffect(()=>{
     async function load(){
+      const ss=await dbGet("students");
+      if(ss){const arr=Array.isArray(ss)?ss.filter(Boolean):Object.values(ss).filter(v=>v&&v.id);setStudentsState(arr);}
       const gg=await dbGet("gloser");
       if(gg){const arr=Array.isArray(gg)?gg.filter(Boolean):Object.values(gg).filter(Boolean);setGloserState(arr);}
       setLoaded(true);
