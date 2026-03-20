@@ -602,6 +602,30 @@ function MapQuiz({onBack, addCoins, onDone}) {
   );
 }
 
+function GeoMenu({onBack, addCoins, onFlagDone, onMapDone}) {
+  const [mode, setMode] = useState(null);
+  if (mode === "flags") return <FlagQuiz onBack={()=>setMode(null)} addCoins={addCoins} onDone={onFlagDone}/>;
+  if (mode === "map") return <MapQuiz onBack={()=>setMode(null)} addCoins={addCoins} onDone={onMapDone}/>;
+  return (
+    <div style={{maxWidth:480,margin:"0 auto",padding:"0 16px 32px"}}>
+      <div style={{display:"flex",alignItems:"center",padding:"14px 0 8px",gap:8}}>
+        <button style={{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"#7c4dff",fontWeight:700}} onClick={onBack}>← Hjem</button>
+        <span style={{flex:1,textAlign:"center",fontWeight:800,fontSize:18}}>🌍 Geografi</span>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:8}}>
+        <button onClick={()=>setMode("flags")} style={{background:"linear-gradient(135deg,#c8e6c9,#a5d6a7)",border:"none",borderRadius:16,padding:"20px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",textAlign:"left",boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+          <span style={{fontSize:36}}>🌍</span>
+          <div><div style={{fontWeight:800,fontSize:16}}>Flaggquiz</div><div style={{fontSize:13,color:"#555",marginTop:2}}>Gjett landet fra flagget · 20 flagg daglig</div></div>
+        </button>
+        <button onClick={()=>setMode("map")} style={{background:"linear-gradient(135deg,#b3e5fc,#4fc3f7)",border:"none",borderRadius:16,padding:"20px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",textAlign:"left",boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+          <span style={{fontSize:36}}>🗺️</span>
+          <div><div style={{fontWeight:800,fontSize:16}}>Geografiquiz</div><div style={{fontSize:13,color:"#555",marginTop:2}}>Klikk på kartet hvor landet er · Europa</div></div>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── FLAG QUIZ ──
 function FlagQuiz({onBack,addCoins,onDone}){
   const [deck]=useState(()=>getDailyFlags());
@@ -1111,6 +1135,10 @@ function App(){
   );
 
   if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)} onDone={()=>{const st=students.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{hangmanSessions:(st.hangmanSessions||0)+1});}}/>;
+  if(screen==="geo")return<GeoMenu onBack={()=>setScreen("home")} addCoins={addCoins}
+    onFlagDone={()=>{const st=students.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{flagSessions:(st.flagSessions||0)+1});}}
+    onMapDone={()=>{const st=students.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{mapSessions:(st.mapSessions||0)+1});}}
+  />;
   if(screen==="mapquiz")return<MapQuiz onBack={()=>setScreen("home")} addCoins={addCoins} onDone={()=>{const st=students.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{mapSessions:(st.mapSessions||0)+1});}}/>;
   if(screen==="flags")return<FlagQuiz onBack={()=>setScreen("home")} addCoins={addCoins} onDone={()=>{const st=students.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{flagSessions:(st.flagSessions||0)+1});}}/>;
   if(screen==="maths")return<MathMenu onBack={()=>setScreen("home")} addCoins={addCoins} onDone={m=>{const st=students.find(s=>s.id===currentUser.id)||{};const key=m==="multiply"?"mathMultiplySessions":m==="add"?"mathAddSessions":"mathSubtractSessions";updateStudent(currentUser.id,{[key]:(st[key]||0)+1});}}/>;
@@ -1215,8 +1243,7 @@ function App(){
         <button style={{...s.mb,background:"linear-gradient(135deg,#e1bee7,#ce93d8)"}} onClick={()=>gloser.length>=4?startQuiz():alert("Trenger minst 4 gloser!")}><span style={s.mi}>🎯</span><span style={s.ml}>Quiz</span></button>
         <button style={{...s.mb,background:"linear-gradient(135deg,#ffcdd2,#ef9a9a)"}} onClick={()=>setScreen("hangman")}><span style={s.mi}>🪢</span><span style={s.ml}>Hangman</span></button>
         <button style={{...s.mb,background:"linear-gradient(135deg,#b2ebf2,#80deea)"}} onClick={()=>setScreen("maths")}><span style={s.mi}>🔢</span><span style={s.ml}>Matte</span></button>
-        <button style={{...s.mb,background:"linear-gradient(135deg,#c8e6c9,#a5d6a7)"}} onClick={()=>setScreen("flags")}><span style={s.mi}>🌍</span><span style={s.ml}>Flagg</span></button>
-        <button style={{...s.mb,background:"linear-gradient(135deg,#b3e5fc,#4fc3f7)"}} onClick={()=>setScreen("mapquiz")}><span style={s.mi}>🗺️</span><span style={s.ml}>Geografi</span></button>
+        <button style={{...s.mb,background:"linear-gradient(135deg,#c8e6c9,#a5d6a7)"}} onClick={()=>setScreen("geo")}><span style={s.mi}>🌍</span><span style={s.ml}>Geografi</span></button>
         <button style={{...s.mb,background:"linear-gradient(135deg,#fff9c4,#fff176)"}} onClick={()=>setScreen("shop")}><span style={s.mi}>🛒</span><span style={s.ml}>Butikk</span></button>
         <button style={{...s.mb,background:"linear-gradient(135deg,#dcedc8,#c5e1a5)"}} onClick={()=>setScreen("packs")}><span style={s.mi}>🎴</span><span style={s.ml}>Pakker</span></button>
         <button style={{...s.mb,background:"linear-gradient(135deg,#ffe0b2,#ffcc80)"}} onClick={()=>setScreen("leaderboard")}><span style={s.mi}>🏆</span><span style={s.ml}>Poengtavle</span></button>
