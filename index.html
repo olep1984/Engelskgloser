@@ -967,9 +967,9 @@ function App(){
     </div></div>
   );
 
-  if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)} onDone={()=>{const st=getStudent();updateStudent(currentUser.id,{hangmanSessions:(st.hangmanSessions||0)+1});}}/>;
-  if(screen==="flags")return<FlagQuiz onBack={()=>setScreen("home")} addCoins={addCoins} onDone={()=>{const st=getStudent();updateStudent(currentUser.id,{flagSessions:(st.flagSessions||0)+1});}}/>;
-  if(screen==="maths")return<MathMenu onBack={()=>setScreen("home")} addCoins={addCoins} onDone={m=>{const st=getStudent();const key=m==="multiply"?"mathMultiplySessions":m==="add"?"mathAddSessions":"mathSubtractSessions";updateStudent(currentUser.id,{[key]:(st[key]||0)+1});}}/>;
+  if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)} onDone={()=>{const st=students.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{hangmanSessions:(st.hangmanSessions||0)+1});}}/>;
+  if(screen==="flags")return<FlagQuiz onBack={()=>setScreen("home")} addCoins={addCoins} onDone={()=>{const st=students.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{flagSessions:(st.flagSessions||0)+1});}}/>;
+  if(screen==="maths")return<MathMenu onBack={()=>setScreen("home")} addCoins={addCoins} onDone={m=>{const st=students.find(s=>s.id===currentUser.id)||{};const key=m==="multiply"?"mathMultiplySessions":m==="add"?"mathAddSessions":"mathSubtractSessions";updateStudent(currentUser.id,{[key]:(st[key]||0)+1});}}/>;
   if(screen==="leaderboard")return<Leaderboard students={students} onBack={()=>setScreen("home")}/>;
   if(screen==="shop")return<AvatarShop student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("home")}/>;
   if(screen==="packs")return<PackStore student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("squad")}/>;
@@ -1026,7 +1026,7 @@ function App(){
               if(ok)setQuizScore(sc=>sc+1);
               setTimeout(()=>{
                 const nx=quizIdx+1;
-                if(nx>=quizDeck.length){const st=getStudent();updateStudent(currentUser.id,{quizSessions:(st.quizSessions||0)+1});setQuizDone(true);}
+                if(nx>=quizDeck.length){const st=students.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{quizSessions:(st.quizSessions||0)+1});setQuizDone(true);}
                 else{setQuizIdx(nx);setQuizAnswer(null);const nc=quizDeck[nx];setQuizChoices(shuffle([nc,...shuffle(gloser.filter(g=>g.en!==nc.en)).slice(0,3)]));}
               },900);
             }}>{c.en}</button>;
@@ -1037,7 +1037,7 @@ function App(){
   }
 
   function startFlashcards(){
-    const st=getStudent();
+    const st=students.find(s=>s.id===currentUser.id)||{};
     setFcDeck(shuffle(gloser));setFcIdx(0);setFcFlipped(false);
     updateStudent(currentUser.id,{flashcardSessions:(st.flashcardSessions||0)+1});
     setScreen("flashcard");
