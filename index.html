@@ -752,7 +752,7 @@ function FlagQuiz({onBack,addCoins,onDone}){
 }
 
 // ── HANGMAN ──
-function HangmanGame({gloser,onBack,onCorrect,onDone}){
+function HangmanGame({gloser,onBack,onCorrect,onDone,onRecord}){
   const [deck]=useState(()=>shuffle(gloser));
   const [idx,setIdx]=useState(0);
   const [guessed,setGuessed]=useState(new Set());
@@ -765,7 +765,9 @@ function HangmanGame({gloser,onBack,onCorrect,onDone}){
   function guess(l){
     if(fin||guessed.has(l))return;
     const nx=new Set(guessed);nx.add(l);setGuessed(nx);
-    if(letters.every(c=>nx.has(c))){setScore(sc=>sc+1);if(onCorrect)onCorrect();}
+    const nowWon=letters.every(c=>nx.has(c));
+    if(nowWon){setScore(sc=>sc+1);if(onCorrect)onCorrect();if(onRecord)onRecord(deck[idx].en,true);}
+    else if([...nx].filter(g=>!letters.includes(g)).length>=MAX_WRONG){if(onRecord)onRecord(deck[idx].en,false);}
   }
   function next(){
     if(idx+1>=deck.length){if(onDone)onDone();setDone(true);return;}
@@ -1207,7 +1209,7 @@ function App(){
     </div></div>
   );
 
-  if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)} onDone={()=>{const st=studentsRef.current.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{hangmanSessions:(st.hangmanSessions||0)+1});}}/>;
+  if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)} onRecord={(en,correct)=>recordHistory(en,correct,"hangman")} onDone={()=>{const st=studentsRef.current.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{hangmanSessions:(st.hangmanSessions||0)+1});}}/>;
   if(screen==="geo")return<GeoMenu onBack={()=>setScreen("home")} addCoins={addCoins}
     onFlagDone={()=>{const st=studentsRef.current.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{flagSessions:(st.flagSessions||0)+1});}}
     onMapDone={()=>{const st=studentsRef.current.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{mapSessions:(st.mapSessions||0)+1});}}
