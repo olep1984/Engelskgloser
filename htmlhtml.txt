@@ -867,7 +867,7 @@ function App(){
   const [showPenalty,setShowPenalty]=useState(false);
   const [penaltyResult,setPenaltyResult]=useState(null);
   const [coinAnim,setCoinAnim]=useState(null);
-  const studentsRef=useRef(students);
+  const studentsRef=useRef(defaultStudents);
   useEffect(()=>{studentsRef.current=students;},[students]);
 
   useEffect(()=>{
