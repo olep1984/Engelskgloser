@@ -1111,6 +1111,7 @@ function App(){
   );
 
   if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)} onDone={()=>{const st=students.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{hangmanSessions:(st.hangmanSessions||0)+1});}}/>;
+  if(screen==="mapquiz")return<MapQuiz onBack={()=>setScreen("home")} addCoins={addCoins} onDone={()=>{const st=students.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{mapSessions:(st.mapSessions||0)+1});}}/>;
   if(screen==="flags")return<FlagQuiz onBack={()=>setScreen("home")} addCoins={addCoins} onDone={()=>{const st=students.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{flagSessions:(st.flagSessions||0)+1});}}/>;
   if(screen==="maths")return<MathMenu onBack={()=>setScreen("home")} addCoins={addCoins} onDone={m=>{const st=students.find(s=>s.id===currentUser.id)||{};const key=m==="multiply"?"mathMultiplySessions":m==="add"?"mathAddSessions":"mathSubtractSessions";updateStudent(currentUser.id,{[key]:(st[key]||0)+1});}}/>;
   if(screen==="leaderboard")return<Leaderboard students={students} onBack={()=>setScreen("home")}/>;
@@ -1215,6 +1216,7 @@ function App(){
         <button style={{...s.mb,background:"linear-gradient(135deg,#ffcdd2,#ef9a9a)"}} onClick={()=>setScreen("hangman")}><span style={s.mi}>🪢</span><span style={s.ml}>Hangman</span></button>
         <button style={{...s.mb,background:"linear-gradient(135deg,#b2ebf2,#80deea)"}} onClick={()=>setScreen("maths")}><span style={s.mi}>🔢</span><span style={s.ml}>Matte</span></button>
         <button style={{...s.mb,background:"linear-gradient(135deg,#c8e6c9,#a5d6a7)"}} onClick={()=>setScreen("flags")}><span style={s.mi}>🌍</span><span style={s.ml}>Flagg</span></button>
+        <button style={{...s.mb,background:"linear-gradient(135deg,#b3e5fc,#4fc3f7)"}} onClick={()=>setScreen("mapquiz")}><span style={s.mi}>🗺️</span><span style={s.ml}>Geografi</span></button>
         <button style={{...s.mb,background:"linear-gradient(135deg,#fff9c4,#fff176)"}} onClick={()=>setScreen("shop")}><span style={s.mi}>🛒</span><span style={s.ml}>Butikk</span></button>
         <button style={{...s.mb,background:"linear-gradient(135deg,#dcedc8,#c5e1a5)"}} onClick={()=>setScreen("packs")}><span style={s.mi}>🎴</span><span style={s.ml}>Pakker</span></button>
         <button style={{...s.mb,background:"linear-gradient(135deg,#ffe0b2,#ffcc80)"}} onClick={()=>setScreen("leaderboard")}><span style={s.mi}>🏆</span><span style={s.ml}>Poengtavle</span></button>
