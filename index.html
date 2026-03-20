@@ -35,6 +35,7 @@ input, button { font-family: inherit; }
 <script type="text/babel">
 const useState = React.useState;
 const useEffect = React.useEffect;
+const useRef = React.useRef;
 
 const ADMIN_PIN="1234", MAX_WRONG=3, NEW_COUNT=5;
 
@@ -144,7 +145,7 @@ const FLAGS=[
   {code:"VN",name:"Vietnam"},{code:"PH",name:"Filippinene"},{code:"IL",name:"Israel"},
   {code:"AE",name:"Emiratene"},{code:"CL",name:"Chile"},{code:"CO",name:"Colombia"},
   {code:"KE",name:"Kenya"},{code:"GH",name:"Ghana"},{code:"NZ",name:"New Zealand"},
-  {code:"RO",name:"Romania"},{code:"PT",name:"Portugal"},
+  {code:"RO",name:"Romania"},
 ];
 
 const defaultGloser=[
@@ -460,39 +461,7 @@ function Leaderboard({students,onBack}){
 }
 
 // ── MAP QUIZ ──
-const EUROPE_COUNTRIES = [
-  {code:"NO",name:"Norge",cx:57,cy:18},{code:"SE",name:"Sverige",cx:62,cy:22},
-  {code:"FI",name:"Finland",cx:72,cy:15},{code:"DK",name:"Danmark",cx:55,cy:30},
-  {code:"IS",name:"Island",cx:28,cy:12},{code:"GB",name:"Storbritannia",cx:44,cy:32},
-  {code:"IE",name:"Irland",cx:40,cy:34},{code:"PT",name:"Portugal",cx:38,cy:52},
-  {code:"ES",name:"Spania",cx:44,cy:52},{code:"FR",name:"Frankrike",cx:49,cy:45},
-  {code:"BE",name:"Belgia",cx:51,cy:38},{code:"NL",name:"Nederland",cx:52,cy:36},
-  {code:"DE",name:"Tyskland",cx:55,cy:38},{code:"CH",name:"Sveits",cx:53,cy:45},
-  {code:"AT",name:"Østerrike",cx:57,cy:44},{code:"IT",name:"Italia",cx:57,cy:52},
-  {code:"PL",name:"Polen",cx:62,cy:36},{code:"CZ",name:"Tsjekkia",cx:58,cy:40},
-  {code:"SK",name:"Slovakia",cx:61,cy:41},{code:"HU",name:"Ungarn",cx:62,cy:43},
-  {code:"RO",name:"Romania",cx:67,cy:45},{code:"GR",name:"Hellas",cx:64,cy:57},
-  {code:"TR",name:"Tyrkia",cx:75,cy:55},{code:"UA",name:"Ukraina",cx:72,cy:40},
-  {code:"BY",name:"Hviterussland",cx:68,cy:34},{code:"HR",name:"Kroatia",cx:59,cy:47},
-  {code:"RS",name:"Serbia",cx:63,cy:47},{code:"BG",name:"Bulgaria",cx:66,cy:50},
-  {code:"LT",name:"Litauen",cx:65,cy:30},{code:"LV",name:"Latvia",cx:66,cy:27},
-  {code:"EE",name:"Estland",cx:67,cy:23},
-];
-
 function MapQuiz({onBack, addCoins, onDone}) {
-  const [questions] = useState(() => shuffle([...EUROPE_COUNTRIES]).slice(0, 15));
-  const [idx, setIdx] = useState(0);
-  const [score, setScore] = useState(0);
-  const [clicked, setClicked] = useState(null);
-  const [done, setDone] = useState(false);
-  const [showAnswer, setShowAnswer] = useState(false);
-  const [mapLoaded, setMapLoaded] = useState(false);
-
-  const current = questions[idx];
-
-  // Europe bounding box in lat/lng: lat 34-72, lng -25 to 45
-  const LAT_MIN=34, LAT_MAX=72, LNG_MIN=-25, LNG_MAX=45;
-
   const COUNTRIES_LATLON = [
     {code:"NO",name:"Norge",lat:65,lng:13},{code:"SE",name:"Sverige",lat:62,lng:16},
     {code:"FI",name:"Finland",lat:64,lng:26},{code:"DK",name:"Danmark",lat:56,lng:10},
@@ -511,11 +480,19 @@ function MapQuiz({onBack, addCoins, onDone}) {
     {code:"LT",name:"Litauen",lat:56,lng:24},{code:"LV",name:"Latvia",lat:57,lng:25},
     {code:"EE",name:"Estland",lat:59,lng:25},
   ];
+  const [questions] = useState(() => shuffle([...COUNTRIES_LATLON]).slice(0, 15));
+  const [idx, setIdx] = useState(0);
+  const [score, setScore] = useState(0);
+  const [clicked, setClicked] = useState(null);
+  const [done, setDone] = useState(false);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [mapLoaded, setMapLoaded] = useState(false);
+
+  const LAT_MIN=34, LAT_MAX=72, LNG_MIN=-25, LNG_MAX=45;
+  const current = questions[idx];
 
   function latlngToPercent(lat, lng) {
-    const x = ((lng - LNG_MIN) / (LNG_MAX - LNG_MIN)) * 100;
-    const y = ((LAT_MAX - lat) / (LAT_MAX - LAT_MIN)) * 100;
-    return {x, y};
+    return {x:((lng-LNG_MIN)/(LNG_MAX-LNG_MIN))*100, y:((LAT_MAX-lat)/(LAT_MAX-LAT_MIN))*100};
   }
 
   function handleClick(e) {
@@ -525,105 +502,57 @@ function MapQuiz({onBack, addCoins, onDone}) {
     const py = ((e.clientY - rect.top) / rect.height) * 100;
     const clickLng = LNG_MIN + (px / 100) * (LNG_MAX - LNG_MIN);
     const clickLat = LAT_MAX - (py / 100) * (LAT_MAX - LAT_MIN);
-
     let best = null, bestDist = 999;
     COUNTRIES_LATLON.forEach(c => {
-      const d = Math.sqrt((c.lat - clickLat)**2 + (c.lng - clickLng)**2);
+      const d = Math.sqrt((c.lat-clickLat)**2+(c.lng-clickLng)**2);
       if (d < bestDist) { bestDist = d; best = c; }
     });
-
-    setClicked({x: px, y: py, country: best});
+    setClicked({x:px,y:py,country:best});
     const correct = best?.code === current.code;
-    if (correct) { setScore(s => s + 1); if (addCoins) addCoins(1); }
+    if (correct) { setScore(sc=>sc+1); if (addCoins) addCoins(1); }
     setShowAnswer(true);
     setTimeout(() => {
-      if (idx + 1 >= questions.length) { if (onDone) onDone(); setDone(true); }
-      else { setIdx(i => i + 1); setClicked(null); setShowAnswer(false); }
+      if (idx+1>=questions.length) { if (onDone) onDone(); setDone(true); }
+      else { setIdx(i=>i+1); setClicked(null); setShowAnswer(false); }
     }, 2000);
   }
 
-  const s2 = {maxWidth:480,margin:"0 auto",padding:"0 16px 32px"};
-
   if (done) return (
-    <div style={s2}><div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12,paddingTop:28}}>
+    <div style={s.page}><div style={s.rb}>
       <div style={{fontSize:64}}>{score>=12?"🏆":score>=8?"🌟":"💪"}</div>
-      <div style={{fontSize:24,fontWeight:800}}>Geografiquiz ferdig!</div>
-      <div style={{fontSize:17,color:"#666"}}>{score} av {questions.length} riktige</div>
+      <div style={s.rt}>Geografiquiz ferdig!</div>
+      <div style={s.rs}>{score} av {questions.length} riktige</div>
       <div style={{fontSize:16,color:"#f9a825",fontWeight:700}}>+{score} 🪙</div>
-      <button style={{width:"100%",padding:"15px",borderRadius:16,border:"none",background:"linear-gradient(135deg,#7c4dff,#448aff)",color:"#fff",fontSize:16,cursor:"pointer",fontWeight:800}} onClick={onBack}>Hjem</button>
+      <button style={s.bigBtn} onClick={onBack}>Hjem</button>
     </div></div>
   );
 
-  const targetPos = latlngToPercent(
-    COUNTRIES_LATLON.find(c=>c.code===current.code)?.lat||50,
-    COUNTRIES_LATLON.find(c=>c.code===current.code)?.lng||10
-  );
-
   return (
-    <div style={s2}>
-      <div style={{display:"flex",alignItems:"center",padding:"14px 0 8px",gap:8}}>
-        <button style={{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"#7c4dff",fontWeight:700}} onClick={onBack}>← Hjem</button>
-        <span style={{flex:1,textAlign:"center",fontWeight:800,fontSize:18}}>🗺️ Geografiquiz</span>
-        <span style={{fontSize:14,fontWeight:700}}>⭐{score}</span>
-      </div>
-      <div style={{textAlign:"center",fontSize:13,color:"#aaa",marginBottom:8}}>{idx+1}/{questions.length}</div>
+    <div style={s.page}>
+      <div style={s.tb}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.tt}>🗺️ Geografiquiz</span><span style={{fontSize:14,fontWeight:700}}>⭐{score}</span></div>
+      <div style={s.prog}>{idx+1}/{questions.length}</div>
       <div style={{background:"linear-gradient(135deg,#e3f2fd,#bbdefb)",borderRadius:16,padding:"14px",textAlign:"center",marginBottom:10}}>
         <div style={{fontSize:13,color:"#1565c0",fontWeight:600,marginBottom:4}}>Trykk på kartet:</div>
         <div style={{fontSize:26,fontWeight:800}}>Hvor er {current.name}?</div>
       </div>
-
-      {/* MAP using real image */}
       <div style={{position:"relative",width:"100%",borderRadius:16,overflow:"hidden",border:"2px solid #90caf9",cursor:"crosshair"}} onClick={handleClick}>
-        <img
-          src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/BlankMap-Europe.svg/1200px-BlankMap-Europe.svg.png"
-          alt="Europa kart"
-          style={{width:"100%",display:"block"}}
-          onLoad={()=>setMapLoaded(true)}
-          onError={()=>setMapLoaded(false)}
-        />
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/BlankMap-Europe.svg/1200px-BlankMap-Europe.svg.png" alt="Europa kart" style={{width:"100%",display:"block"}} onLoad={()=>setMapLoaded(true)} onError={()=>setMapLoaded(false)}/>
         {mapLoaded && (
           <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}} viewBox="0 0 100 100" preserveAspectRatio="none">
-            {/* Show all country dots faintly */}
             {COUNTRIES_LATLON.map(c => {
               const p = latlngToPercent(c.lat, c.lng);
               const isTarget = c.code === current.code;
               const isWrongClick = showAnswer && clicked?.country?.code === c.code && c.code !== current.code;
-              if (!showAnswer && !isTarget) return (
-                <circle key={c.code} cx={p.x} cy={p.y} r="1.2" fill="#1565c0" opacity="0.3" stroke="white" strokeWidth="0.3"/>
-              );
-              if (showAnswer && isTarget) return (
-                <g key={c.code}>
-                  <circle cx={p.x} cy={p.y} r="2.5" fill="#43a047" stroke="white" strokeWidth="0.5"/>
-                  <circle cx={p.x} cy={p.y} r="1" fill="white"/>
-                </g>
-              );
-              if (isWrongClick) return (
-                <circle key={c.code} cx={p.x} cy={p.y} r="2" fill="#e53935" stroke="white" strokeWidth="0.5"/>
-              );
+              if (showAnswer && isTarget) return (<g key={c.code}><circle cx={p.x} cy={p.y} r="2.5" fill="#43a047" stroke="white" strokeWidth="0.5"/><circle cx={p.x} cy={p.y} r="1" fill="white"/></g>);
+              if (isWrongClick) return (<circle key={c.code} cx={p.x} cy={p.y} r="2" fill="#e53935" stroke="white" strokeWidth="0.5"/>);
               return <circle key={c.code} cx={p.x} cy={p.y} r="1.2" fill="#1565c0" opacity="0.3" stroke="white" strokeWidth="0.3"/>;
             })}
-            {/* Click marker */}
-            {clicked && (
-              <g>
-                <circle cx={clicked.x} cy={clicked.y} r="2" fill={clicked.country?.code===current.code?"#43a047":"#e53935"} stroke="white" strokeWidth="0.6" opacity="0.9"/>
-                <line x1={clicked.x-1.5} y1={clicked.y} x2={clicked.x+1.5} y2={clicked.y} stroke="white" strokeWidth="0.4"/>
-                <line x1={clicked.x} y1={clicked.y-1.5} x2={clicked.x} y2={clicked.y+1.5} stroke="white" strokeWidth="0.4"/>
-              </g>
-            )}
+            {clicked && (<g><circle cx={clicked.x} cy={clicked.y} r="2" fill={clicked.country?.code===current.code?"#43a047":"#e53935"} stroke="white" strokeWidth="0.6" opacity="0.9"/><line x1={clicked.x-1.5} y1={clicked.y} x2={clicked.x+1.5} y2={clicked.y} stroke="white" strokeWidth="0.4"/><line x1={clicked.x} y1={clicked.y-1.5} x2={clicked.x} y2={clicked.y+1.5} stroke="white" strokeWidth="0.4"/></g>)}
           </svg>
         )}
-        {!mapLoaded && (
-          <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"#e3f2fd",fontSize:14,color:"#888"}}>Laster kart...</div>
-        )}
+        {!mapLoaded && (<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"#e3f2fd",fontSize:14,color:"#888"}}>Laster kart...</div>)}
       </div>
-
-      {showAnswer && (
-        <div style={{marginTop:10,padding:"12px 14px",borderRadius:12,background:clicked?.country?.code===current.code?"#d4f7d4":"#fdd",textAlign:"center",fontWeight:700,fontSize:15}}>
-          {clicked?.country?.code===current.code
-            ? `🎉 Riktig! Det er ${current.name}!`
-            : `❌ Feil! ${current.name} er markert med grønn prikk`}
-        </div>
-      )}
+      {showAnswer && (<div style={{marginTop:10,padding:"12px 14px",borderRadius:12,background:clicked?.country?.code===current.code?"#d4f7d4":"#fdd",textAlign:"center",fontWeight:700,fontSize:15}}>{clicked?.country?.code===current.code?`🎉 Riktig! Det er ${current.name}!`:`❌ Feil! ${current.name} er markert med grønn prikk`}</div>)}
       {!showAnswer && <div style={{textAlign:"center",fontSize:12,color:"#aaa",marginTop:8}}>Trykk på kartet der du tror landet er</div>}
     </div>
   );
@@ -634,11 +563,8 @@ function GeoMenu({onBack, addCoins, onFlagDone, onMapDone}) {
   if (mode === "flags") return <FlagQuiz onBack={()=>setMode(null)} addCoins={addCoins} onDone={onFlagDone}/>;
   if (mode === "map") return <MapQuiz onBack={()=>setMode(null)} addCoins={addCoins} onDone={onMapDone}/>;
   return (
-    <div style={{maxWidth:480,margin:"0 auto",padding:"0 16px 32px"}}>
-      <div style={{display:"flex",alignItems:"center",padding:"14px 0 8px",gap:8}}>
-        <button style={{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"#7c4dff",fontWeight:700}} onClick={onBack}>← Hjem</button>
-        <span style={{flex:1,textAlign:"center",fontWeight:800,fontSize:18}}>🌍 Geografi</span>
-      </div>
+    <div style={s.page}>
+      <div style={s.tb}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.tt}>🌍 Geografi</span></div>
       <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:8}}>
         <button onClick={()=>setMode("flags")} style={{background:"linear-gradient(135deg,#c8e6c9,#a5d6a7)",border:"none",borderRadius:16,padding:"20px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",textAlign:"left",boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
           <span style={{fontSize:36}}>🌍</span>
@@ -824,7 +750,6 @@ function MathGame({onBack,addCoins,mode,onDone}){
 }
 function MathMenu({onBack,addCoins,onDone}){
   const [mode,setMode]=useState(null);
-  // All hooks before any conditional return
   if(mode)return<MathGame onBack={()=>setMode(null)} addCoins={addCoins} mode={mode} onDone={()=>{if(onDone)onDone(mode);setMode(null);}}/>;
   return(
     <div style={s.page}>
@@ -1064,7 +989,10 @@ function App(){
   const [penaltyResult,setPenaltyResult]=useState(null);
   const [coinAnim,setCoinAnim]=useState(null);
 
-  // ALL useEffects must be here, before any conditional returns
+  // Use a ref to always have fresh students data in callbacks
+  const studentsRef = useRef(students);
+  useEffect(()=>{ studentsRef.current = students; }, [students]);
+
   useEffect(()=>{
     async function load(){
       const ss=await dbGet("students");
@@ -1094,16 +1022,15 @@ function App(){
     await dbSet("gloser",obj);
   }
   async function updateStudent(id,updates){
-    const current=students.find(s=>s.id===id)||{};
-    const merged={...current,...updates};
+    const cur=studentsRef.current.find(s=>s.id===id)||{};
+    const merged={...cur,...updates};
     setStudentsState(prev=>prev.map(st=>st.id!==id?st:merged));
-    if(currentUser&&currentUser.id===id)setCurrentUser(u=>({...u,...updates}));
+    if(currentUser&&currentUser!=="admin"&&currentUser.id===id)setCurrentUser(u=>({...u,...updates}));
     try{await window.fbSet("glose/students/"+id,merged);}catch(e){console.error("Firebase write failed:",e);}
   }
-  function getStudent() {
-    return students.find(s => s.id === currentUser?.id) || {};
+  function getStudent(){
+    return studentsRef.current.find(s=>s.id===currentUser?.id)||{};
   }
-  function getStudent(){return studentsRef.current.find(s=>s.id===currentUser?.id)||stData;}
   function addCoins(c){
     if(!c||!currentUser||currentUser==="admin")return;
     setCoinAnim(`+${c} 🪙`);setTimeout(()=>setCoinAnim(null),1500);
@@ -1161,14 +1088,13 @@ function App(){
     </div></div>
   );
 
-  if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)} onDone={()=>{const st=students.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{hangmanSessions:(st.hangmanSessions||0)+1});}}/>;
+  if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)} onDone={()=>{const st=studentsRef.current.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{hangmanSessions:(st.hangmanSessions||0)+1});}}/>;
   if(screen==="geo")return<GeoMenu onBack={()=>setScreen("home")} addCoins={addCoins}
-    onFlagDone={()=>{const st=students.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{flagSessions:(st.flagSessions||0)+1});}}
-    onMapDone={()=>{const st=students.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{mapSessions:(st.mapSessions||0)+1});}}
+    onFlagDone={()=>{const st=studentsRef.current.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{flagSessions:(st.flagSessions||0)+1});}}
+    onMapDone={()=>{const st=studentsRef.current.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{mapSessions:(st.mapSessions||0)+1});}}
   />;
-  if(screen==="mapquiz")return<MapQuiz onBack={()=>setScreen("home")} addCoins={addCoins} onDone={()=>{const st=students.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{mapSessions:(st.mapSessions||0)+1});}}/>;
-  if(screen==="flags")return<FlagQuiz onBack={()=>setScreen("home")} addCoins={addCoins} onDone={()=>{const st=students.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{flagSessions:(st.flagSessions||0)+1});}}/>;
-  if(screen==="maths")return<MathMenu onBack={()=>setScreen("home")} addCoins={addCoins} onDone={m=>{const st=students.find(s=>s.id===currentUser.id)||{};const key=m==="multiply"?"mathMultiplySessions":m==="add"?"mathAddSessions":"mathSubtractSessions";updateStudent(currentUser.id,{[key]:(st[key]||0)+1});}}/>;
+  if(screen==="flags")return<FlagQuiz onBack={()=>setScreen("home")} addCoins={addCoins} onDone={()=>{const st=studentsRef.current.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{flagSessions:(st.flagSessions||0)+1});}}/>;
+  if(screen==="maths")return<MathMenu onBack={()=>setScreen("home")} addCoins={addCoins} onDone={m=>{const st=studentsRef.current.find(s=>s.id===currentUser.id)||{};const key=m==="multiply"?"mathMultiplySessions":m==="add"?"mathAddSessions":"mathSubtractSessions";updateStudent(currentUser.id,{[key]:(st[key]||0)+1});}}/>;
   if(screen==="leaderboard")return<Leaderboard students={students} onBack={()=>setScreen("home")}/>;
   if(screen==="shop")return<AvatarShop student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("home")}/>;
   if(screen==="packs")return<PackStore student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("squad")}/>;
@@ -1225,9 +1151,8 @@ function App(){
               if(ok)setQuizScore(sc=>sc+1);
               setTimeout(()=>{
                 const nx=quizIdx+1;
-  // quiz answer handler
                 if(nx>=quizDeck.length){
-                  const st=students.find(s=>s.id===currentUser.id)||{};
+                  const st=studentsRef.current.find(s=>s.id===currentUser.id)||{};
                   updateStudent(currentUser.id,{quizSessions:(st.quizSessions||0)+1});
                   setQuizDone(true);
                 }
@@ -1241,7 +1166,7 @@ function App(){
   }
 
   function startFlashcards(){
-    const st=students.find(s=>s.id===currentUser.id)||{};
+    const st=studentsRef.current.find(s=>s.id===currentUser.id)||{};
     setFcDeck(shuffle(gloser));setFcIdx(0);setFcFlipped(false);
     updateStudent(currentUser.id,{flashcardSessions:(st.flashcardSessions||0)+1});
     setScreen("flashcard");
@@ -1303,7 +1228,7 @@ const s={
   ab:{display:"flex",flexDirection:"column",gap:10,marginBottom:16},
   input:{padding:"12px 14px",borderRadius:14,border:"2px solid #e0e0e0",fontSize:16,background:"#fff"},
   gl:{display:"flex",flexDirection:"column",gap:8},
-  gr:{display:"flex",alignItems:"center",background:"#fff",borderRadius:14,padding:"10px 12px",boxShadow:"0 2px 6px rgba(0,0,0,0.06)"},
+  gr:{display:"flex",alignItems:"center",background:"#fff",borderRadius:14,padding:"10px 12px",boxShadow:"0 2px 6px rgba(0,0,0,0.06)"}  ,
   gp:{flex:1,fontSize:15},db:{background:"none",border:"none",color:"#ffab91",fontSize:18,cursor:"pointer"},
   lb:{width:36,height:44,border:"3px solid #e0e0e0",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,background:"#fff",fontWeight:700},
   kb:{display:"flex",flexWrap:"wrap",gap:5,justifyContent:"center"},
