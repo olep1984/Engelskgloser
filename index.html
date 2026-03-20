@@ -909,7 +909,6 @@ function App(){
   function getStudent() {
     return students.find(s => s.id === currentUser?.id) || {};
   }
-  function getStudent(){return studentsRef.current.find(s=>s.id===currentUser?.id)||stData;}
   function addCoins(c){
     if(!c||!currentUser||currentUser==="admin")return;
     setCoinAnim(`+${c} 🪙`);setTimeout(()=>setCoinAnim(null),1500);
