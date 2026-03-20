@@ -484,9 +484,10 @@ function MapQuiz({onBack, addCoins, onDone}) {
   const leafletMap = useRef(null);
   const markersRef = useRef([]);
 
+  function toXY(lat, lng) { return {x:0,y:0}; } // unused stub — keeps any stale refs safe
+
   useEffect(() => {
     if (leafletMap.current) return;
-    // Load Leaflet CSS
     if (!document.getElementById('leaflet-css')) {
       const link = document.createElement('link');
       link.id = 'leaflet-css';
@@ -494,36 +495,31 @@ function MapQuiz({onBack, addCoins, onDone}) {
       link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
       document.head.appendChild(link);
     }
-    // Load Leaflet JS
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
-    script.onload = () => initMap();
-    document.head.appendChild(script);
+    function tryInit() {
+      if (window.L && mapRef.current && !leafletMap.current) {
+        const map = window.L.map(mapRef.current, {
+          center: [54, 15], zoom: 4,
+          zoomControl: false, attributionControl: false,
+          dragging: false, scrollWheelZoom: false,
+          doubleClickZoom: false, touchZoom: false,
+        });
+        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:6}).addTo(map);
+        leafletMap.current = map;
+        map.on('click', e => { window._mapQuizClick && window._mapQuizClick(e.latlng.lat, e.latlng.lng); });
+      }
+    }
+    if (window.L) { tryInit(); return; }
+    if (!document.getElementById('leaflet-js')) {
+      const script = document.createElement('script');
+      script.id = 'leaflet-js';
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+      script.onload = tryInit;
+      document.head.appendChild(script);
+    } else {
+      const interval = setInterval(() => { if (window.L) { clearInterval(interval); tryInit(); } }, 100);
+    }
+    return () => { if (leafletMap.current) { leafletMap.current.remove(); leafletMap.current = null; } };
   }, []);
-
-  function initMap() {
-    if (!mapRef.current || leafletMap.current) return;
-    const map = window.L.map(mapRef.current, {
-      center: [54, 15],
-      zoom: 4,
-      zoomControl: false,
-      attributionControl: false,
-      dragging: false,
-      scrollWheelZoom: false,
-      doubleClickZoom: false,
-      touchZoom: false,
-    });
-    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 6,
-    }).addTo(map);
-    leafletMap.current = map;
-    map.on('click', handleLeafletClick);
-  }
-
-  function handleLeafletClick(e) {
-    // called from leaflet event, need to access current state via refs
-    window._mapQuizClick && window._mapQuizClick(e.latlng.lat, e.latlng.lng);
-  }
   const [questions] = useState(() => shuffle([...COUNTRIES_LATLON]).slice(0, 15));
   const [idx, setIdx] = useState(0);
   const [score, setScore] = useState(0);
