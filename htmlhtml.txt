@@ -868,10 +868,7 @@ function App(){
   const [penaltyResult,setPenaltyResult]=useState(null);
   const [coinAnim,setCoinAnim]=useState(null);
 
-  function getStudent(){
-    return students.find(s=>s.id===currentUser?.id)||currentUser||{};
-  }
-
+  // ALL useEffects must be here, before any conditional returns
   useEffect(()=>{
     async function load(){
       const gg=await dbGet("gloser");
@@ -904,6 +901,9 @@ function App(){
     setStudentsState(prev=>prev.map(st=>st.id!==id?st:merged));
     if(currentUser&&currentUser.id===id)setCurrentUser(u=>({...u,...updates}));
     try{await window.fbSet("glose/students/"+id,merged);}catch(e){console.error("Firebase write failed:",e);}
+  }
+  function getStudent(){
+    return students.find(s=>s.id===currentUser?.id)||{};
   }
   function getStudent(){return studentsRef.current.find(s=>s.id===currentUser?.id)||stData;}
   function addCoins(c){
