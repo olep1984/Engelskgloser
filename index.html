@@ -542,52 +542,104 @@ function MapQuiz({onBack, addCoins, onDone}) {
         <div style={{fontSize:13,color:"#1565c0",fontWeight:600,marginBottom:4}}>Trykk på kartet:</div>
         <div style={{fontSize:26,fontWeight:800}}>Hvor er {current.name}?</div>
       </div>
-      <div style={{position:"relative",width:"100%",borderRadius:16,overflow:"hidden",border:"2px solid #90caf9",cursor:"crosshair",background:"#ddeeff"}} onClick={handleClick}>
-        <svg width="100%" viewBox="0 0 100 100" style={{display:"block",minHeight:260}}>
-          {/* Ocean background */}
-          <rect x="0" y="0" width="100" height="100" fill="#b3d9f5"/>
-          {/* Simple land mass hint - rough Europe outline as filled regions */}
-          <ellipse cx="55" cy="50" rx="30" ry="28" fill="#c8e6c9" opacity="0.5"/>
-          {/* Grid lines */}
-          {[0,25,50,75,100].map(v=>(
-            <g key={v}>
-              <line x1={v} y1="0" x2={v} y2="100" stroke="white" strokeWidth="0.3" opacity="0.4"/>
-              <line x1="0" y1={v} x2="100" y2={v} stroke="white" strokeWidth="0.3" opacity="0.4"/>
-            </g>
+      <div style={{position:"relative",width:"100%",borderRadius:16,overflow:"hidden",border:"2px solid #90caf9",cursor:"crosshair",background:"#b3d9f5"}} onClick={handleClick}>
+        <svg width="100%" viewBox="0 0 700 500" style={{display:"block"}}>
+          <rect width="700" height="500" fill="#b3d9f5"/>
+          {/* Europe country shapes — simplified polygons */}
+          {[
+            // Norway
+            {code:"NO", d:"M430 30 L445 25 L460 35 L455 55 L445 70 L435 80 L425 70 L420 55 Z", fill:"#c8e6c9"},
+            // Sweden
+            {code:"SE", d:"M455 35 L470 30 L480 45 L475 65 L465 85 L455 90 L445 75 L445 55 Z", fill:"#c8e6c9"},
+            // Finland
+            {code:"FI", d:"M480 30 L500 25 L510 40 L505 60 L490 70 L478 60 L478 45 Z", fill:"#c8e6c9"},
+            // Iceland
+            {code:"IS", d:"M170 55 L195 50 L200 65 L185 75 L165 70 Z", fill:"#c8e6c9"},
+            // UK
+            {code:"GB", d:"M295 120 L315 110 L325 130 L315 155 L300 160 L288 145 L290 130 Z", fill:"#c8e6c9"},
+            // Ireland
+            {code:"IE", d:"M265 130 L280 125 L285 140 L275 155 L260 148 Z", fill:"#c8e6c9"},
+            // Denmark
+            {code:"DK", d:"M420 100 L435 95 L440 110 L430 120 L418 115 Z", fill:"#c8e6c9"},
+            // Netherlands
+            {code:"NL", d:"M370 145 L385 140 L390 155 L378 162 L365 158 Z", fill:"#c8e6c9"},
+            // Belgium
+            {code:"BE", d:"M360 160 L378 155 L382 170 L368 178 L355 172 Z", fill:"#c8e6c9"},
+            // France
+            {code:"FR", d:"M310 170 L360 160 L375 185 L365 220 L335 235 L305 220 L295 195 Z", fill:"#c8e6c9"},
+            // Spain
+            {code:"ES", d:"M265 230 L330 225 L345 250 L330 285 L285 295 L255 275 L250 250 Z", fill:"#c8e6c9"},
+            // Portugal
+            {code:"PT", d:"M240 245 L258 240 L262 265 L250 285 L235 278 Z", fill:"#c8e6c9"},
+            // Germany
+            {code:"DE", d:"M380 140 L420 138 L430 165 L415 185 L385 182 L368 165 Z", fill:"#c8e6c9"},
+            // Switzerland
+            {code:"CH", d:"M368 188 L390 185 L395 200 L380 210 L362 205 Z", fill:"#c8e6c9"},
+            // Austria
+            {code:"AT", d:"M392 185 L425 182 L430 198 L415 208 L395 205 Z", fill:"#c8e6c9"},
+            // Italy
+            {code:"IT", d:"M370 210 L400 205 L415 225 L420 260 L405 290 L390 305 L375 285 L368 255 L360 230 Z", fill:"#c8e6c9"},
+            // Poland
+            {code:"PL", d:"M425 140 L470 138 L478 165 L460 178 L428 175 L420 160 Z", fill:"#c8e6c9"},
+            // Czech
+            {code:"CZ", d:"M418 175 L450 172 L455 188 L438 196 L415 192 Z", fill:"#c8e6c9"},
+            // Slovakia
+            {code:"SK", d:"M450 188 L478 185 L482 198 L462 206 L448 202 Z", fill:"#c8e6c9"},
+            // Hungary
+            {code:"HU", d:"M445 205 L480 200 L488 218 L468 228 L442 222 Z", fill:"#c8e6c9"},
+            // Romania
+            {code:"RO", d:"M478 190 L515 188 L522 215 L510 235 L480 232 L468 215 Z", fill:"#c8e6c9"},
+            // Bulgaria
+            {code:"BG", d:"M475 232 L510 230 L515 250 L495 260 L470 255 Z", fill:"#c8e6c9"},
+            // Greece
+            {code:"GR", d:"M452 255 L480 250 L485 275 L470 295 L450 285 L442 268 Z", fill:"#c8e6c9"},
+            // Turkey
+            {code:"TR", d:"M510 248 L565 240 L575 265 L555 280 L515 275 L502 262 Z", fill:"#c8e6c9"},
+            // Ukraine
+            {code:"UA", d:"M478 165 L545 158 L555 185 L540 205 L500 210 L475 200 Z", fill:"#c8e6c9"},
+            // Belarus
+            {code:"BY", d:"M468 140 L510 135 L518 155 L502 168 L465 165 Z", fill:"#c8e6c9"},
+            // Lithuania
+            {code:"LT", d:"M462 120 L488 116 L492 132 L475 140 L460 136 Z", fill:"#c8e6c9"},
+            // Latvia
+            {code:"LV", d:"M462 105 L490 100 L494 116 L470 122 L460 118 Z", fill:"#c8e6c9"},
+            // Estonia
+            {code:"EE", d:"M463 90 L488 86 L492 100 L470 106 L460 102 Z", fill:"#c8e6c9"},
+            // Croatia
+            {code:"HR", d:"M420 210 L445 207 L448 225 L430 235 L415 228 Z", fill:"#c8e6c9"},
+            // Serbia
+            {code:"RS", d:"M440 228 L465 225 L468 248 L450 258 L435 250 Z", fill:"#c8e6c9"},
+          ].map(({code,d,fill})=>(
+            <path key={code} d={d} fill={fill} stroke="#8bc34a" strokeWidth="1"/>
           ))}
-          {/* Country dots */}
-          {mapDots.map(({c,p,isTarget,isWrongClick,isCorrectAnswer})=>{
+          {/* Dots and labels on top */}
+          {mapDots.map(({c,p,isCorrectAnswer,isWrongClick})=>{
+            const px=p.x*7, py=p.y*5;
             if(isCorrectAnswer) return(
               <g key={c.code}>
-                <circle cx={p.x} cy={p.y} r="4" fill="#43a047" opacity="0.3"/>
-                <circle cx={p.x} cy={p.y} r="2.5" fill="#43a047" stroke="white" strokeWidth="0.6"/>
-                <circle cx={p.x} cy={p.y} r="1" fill="white"/>
+                <circle cx={px} cy={py} r="14" fill="#43a047" opacity="0.25"/>
+                <circle cx={px} cy={py} r="8" fill="#43a047" stroke="white" strokeWidth="2"/>
+                <circle cx={px} cy={py} r="3" fill="white"/>
               </g>
             );
             if(isWrongClick) return(
-              <circle key={c.code} cx={p.x} cy={p.y} r="2.2" fill="#e53935" stroke="white" strokeWidth="0.5"/>
+              <circle key={c.code} cx={px} cy={py} r="8" fill="#e53935" stroke="white" strokeWidth="2"/>
             );
             return(
               <g key={c.code}>
-                <circle cx={p.x} cy={p.y} r="2.8" fill="#1565c0" opacity="0.15"/>
-                <circle cx={p.x} cy={p.y} r="1.6" fill="#1976d2" opacity="0.7" stroke="white" strokeWidth="0.3"/>
+                <circle cx={px} cy={py} r="7" fill="#1565c0" opacity="0.8" stroke="white" strokeWidth="1"/>
+                <text x={px} y={py-9} textAnchor="middle" fontSize="8" fill="#0d47a1" fontWeight="bold">{c.code}</text>
               </g>
             );
           })}
-          {/* Country labels (small) */}
-          {mapDots.map(({c,p})=>(
-            <text key={c.code+"l"} x={p.x} y={p.y-2.2} textAnchor="middle" fontSize="2.2" fill="#1a237e" fontWeight="bold" opacity="0.7">{c.code}</text>
-          ))}
-          {/* Click marker */}
           {clicked && (
             <g>
-              <circle cx={clicked.x} cy={clicked.y} r="3" fill={clicked.country?.code===current.code?"#43a047":"#e53935"} stroke="white" strokeWidth="0.7" opacity="0.9"/>
-              <line x1={clicked.x-2} y1={clicked.y} x2={clicked.x+2} y2={clicked.y} stroke="white" strokeWidth="0.5"/>
-              <line x1={clicked.x} y1={clicked.y-2} x2={clicked.x} y2={clicked.y+2} stroke="white" strokeWidth="0.5"/>
+              <circle cx={clicked.x*7} cy={clicked.y*5} r="9" fill={clicked.country?.code===current.code?"#43a047":"#e53935"} stroke="white" strokeWidth="2.5" opacity="0.95"/>
+              <line x1={clicked.x*7-6} y1={clicked.y*5} x2={clicked.x*7+6} y2={clicked.y*5} stroke="white" strokeWidth="1.5"/>
+              <line x1={clicked.x*7} y1={clicked.y*5-6} x2={clicked.x*7} y2={clicked.y*5+6} stroke="white" strokeWidth="1.5"/>
             </g>
           )}
-          {/* Compass */}
-          <text x="5" y="8" fontSize="4" fill="#1565c0" opacity="0.6">N↑</text>
+          <text x="15" y="25" fontSize="14" fill="#1565c0" opacity="0.7" fontWeight="bold">N↑</text>
         </svg>
       </div>
       {showAnswer && (<div style={{marginTop:10,padding:"12px 14px",borderRadius:12,background:clicked?.country?.code===current.code?"#d4f7d4":"#fdd",textAlign:"center",fontWeight:700,fontSize:15}}>{clicked?.country?.code===current.code?`🎉 Riktig! Det er ${current.name}!`:`❌ Feil! ${current.name} er markert med grønn prikk`}</div>)}
