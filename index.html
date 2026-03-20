@@ -480,32 +480,47 @@ function MapQuiz({onBack, addCoins, onDone}) {
     {code:"LT",name:"Litauen",lat:56,lng:24},{code:"LV",name:"Latvia",lat:57,lng:25},
     {code:"EE",name:"Estland",lat:59,lng:25},
   ];
+
+  // Mercator-style projection for Europe bounding box
+  // viewBox 0 0 1000 860 matching the SVG map below
+  // Map covers approx lng -25..45, lat 34..72
+  // We use a simple linear mapping tuned to the SVG paths
+  function toXY(lat, lng) {
+    const x = ((lng + 25) / 70) * 1000;
+    const latRad = lat * Math.PI / 180;
+    const mercN = Math.log(Math.tan(Math.PI/4 + latRad/2));
+    const mercTop = Math.log(Math.tan(Math.PI/4 + 72*Math.PI/360));
+    const mercBot = Math.log(Math.tan(Math.PI/4 + 34*Math.PI/360));
+    const y = ((mercTop - mercN) / (mercTop - mercBot)) * 860;
+    return {x, y};
+  }
   const [questions] = useState(() => shuffle([...COUNTRIES_LATLON]).slice(0, 15));
   const [idx, setIdx] = useState(0);
   const [score, setScore] = useState(0);
   const [clicked, setClicked] = useState(null);
   const [done, setDone] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
-  const LAT_MIN=34, LAT_MAX=72, LNG_MIN=-25, LNG_MAX=45;
   const current = questions[idx];
-
-  function latlngToPercent(lat, lng) {
-    return {x:((lng-LNG_MIN)/(LNG_MAX-LNG_MIN))*100, y:((LAT_MAX-lat)/(LAT_MAX-LAT_MIN))*100};
-  }
 
   function handleClick(e) {
     if (showAnswer) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const px = ((e.clientX - rect.left) / rect.width) * 100;
-    const py = ((e.clientY - rect.top) / rect.height) * 100;
-    const clickLng = LNG_MIN + (px / 100) * (LNG_MAX - LNG_MIN);
-    const clickLat = LAT_MAX - (py / 100) * (LAT_MAX - LAT_MIN);
+    const px = ((e.clientX - rect.left) / rect.width) * 1000;
+    const py = ((e.clientY - rect.top) / rect.height) * 860;
+    // Convert click pixel → lat/lng using inverse of toXY
+    const clickLng = (px / 1000) * 70 - 25;
+    // Inverse mercator
+    const mercTop = Math.log(Math.tan(Math.PI/4 + 72*Math.PI/360));
+    const mercBot = Math.log(Math.tan(Math.PI/4 + 34*Math.PI/360));
+    const mercN = mercTop - (py / 860) * (mercTop - mercBot);
+    const clickLat = (2 * Math.atan(Math.exp(mercN)) - Math.PI/2) * 180 / Math.PI;
     let best = null, bestDist = 999;
     COUNTRIES_LATLON.forEach(c => {
       const d = Math.sqrt((c.lat-clickLat)**2+(c.lng-clickLng)**2);
       if (d < bestDist) { bestDist = d; best = c; }
     });
-    setClicked({x:px,y:py,country:best});
+    const pos = toXY(best.lat, best.lng);
+    setClicked({x: pos.x, y: pos.y, country: best});
     const correct = best?.code === current.code;
     if (correct) { setScore(sc=>sc+1); if (addCoins) addCoins(1); }
     setShowAnswer(true);
@@ -525,15 +540,6 @@ function MapQuiz({onBack, addCoins, onDone}) {
     </div></div>
   );
 
-  // Simple dot-based Europe map drawn entirely in SVG - no external images needed
-  const mapDots = COUNTRIES_LATLON.map(c => {
-    const p = latlngToPercent(c.lat, c.lng);
-    const isTarget = c.code === current.code;
-    const isWrongClick = showAnswer && clicked?.country?.code === c.code && c.code !== current.code;
-    const isCorrectAnswer = showAnswer && isTarget;
-    return {c, p, isTarget, isWrongClick, isCorrectAnswer};
-  });
-
   return (
     <div style={s.page}>
       <div style={s.tb}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.tt}>🗺️ Geografiquiz</span><span style={{fontSize:14,fontWeight:700}}>⭐{score}</span></div>
@@ -542,104 +548,101 @@ function MapQuiz({onBack, addCoins, onDone}) {
         <div style={{fontSize:13,color:"#1565c0",fontWeight:600,marginBottom:4}}>Trykk på kartet:</div>
         <div style={{fontSize:26,fontWeight:800}}>Hvor er {current.name}?</div>
       </div>
-      <div style={{position:"relative",width:"100%",borderRadius:16,overflow:"hidden",border:"2px solid #90caf9",cursor:"crosshair",background:"#b3d9f5"}} onClick={handleClick}>
-        <svg width="100%" viewBox="0 0 700 500" style={{display:"block"}}>
-          <rect width="700" height="500" fill="#b3d9f5"/>
-          {/* Europe country shapes — simplified polygons */}
-          {[
-            // Norway
-            {code:"NO", d:"M430 30 L445 25 L460 35 L455 55 L445 70 L435 80 L425 70 L420 55 Z", fill:"#c8e6c9"},
-            // Sweden
-            {code:"SE", d:"M455 35 L470 30 L480 45 L475 65 L465 85 L455 90 L445 75 L445 55 Z", fill:"#c8e6c9"},
-            // Finland
-            {code:"FI", d:"M480 30 L500 25 L510 40 L505 60 L490 70 L478 60 L478 45 Z", fill:"#c8e6c9"},
-            // Iceland
-            {code:"IS", d:"M170 55 L195 50 L200 65 L185 75 L165 70 Z", fill:"#c8e6c9"},
-            // UK
-            {code:"GB", d:"M295 120 L315 110 L325 130 L315 155 L300 160 L288 145 L290 130 Z", fill:"#c8e6c9"},
-            // Ireland
-            {code:"IE", d:"M265 130 L280 125 L285 140 L275 155 L260 148 Z", fill:"#c8e6c9"},
-            // Denmark
-            {code:"DK", d:"M420 100 L435 95 L440 110 L430 120 L418 115 Z", fill:"#c8e6c9"},
-            // Netherlands
-            {code:"NL", d:"M370 145 L385 140 L390 155 L378 162 L365 158 Z", fill:"#c8e6c9"},
-            // Belgium
-            {code:"BE", d:"M360 160 L378 155 L382 170 L368 178 L355 172 Z", fill:"#c8e6c9"},
-            // France
-            {code:"FR", d:"M310 170 L360 160 L375 185 L365 220 L335 235 L305 220 L295 195 Z", fill:"#c8e6c9"},
-            // Spain
-            {code:"ES", d:"M265 230 L330 225 L345 250 L330 285 L285 295 L255 275 L250 250 Z", fill:"#c8e6c9"},
-            // Portugal
-            {code:"PT", d:"M240 245 L258 240 L262 265 L250 285 L235 278 Z", fill:"#c8e6c9"},
-            // Germany
-            {code:"DE", d:"M380 140 L420 138 L430 165 L415 185 L385 182 L368 165 Z", fill:"#c8e6c9"},
-            // Switzerland
-            {code:"CH", d:"M368 188 L390 185 L395 200 L380 210 L362 205 Z", fill:"#c8e6c9"},
-            // Austria
-            {code:"AT", d:"M392 185 L425 182 L430 198 L415 208 L395 205 Z", fill:"#c8e6c9"},
-            // Italy
-            {code:"IT", d:"M370 210 L400 205 L415 225 L420 260 L405 290 L390 305 L375 285 L368 255 L360 230 Z", fill:"#c8e6c9"},
-            // Poland
-            {code:"PL", d:"M425 140 L470 138 L478 165 L460 178 L428 175 L420 160 Z", fill:"#c8e6c9"},
-            // Czech
-            {code:"CZ", d:"M418 175 L450 172 L455 188 L438 196 L415 192 Z", fill:"#c8e6c9"},
-            // Slovakia
-            {code:"SK", d:"M450 188 L478 185 L482 198 L462 206 L448 202 Z", fill:"#c8e6c9"},
-            // Hungary
-            {code:"HU", d:"M445 205 L480 200 L488 218 L468 228 L442 222 Z", fill:"#c8e6c9"},
-            // Romania
-            {code:"RO", d:"M478 190 L515 188 L522 215 L510 235 L480 232 L468 215 Z", fill:"#c8e6c9"},
-            // Bulgaria
-            {code:"BG", d:"M475 232 L510 230 L515 250 L495 260 L470 255 Z", fill:"#c8e6c9"},
-            // Greece
-            {code:"GR", d:"M452 255 L480 250 L485 275 L470 295 L450 285 L442 268 Z", fill:"#c8e6c9"},
-            // Turkey
-            {code:"TR", d:"M510 248 L565 240 L575 265 L555 280 L515 275 L502 262 Z", fill:"#c8e6c9"},
-            // Ukraine
-            {code:"UA", d:"M478 165 L545 158 L555 185 L540 205 L500 210 L475 200 Z", fill:"#c8e6c9"},
-            // Belarus
-            {code:"BY", d:"M468 140 L510 135 L518 155 L502 168 L465 165 Z", fill:"#c8e6c9"},
-            // Lithuania
-            {code:"LT", d:"M462 120 L488 116 L492 132 L475 140 L460 136 Z", fill:"#c8e6c9"},
-            // Latvia
-            {code:"LV", d:"M462 105 L490 100 L494 116 L470 122 L460 118 Z", fill:"#c8e6c9"},
-            // Estonia
-            {code:"EE", d:"M463 90 L488 86 L492 100 L470 106 L460 102 Z", fill:"#c8e6c9"},
-            // Croatia
-            {code:"HR", d:"M420 210 L445 207 L448 225 L430 235 L415 228 Z", fill:"#c8e6c9"},
-            // Serbia
-            {code:"RS", d:"M440 228 L465 225 L468 248 L450 258 L435 250 Z", fill:"#c8e6c9"},
-          ].map(({code,d,fill})=>(
-            <path key={code} d={d} fill={fill} stroke="#8bc34a" strokeWidth="1"/>
-          ))}
-          {/* Dots and labels on top */}
-          {mapDots.map(({c,p,isCorrectAnswer,isWrongClick})=>{
-            const px=p.x*7, py=p.y*5;
-            if(isCorrectAnswer) return(
+      <div style={{position:"relative",width:"100%",borderRadius:16,overflow:"hidden",border:"2px solid #90caf9",cursor:"crosshair"}} onClick={handleClick}>
+        <svg width="100%" viewBox="0 0 1000 860" style={{display:"block"}}>
+          {/* Real Europe SVG paths from naturalearthdata (simplified) */}
+          <rect width="1000" height="860" fill="#a8d5e8"/>
+          {/* --- LAND SHAPES --- */}
+          <g fill="#d4e8c2" stroke="#7aab50" strokeWidth="1.5">
+            {/* Iceland */}
+            <path d="M174 94 L210 80 L238 85 L248 100 L235 118 L205 125 L178 115 Z"/>
+            {/* Norway + Sweden rough */}
+            <path d="M418 28 L455 18 L500 22 L530 38 L520 70 L505 100 L490 130 L470 155 L455 170 L440 165 L430 145 L438 120 L432 95 L420 75 L408 55 Z"/>
+            {/* Finland */}
+            <path d="M505 22 L545 15 L575 30 L580 60 L565 90 L545 110 L520 118 L505 100 L520 70 L530 38 Z"/>
+            {/* Estonia */}
+            <path d="M527 123 L558 117 L565 130 L548 140 L525 136 Z"/>
+            {/* Latvia */}
+            <path d="M522 138 L558 132 L568 147 L548 158 L520 153 Z"/>
+            {/* Lithuania */}
+            <path d="M518 156 L555 150 L562 165 L540 176 L514 170 Z"/>
+            {/* Denmark */}
+            <path d="M412 148 L432 140 L440 155 L432 170 L415 168 Z"/>
+            {/* UK + Ireland rough */}
+            <path d="M302 128 L325 115 L345 120 L352 148 L338 178 L315 188 L295 175 L288 155 Z"/>
+            <path d="M265 148 L282 142 L288 158 L278 172 L260 165 Z"/>
+            {/* Netherlands */}
+            <path d="M375 178 L398 172 L405 188 L390 198 L372 192 Z"/>
+            {/* Belgium */}
+            <path d="M372 195 L398 190 L405 208 L388 216 L368 210 Z"/>
+            {/* France */}
+            <path d="M312 195 L372 185 L405 208 L410 240 L395 272 L362 285 L325 278 L298 255 L292 225 Z"/>
+            {/* Spain + Portugal */}
+            <path d="M248 278 L338 272 L360 295 L352 345 L318 368 L270 365 L232 340 L225 308 Z"/>
+            {/* Portugal separate label area */}
+            {/* Germany */}
+            <path d="M398 172 L448 165 L462 178 L468 210 L448 228 L415 225 L400 210 L400 192 Z"/>
+            {/* Switzerland */}
+            <path d="M385 228 L415 222 L422 242 L405 252 L382 245 Z"/>
+            {/* Austria */}
+            <path d="M418 222 L462 215 L468 232 L450 245 L418 240 Z"/>
+            {/* Italy */}
+            <path d="M378 248 L415 240 L435 258 L445 295 L440 335 L425 368 L408 380 L395 362 L385 325 L375 290 L365 265 Z"/>
+            {/* Poland */}
+            <path d="M448 165 L510 158 L522 175 L518 205 L488 215 L462 210 L450 192 Z"/>
+            {/* Czech */}
+            <path d="M438 210 L472 205 L478 222 L458 232 L435 228 Z"/>
+            {/* Slovakia */}
+            <path d="M465 228 L505 220 L510 235 L490 245 L462 242 Z"/>
+            {/* Hungary */}
+            <path d="M455 245 L502 238 L510 255 L492 268 L452 265 Z"/>
+            {/* Romania */}
+            <path d="M508 205 L558 198 L572 218 L568 248 L542 265 L508 258 L498 238 Z"/>
+            {/* Bulgaria */}
+            <path d="M502 262 L548 255 L558 272 L540 288 L500 285 Z"/>
+            {/* Serbia */}
+            <path d="M462 262 L498 255 L504 278 L485 292 L458 285 Z"/>
+            {/* Croatia */}
+            <path d="M435 245 L462 240 L468 258 L448 268 L432 262 Z"/>
+            {/* Greece */}
+            <path d="M478 285 L515 278 L522 302 L508 325 L485 330 L468 312 Z"/>
+            {/* Turkey */}
+            <path d="M548 278 L618 265 L632 285 L618 308 L568 315 L545 298 Z"/>
+            {/* Ukraine */}
+            <path d="M518 178 L595 168 L612 190 L605 218 L572 235 L535 228 L518 208 Z"/>
+            {/* Belarus */}
+            <path d="M512 155 L558 148 L568 165 L562 185 L525 192 L510 178 Z"/>
+          </g>
+          {/* Country markers */}
+          {COUNTRIES_LATLON.map(c => {
+            const p = toXY(c.lat, c.lng);
+            const isCorrect = showAnswer && c.code === current.code;
+            const isWrong = showAnswer && clicked?.country?.code === c.code && c.code !== current.code;
+            if (isCorrect) return (
               <g key={c.code}>
-                <circle cx={px} cy={py} r="14" fill="#43a047" opacity="0.25"/>
-                <circle cx={px} cy={py} r="8" fill="#43a047" stroke="white" strokeWidth="2"/>
-                <circle cx={px} cy={py} r="3" fill="white"/>
+                <circle cx={p.x} cy={p.y} r="18" fill="#43a047" opacity="0.2"/>
+                <circle cx={p.x} cy={p.y} r="10" fill="#43a047" stroke="white" strokeWidth="2.5"/>
+                <circle cx={p.x} cy={p.y} r="4" fill="white"/>
+                <text x={p.x} y={p.y-14} textAnchor="middle" fontSize="11" fill="#1b5e20" fontWeight="bold">{c.name}</text>
               </g>
             );
-            if(isWrongClick) return(
-              <circle key={c.code} cx={px} cy={py} r="8" fill="#e53935" stroke="white" strokeWidth="2"/>
+            if (isWrong) return (
+              <circle key={c.code} cx={p.x} cy={p.y} r="10" fill="#e53935" stroke="white" strokeWidth="2.5"/>
             );
-            return(
+            return (
               <g key={c.code}>
-                <circle cx={px} cy={py} r="7" fill="#1565c0" opacity="0.8" stroke="white" strokeWidth="1"/>
-                <text x={px} y={py-9} textAnchor="middle" fontSize="8" fill="#0d47a1" fontWeight="bold">{c.code}</text>
+                <circle cx={p.x} cy={p.y} r="8" fill="#1565c0" opacity="0.85" stroke="white" strokeWidth="1.5"/>
+                <text x={p.x} y={p.y-11} textAnchor="middle" fontSize="9" fill="#0d47a1" fontWeight="bold">{c.code}</text>
               </g>
             );
           })}
           {clicked && (
             <g>
-              <circle cx={clicked.x*7} cy={clicked.y*5} r="9" fill={clicked.country?.code===current.code?"#43a047":"#e53935"} stroke="white" strokeWidth="2.5" opacity="0.95"/>
-              <line x1={clicked.x*7-6} y1={clicked.y*5} x2={clicked.x*7+6} y2={clicked.y*5} stroke="white" strokeWidth="1.5"/>
-              <line x1={clicked.x*7} y1={clicked.y*5-6} x2={clicked.x*7} y2={clicked.y*5+6} stroke="white" strokeWidth="1.5"/>
+              <circle cx={clicked.x} cy={clicked.y} r="11" fill={clicked.country?.code===current.code?"#43a047":"#e53935"} stroke="white" strokeWidth="3" opacity="0.95"/>
+              <line x1={clicked.x-7} y1={clicked.y} x2={clicked.x+7} y2={clicked.y} stroke="white" strokeWidth="2"/>
+              <line x1={clicked.x} y1={clicked.y-7} x2={clicked.x} y2={clicked.y+7} stroke="white" strokeWidth="2"/>
             </g>
           )}
-          <text x="15" y="25" fontSize="14" fill="#1565c0" opacity="0.7" fontWeight="bold">N↑</text>
         </svg>
       </div>
       {showAnswer && (<div style={{marginTop:10,padding:"12px 14px",borderRadius:12,background:clicked?.country?.code===current.code?"#d4f7d4":"#fdd",textAlign:"center",fontWeight:700,fontSize:15}}>{clicked?.country?.code===current.code?`🎉 Riktig! Det er ${current.name}!`:`❌ Feil! ${current.name} er markert med grønn prikk`}</div>)}
