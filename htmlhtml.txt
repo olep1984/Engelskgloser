@@ -33,7 +33,7 @@ input, button { font-family: inherit; }
 </head>
 <body><div id="root"></div>
 <script type="text/babel">
-const {useState,useEffect,useRef} = React;
+const {useState,useEffect} = React;
 
 const ADMIN_PIN="1234", MAX_WRONG=3, NEW_COUNT=5;
 
@@ -867,8 +867,10 @@ function App(){
   const [showPenalty,setShowPenalty]=useState(false);
   const [penaltyResult,setPenaltyResult]=useState(null);
   const [coinAnim,setCoinAnim]=useState(null);
-  const studentsRef=useRef(defaultStudents);
-  useEffect(()=>{studentsRef.current=students;},[students]);
+
+  function getStudent(){
+    return students.find(s=>s.id===currentUser?.id)||currentUser||{};
+  }
 
   useEffect(()=>{
     async function load(){
@@ -897,7 +899,7 @@ function App(){
     await dbSet("gloser",obj);
   }
   async function updateStudent(id,updates){
-    const current=studentsRef.current.find(s=>s.id===id)||{};
+    const current=students.find(s=>s.id===id)||{};
     const merged={...current,...updates};
     setStudentsState(prev=>prev.map(st=>st.id!==id?st:merged));
     if(currentUser&&currentUser.id===id)setCurrentUser(u=>({...u,...updates}));
