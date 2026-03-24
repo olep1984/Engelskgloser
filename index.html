@@ -950,10 +950,7 @@ function App(){
     setScreen("quiz");
   }
 
-  // Show homework banner if teacher has assigned today
-  const todayStr = new Date().toDateString();
-  const sessions = stData.homeworkSessions || [];
-  const doneToday = sessions.some(s => new Date(s.date).toDateString() === todayStr);
+
 
   return(
     <div style={s.page}>
