@@ -765,9 +765,11 @@ function HangmanGame({gloser,onBack,onCorrect,onDone,onRecord}){
   function guess(l){
     if(fin||guessed.has(l))return;
     const nx=new Set(guessed);nx.add(l);setGuessed(nx);
+    const nowWrong=[...nx].filter(g=>!letters.includes(g)).length;
     const nowWon=letters.every(c=>nx.has(c));
+    const nowLost=nowWrong>=MAX_WRONG;
     if(nowWon){setScore(sc=>sc+1);if(onCorrect)onCorrect();if(onRecord)onRecord(deck[idx].en,true);}
-    else if([...nx].filter(g=>!letters.includes(g)).length>=MAX_WRONG){if(onRecord)onRecord(deck[idx].en,false);}
+    else if(nowLost){if(onRecord)onRecord(deck[idx].en,false);}
   }
   function next(){
     if(idx+1>=deck.length){if(onDone)onDone();setDone(true);return;}
@@ -1089,8 +1091,8 @@ function PenaltyGame({onDone}){
 
 // ── MAIN APP ──
 function App(){
-  const [students,setStudentsState]=useState(defaultStudents);
-  const [gloser,setGloserState]=useState(defaultGloser);
+  const [students,setStudentsState]=useState([]);
+  const [gloser,setGloserState]=useState([]);
   const [loaded,setLoaded]=useState(false);
   const [currentUser,setCurrentUser]=useState(null);
   const [loginError,setLoginError]=useState("");
@@ -1118,8 +1120,10 @@ function App(){
     async function load(){
       const ss=await dbGet("students");
       if(ss){const arr=Array.isArray(ss)?ss.filter(Boolean):Object.values(ss).filter(v=>v&&v.id);setStudentsState(arr);}
+      else{setStudentsState(defaultStudents);await dbSet("students",Object.fromEntries(defaultStudents.map(s=>[s.id,s])));}
       const gg=await dbGet("gloser");
       if(gg){const arr=Array.isArray(gg)?gg.filter(Boolean):Object.values(gg).filter(Boolean);setGloserState(arr);}
+      else{setGloserState(defaultGloser);await dbSet("gloser",Object.fromEntries(defaultGloser.map(g=>[g.id,g])));}
       setLoaded(true);
     }
     load();
