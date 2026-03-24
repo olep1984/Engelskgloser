@@ -815,27 +815,25 @@ function App(){
   const [penaltyResult,setPenaltyResult]=useState(null);
   const [coinAnim,setCoinAnim]=useState(null);
   const [bonusAnim,setBonusAnim]=useState(false);
+  const bonusGivenRef=useRef({});
 
-  // Check for homework completion bonus after any session update
-  const bonusGivenRef = useRef({});
-  useEffect(() => {
-    if (!currentUser || currentUser === "admin") return;
-    const st = studentsRef.current.find(s => s.id === currentUser.id);
-    if (!st) return;
-    const todayKey = new Date().toDateString() + "_" + currentUser.id;
-    if (bonusGivenRef.current[todayKey]) return;
-    if (isHomeworkComplete(st) && !(st.bonusGivenDate === new Date().toDateString())) {
-      bonusGivenRef.current[todayKey] = true;
-      setBonusAnim(true);
-      setTimeout(() => setBonusAnim(false), 4000);
-      const np = (st.points||0) + HOMEWORK_BONUS;
-      const nc = (st.coins||0) + HOMEWORK_BONUS;
-      updateStudent(currentUser.id, {
-        points: np, coins: nc,
-        bonusGivenDate: new Date().toDateString()
-      });
-    }
-  }, [students]);
+  useEffect(()=>{
+    if(!currentUser||currentUser==="admin")return;
+    const st=studentsRef.current.find(s=>s.id===currentUser.id);
+    if(!st)return;
+    const todayKey=new Date().toDateString()+"_"+currentUser.id;
+    if(bonusGivenRef.current[todayKey])return;
+    if(st.bonusGivenDate===new Date().toDateString())return;
+    if(!isHomeworkComplete(st))return;
+    bonusGivenRef.current[todayKey]=true;
+    setBonusAnim(true);
+    setTimeout(()=>setBonusAnim(false),4000);
+    updateStudent(currentUser.id,{
+      points:(st.points||0)+HOMEWORK_BONUS,
+      coins:(st.coins||0)+HOMEWORK_BONUS,
+      bonusGivenDate:new Date().toDateString()
+    });
+  },[students]);
 
   const studentsRef=useRef(students);
   useEffect(()=>{studentsRef.current=students;},[students]);
@@ -974,38 +972,27 @@ function App(){
       </div>
 
       {/* Lekse-fremgang */}
-      {(() => {
-        const tasks = [
-          {key:"flashcardSessions", icon:"🃏", label:"Flashcards"},
-          {key:"quizSessions", icon:"🎯", label:"Quiz"},
-          {key:"hangmanSessions", icon:"🪢", label:"Hangman"},
-          {key:"mathAddSessions", icon:"➕", label:"Addisjon"},
-          {key:"mathSubtractSessions", icon:"➖", label:"Subtraksjon"},
-          {key:"mathMultiplySessions", icon:"✖️", label:"Ganging"},
-          {key:"flagSessions", icon:"🌍", label:"Flaggquiz"},
-        ];
-        const done = tasks.filter(t => (stData[t.key]||0) >= 1).length;
-        const allDone = done === tasks.length;
-        const alreadyBonused = stData.bonusGivenDate === new Date().toDateString();
-        return (
-          <div style={{background: allDone ? "linear-gradient(135deg,#e8f5e9,#c8e6c9)" : "linear-gradient(135deg,#fff8e1,#fff3e0)", borderRadius:14,padding:"12px 14px",marginBottom:12}}>
+      {(()=>{
+        const done=HOMEWORK_TASKS.filter(t=>(stData[t.key]||0)>=1).length;
+        const allDone=done===HOMEWORK_TASKS.length;
+        const alreadyBonused=stData.bonusGivenDate===new Date().toDateString();
+        return(
+          <div style={{background:allDone?"linear-gradient(135deg,#e8f5e9,#c8e6c9)":"linear-gradient(135deg,#fff8e1,#fff3e0)",borderRadius:14,padding:"12px 14px",marginBottom:12}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-              <div style={{fontWeight:800,fontSize:13,color: allDone?"#2e7d32":"#e65100"}}>
-                {allDone ? "✅ Alle lekser gjort!" : `📚 Lekser: ${done}/${tasks.length}`}
+              <div style={{fontWeight:800,fontSize:13,color:allDone?"#2e7d32":"#e65100"}}>
+                {allDone?"✅ Alle lekser gjort!":`📚 Lekser: ${done}/${HOMEWORK_TASKS.length}`}
               </div>
-              {alreadyBonused && <div style={{fontSize:12,color:"#f9a825",fontWeight:700}}>🪙+{HOMEWORK_BONUS} mottatt!</div>}
-              {!alreadyBonused && allDone && <div style={{fontSize:12,color:"#43a047",fontWeight:700}}>Bonus kommer! 🎉</div>}
-              {!allDone && <div style={{fontSize:12,color:"#888"}}>+{HOMEWORK_BONUS}🪙 bonus ved fullført</div>}
+              {alreadyBonused&&<div style={{fontSize:12,color:"#f9a825",fontWeight:700}}>🪙+{HOMEWORK_BONUS} mottatt!</div>}
+              {!alreadyBonused&&allDone&&<div style={{fontSize:12,color:"#43a047",fontWeight:700}}>Bonus kommer! 🎉</div>}
+              {!allDone&&<div style={{fontSize:12,color:"#888"}}>+{HOMEWORK_BONUS}🪙 bonus</div>}
             </div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {tasks.map(t => {
-                const isDone = (stData[t.key]||0) >= 1;
-                return (
-                  <div key={t.key} style={{display:"flex",alignItems:"center",gap:4,background: isDone?"#43a047":"#e0e0e0",borderRadius:20,padding:"4px 10px"}}>
-                    <span style={{fontSize:13}}>{t.icon}</span>
-                    <span style={{fontSize:11,fontWeight:700,color: isDone?"#fff":"#888"}}>{isDone?"✓":t.label}</span>
-                  </div>
-                );
+              {HOMEWORK_TASKS.map(t=>{
+                const isDone=(stData[t.key]||0)>=1;
+                return(<div key={t.key} style={{display:"flex",alignItems:"center",gap:4,background:isDone?"#43a047":"#e0e0e0",borderRadius:20,padding:"4px 10px"}}>
+                  <span style={{fontSize:13}}>{t.icon}</span>
+                  <span style={{fontSize:11,fontWeight:700,color:isDone?"#fff":"#888"}}>{isDone?"✓":t.label}</span>
+                </div>);
               })}
             </div>
           </div>
