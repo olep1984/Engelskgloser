@@ -19,160 +19,189 @@ try {
 } catch(e) {
   window.fbGet = async () => null;
   window.fbSet = async () => {};
-  window.fbOn  = (k,cb) => () => {};
+  window.fbOn  = () => () => {};
 }
 </script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: linear-gradient(135deg,#fff9f0,#f0f4ff); min-height: 100vh; }
 input, button { font-family: inherit; }
-:root { --purple:#7c4dff; --pl:#ede7f6; --pd:#4527a0; --t:#1a1a1a; --t2:#666; --t3:#aaa; }
+:root { --purple:#7c4dff; --pl:#ede7f6; --pd:#4527a0; --t2:#666; --t3:#aaa; }
 @keyframes coinPop { 0%{transform:scale(1)}50%{transform:scale(1.6)}100%{transform:scale(1)} }
 @keyframes bounce { 0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)} }
+@keyframes fadeIn { from{opacity:0;transform:scale(0.8)}to{opacity:1;transform:scale(1)} }
 </style>
 </head>
 <body><div id="root"></div>
 <script type="text/babel">
-const useState = React.useState;
-const useEffect = React.useEffect;
-const useRef = React.useRef;
+const {useState, useEffect, useRef} = React;
 
-const ADMIN_PIN="1234", MAX_WRONG=3, NEW_COUNT=5;
+// ── CONSTANTS ──
+const ADMIN_PIN = "1234";
+const MAX_WRONG = 3;
+const NEW_COUNT = 5;
+const HOMEWORK_BONUS = 150;
+const HOMEWORK_TASKS = [
+  {key:"flashcardSessions", icon:"🃏", label:"Flashcards"},
+  {key:"quizSessions",      icon:"🎯", label:"Quiz"},
+  {key:"hangmanSessions",   icon:"🪢", label:"Hangman"},
+  {key:"mathAddSessions",   icon:"➕", label:"Addisjon"},
+  {key:"mathSubtractSessions", icon:"➖", label:"Subtraksjon"},
+  {key:"mathMultiplySessions", icon:"✖️", label:"Ganging"},
+  {key:"flagSessions",      icon:"🌍", label:"Flaggquiz"},
+];
+function isHomeworkComplete(st) {
+  return HOMEWORK_TASKS.every(t => (st[t.key]||0) >= 1);
+}
 
-const MALE_HAIR=[
-  {id:"short",label:"Kort hår",top:"〰️",cost:0},{id:"curly",label:"Krøllete",top:"🌀",cost:30},
-  {id:"mohawk",label:"Mohawk",top:"⚡",cost:60},{id:"crown",label:"Kongekrone",top:"👑",cost:150},
-  {id:"fire",label:"Ildtopp",top:"🔥",cost:200},
+const CLUBS = [
+  {name:"Real Madrid",bg:"#1a1a6e"},{name:"Barcelona",bg:"#004d98"},
+  {name:"Man City",bg:"#1c2c5b"},{name:"Liverpool",bg:"#00b2a9"},
+  {name:"Bayern",bg:"#0066b2"},{name:"Arsenal",bg:"#9c824a"},
 ];
-const FEMALE_HAIR=[
-  {id:"long",label:"Langt hår",top:"〰️",cost:0},{id:"bun",label:"Hårknut",top:"🎀",cost:30},
-  {id:"ponytail",label:"Hestehale",top:"🌸",cost:60},{id:"crown",label:"Tiara",top:"👑",cost:150},
-  {id:"sparkle",label:"Glitter",top:"✨",cost:200},
+
+const MALE_HAIR = [
+  {id:"short",label:"Kort hår",cost:0},{id:"curly",label:"Krøllete",cost:30},
+  {id:"mohawk",label:"Mohawk",cost:60},{id:"crown",label:"Kongekrone",cost:150},
+  {id:"fire",label:"Ildtopp",cost:200},
 ];
-const MALE_KITS=[
-  {id:"basic",label:"Vanlig drakt",body:"👕",color:"#90a4ae",cost:0},{id:"club",label:"Klubbdrakt",body:"🥈",color:"#5c6bc0",cost:50},
-  {id:"pro",label:"Proffdrakt",body:"🥇",color:"#e65100",cost:120},{id:"legendary",label:"Legendarisk",body:"💎",color:"#7b1fa2",cost:250},
+const FEMALE_HAIR = [
+  {id:"long",label:"Langt hår",cost:0},{id:"bun",label:"Hårknut",cost:30},
+  {id:"ponytail",label:"Hestehale",cost:60},{id:"crown",label:"Tiara",cost:150},
+  {id:"sparkle",label:"Glitter",cost:200},
+];
+const MALE_KITS = [
+  {id:"basic",label:"Vanlig drakt",body:"👕",color:"#90a4ae",cost:0},
+  {id:"club",label:"Klubbdrakt",body:"🥈",color:"#5c6bc0",cost:50},
+  {id:"pro",label:"Proffdrakt",body:"🥇",color:"#e65100",cost:120},
+  {id:"legendary",label:"Legendarisk",body:"💎",color:"#7b1fa2",cost:250},
   {id:"golden",label:"Gulldrakt",body:"✨",color:"#f9a825",cost:500},
 ];
-const FEMALE_KITS=[
-  {id:"basic",label:"Enkel kjole",body:"👗",color:"#f48fb1",cost:0},{id:"party",label:"Festkjole",body:"🌸",color:"#e91e63",cost:50},
-  {id:"elegant",label:"Elegant kjole",body:"💜",color:"#9c27b0",cost:120},{id:"princess",label:"Prinsessekjole",body:"🌟",color:"#ff9800",cost:250},
+const FEMALE_KITS = [
+  {id:"basic",label:"Enkel kjole",body:"👗",color:"#f48fb1",cost:0},
+  {id:"party",label:"Festkjole",body:"🌸",color:"#e91e63",cost:50},
+  {id:"elegant",label:"Elegant kjole",body:"💜",color:"#9c27b0",cost:120},
+  {id:"princess",label:"Prinsessekjole",body:"🌟",color:"#ff9800",cost:250},
   {id:"golden",label:"Gullkjole",body:"✨",color:"#f9a825",cost:500},
 ];
-const ARMBAND={id:"captain",label:"Kapteinsbind",emoji:"💛",cost:80};
-const TIARA_ITEM={id:"tiara",label:"Gulltiara",emoji:"💍",cost:80};
+const ARMBAND   = {id:"captain",label:"Kapteinsbind",emoji:"💛",cost:80};
+const TIARA_ITEM = {id:"tiara",label:"Gulltiara",emoji:"💍",cost:80};
 
-const CLUBS=[
-  {name:"Real Madrid",color:"#ffd700",bg:"#1a1a6e"},{name:"Barcelona",color:"#a50044",bg:"#004d98"},
-  {name:"Man City",color:"#6caae4",bg:"#1c2c5b"},{name:"Liverpool",color:"#c8102e",bg:"#00b2a9"},
-  {name:"Bayern",color:"#dc052d",bg:"#0066b2"},{name:"PSG",color:"#da291c",bg:"#004170"},
-  {name:"Arsenal",color:"#ef0107",bg:"#9c824a"},{name:"Juventus",color:"#000",bg:"#ddd"},
-  {name:"Dortmund",color:"#fde100",bg:"#000"},{name:"Ajax",color:"#d2122e",bg:"#eee"},
-  {name:"Inter",color:"#010e80",bg:"#333"},{name:"Chelsea",color:"#034694",bg:"#87ceeb"},
-];
-
-const POSITIONS=[
-  {id:"gk",label:"Keeper",x:50,y:85},{id:"lb",label:"VB",x:15,y:65},
-  {id:"cb1",label:"MST",x:35,y:65},{id:"cb2",label:"MST",x:65,y:65},
-  {id:"rb",label:"HB",x:85,y:65},{id:"cm1",label:"MB",x:25,y:45},
-  {id:"cm2",label:"MB",x:50,y:45},{id:"cm3",label:"MB",x:75,y:45},
-  {id:"lw",label:"VV",x:15,y:22},{id:"st",label:"ST",x:50,y:18},{id:"rw",label:"HV",x:85,y:22},
-];
-
-const PLAYERS=[
+const PLAYERS = [
   {id:"haaland",name:"Erling Haaland",club:"Man City",pos:"ST",rating:91,rarity:"legend",emoji:"⚽"},
   {id:"odegaard",name:"Martin Ødegaard",club:"Arsenal",pos:"CAM",rating:88,rarity:"gold",emoji:"🎯"},
-  {id:"sorloth",name:"Alexander Sørloth",club:"Atlético",pos:"ST",rating:83,rarity:"gold",emoji:"⚽"},
-  {id:"nusa",name:"Antonio Nusa",club:"Leipzig",pos:"RW",rating:78,rarity:"silver",emoji:"💨"},
-  {id:"berge",name:"Sander Berge",club:"Fulham",pos:"CM",rating:76,rarity:"silver",emoji:"💪"},
   {id:"salah",name:"Mohamed Salah",club:"Liverpool",pos:"RW",rating:90,rarity:"legend",emoji:"🔥"},
   {id:"saka",name:"Bukayo Saka",club:"Arsenal",pos:"RW",rating:87,rarity:"gold",emoji:"⚡"},
-  {id:"palmer",name:"Cole Palmer",club:"Chelsea",pos:"CAM",rating:86,rarity:"gold",emoji:"🎩"},
-  {id:"foden",name:"Phil Foden",club:"Man City",pos:"LW",rating:87,rarity:"gold",emoji:"🌟"},
   {id:"kane",name:"Harry Kane",club:"Bayern",pos:"ST",rating:89,rarity:"gold",emoji:"👑"},
   {id:"vinicius",name:"Vinícius Jr.",club:"Real Madrid",pos:"LW",rating:92,rarity:"legend",emoji:"💃"},
   {id:"bellingham",name:"Jude Bellingham",club:"Real Madrid",pos:"CAM",rating:90,rarity:"legend",emoji:"🏆"},
   {id:"mbappe",name:"Kylian Mbappé",club:"Real Madrid",pos:"ST",rating:93,rarity:"legend",emoji:"💨"},
-  {id:"debruyne",name:"Kevin De Bruyne",club:"Man City",pos:"CAM",rating:91,rarity:"legend",emoji:"🎪"},
   {id:"wirtz",name:"Florian Wirtz",club:"Leverkusen",pos:"CAM",rating:87,rarity:"gold",emoji:"⚗️"},
+  {id:"palmer",name:"Cole Palmer",club:"Chelsea",pos:"CAM",rating:86,rarity:"gold",emoji:"🎩"},
 ];
 
-const HOMEWORK_BONUS = 150;
-
-function isHomeworkComplete(st) {
-  return (st.flashcardSessions||0) >= 1 &&
-    (st.quizSessions||0) >= 1 &&
-    (st.hangmanSessions||0) >= 1 &&
-    (st.mathAddSessions||0) >= 1 &&
-    (st.mathSubtractSessions||0) >= 1 &&
-    (st.mathMultiplySessions||0) >= 1 &&
-    (st.flagSessions||0) >= 1;
-}
-  {id:"bronze",label:"Bronsepakke",price:20,count:3,minRating:70,bg:"linear-gradient(135deg,#8B4513,#cd7f32)",desc:"3 spillere · vanlige kort"},
-  {id:"silver",label:"Sølvpakke",price:50,count:3,minRating:78,bg:"linear-gradient(135deg,#607d8b,#b0bec5)",desc:"3 spillere · bedre odds"},
-  {id:"gold",label:"Gullpakke",price:120,count:3,minRating:82,bg:"linear-gradient(135deg,#f9a825,#ff8f00)",desc:"3 spillere · gold+ garantert"},
-  {id:"legend",label:"Legendarisk",price:300,count:3,minRating:85,bg:"linear-gradient(135deg,#7c4dff,#e91e63)",desc:"3 spillere · sjanse for legend!"},
-];
-
-const RARITY_COLORS={
+const RARITY_COLORS = {
   silver:{bg:"linear-gradient(135deg,#78909c,#b0bec5)",border:"#b0bec5"},
   gold:{bg:"linear-gradient(135deg,#f9a825,#ff8f00)",border:"#f9a825"},
   legend:{bg:"linear-gradient(135deg,#7c4dff,#e91e63)",border:"#ce93d8"},
 };
 
-const FLAGS=[
-  {code:"NO",name:"Norge"},{code:"SE",name:"Sverige"},{code:"DK",name:"Danmark"},
-  {code:"FI",name:"Finland"},{code:"IS",name:"Island"},{code:"GB",name:"Storbritannia"},
-  {code:"DE",name:"Tyskland"},{code:"FR",name:"Frankrike"},{code:"ES",name:"Spania"},
-  {code:"IT",name:"Italia"},{code:"PT",name:"Portugal"},{code:"NL",name:"Nederland"},
-  {code:"BE",name:"Belgia"},{code:"CH",name:"Sveits"},{code:"AT",name:"Østerrike"},
-  {code:"PL",name:"Polen"},{code:"CZ",name:"Tsjekkia"},{code:"HU",name:"Ungarn"},
-  {code:"GR",name:"Hellas"},{code:"TR",name:"Tyrkia"},{code:"UA",name:"Ukraina"},
-  {code:"US",name:"USA"},{code:"CA",name:"Canada"},{code:"BR",name:"Brasil"},
-  {code:"AR",name:"Argentina"},{code:"JP",name:"Japan"},{code:"CN",name:"Kina"},
-  {code:"AU",name:"Australia"},{code:"ZA",name:"Sør-Afrika"},{code:"NG",name:"Nigeria"},
+const PACK_TYPES = [
+  {id:"bronze",label:"Bronsepakke",price:20,minRating:70,bg:"linear-gradient(135deg,#8B4513,#cd7f32)",desc:"3 spillere"},
+  {id:"silver",label:"Sølvpakke",price:50,minRating:78,bg:"linear-gradient(135deg,#607d8b,#b0bec5)",desc:"3 spillere"},
+  {id:"gold",label:"Gullpakke",price:120,minRating:82,bg:"linear-gradient(135deg,#f9a825,#ff8f00)",desc:"3 spillere"},
+  {id:"legend",label:"Legendarisk",price:300,minRating:85,bg:"linear-gradient(135deg,#7c4dff,#e91e63)",desc:"3 spillere"},
 ];
 
-const defaultGloser=[
+const FLAGS = [
+  {code:"NO",name:"Norge"},{code:"SE",name:"Sverige"},{code:"DK",name:"Danmark"},
+  {code:"FI",name:"Finland"},{code:"GB",name:"Storbritannia"},{code:"DE",name:"Tyskland"},
+  {code:"FR",name:"Frankrike"},{code:"ES",name:"Spania"},{code:"IT",name:"Italia"},
+  {code:"PT",name:"Portugal"},{code:"NL",name:"Nederland"},{code:"BE",name:"Belgia"},
+  {code:"PL",name:"Polen"},{code:"GR",name:"Hellas"},{code:"TR",name:"Tyrkia"},
+  {code:"US",name:"USA"},{code:"CA",name:"Canada"},{code:"BR",name:"Brasil"},
+  {code:"JP",name:"Japan"},{code:"AU",name:"Australia"},{code:"CN",name:"Kina"},
+  {code:"AR",name:"Argentina"},{code:"ZA",name:"Sør-Afrika"},{code:"NG",name:"Nigeria"},
+  {code:"CH",name:"Sveits"},{code:"AT",name:"Østerrike"},{code:"UA",name:"Ukraina"},
+  {code:"RO",name:"Romania"},{code:"HU",name:"Ungarn"},{code:"IS",name:"Island"},
+];
+
+const defaultGloser = [
   {no:"hund",en:"dog",id:1},{no:"katt",en:"cat",id:2},{no:"hus",en:"house",id:3},
   {no:"bil",en:"car",id:4},{no:"bok",en:"book",id:5},{no:"skole",en:"school",id:6},
   {no:"venn",en:"friend",id:7},{no:"mat",en:"food",id:8},
 ];
-const defaultStudents=[
-  {id:1,name:"Elev 1",pin:"1111",history:[],quizSessions:0,hangmanSessions:0,flashcardSessions:0,mathAddSessions:0,mathSubtractSessions:0,mathMultiplySessions:0,flagSessions:0,points:0,coins:0,squad:[],club:CLUBS[0],avatar:{gender:"male",kit:"basic",hair:"short",extra:false},purchased:[],playerCards:[],lineup:Array(11).fill(null),homeworkSessions:[]},
-  {id:2,name:"Elev 2",pin:"2222",history:[],quizSessions:0,hangmanSessions:0,flashcardSessions:0,mathAddSessions:0,mathSubtractSessions:0,mathMultiplySessions:0,flagSessions:0,points:0,coins:0,squad:[],club:CLUBS[1],avatar:{gender:"female",kit:"basic",hair:"long",extra:false},purchased:[],playerCards:[],lineup:Array(11).fill(null),homeworkSessions:[]},
+
+const emptyStudent = (id, name, pin, idx) => ({
+  id, name, pin,
+  history:[], quizSessions:0, hangmanSessions:0, flashcardSessions:0,
+  mathAddSessions:0, mathSubtractSessions:0, mathMultiplySessions:0, flagSessions:0,
+  points:0, coins:0, club:CLUBS[idx%CLUBS.length],
+  avatar:{gender:"male",kit:"basic",hair:"short",extra:false},
+  purchased:[], playerCards:[], lineup:Array(11).fill(null),
+  homeworkSessions:[], bonusGivenDate:"",
+});
+
+const defaultStudents = [
+  emptyStudent(1,"Elev 1","1111",0),
+  emptyStudent(2,"Elev 2","2222",1),
 ];
 
-const dict={hund:"dog",katt:"cat",hus:"house",bil:"car",bok:"book",skole:"school",venn:"friend",mat:"food",fisk:"fish",fugl:"bird",tre:"tree",blomst:"flower",sol:"sun",måne:"moon",stjerne:"star",vann:"water",ild:"fire",snø:"snow",regn:"rain",vind:"wind",dag:"day",natt:"night",år:"year",uke:"week",mann:"man",kvinne:"woman",barn:"child",gutt:"boy",jente:"girl",familie:"family",mor:"mother",far:"father",bror:"brother",søster:"sister",hjem:"home",by:"city",land:"country",gate:"street",butikk:"shop",drikke:"drink",brød:"bread",melk:"milk",egg:"egg",ost:"cheese",frukt:"fruit",eple:"apple",banan:"banana",appelsin:"orange",fotball:"football",sang:"song",musikk:"music",film:"movie",penn:"pen",bord:"table",stol:"chair",vindu:"window",dør:"door",seng:"bed",telefon:"phone",datamaskin:"computer",nøkkel:"key",penger:"money",klær:"clothes",sko:"shoes",jakke:"jacket",kjærlighet:"love",fred:"peace",god:"good",dårlig:"bad",stor:"big",liten:"small",rask:"fast",ny:"new",gammel:"old",varm:"warm",kald:"cold"};
+const dict = {hund:"dog",katt:"cat",hus:"house",bil:"car",bok:"book",skole:"school",venn:"friend",mat:"food",fisk:"fish",fugl:"bird",tre:"tree",blomst:"flower",sol:"sun",måne:"moon",stjerne:"star",vann:"water",ild:"fire",snø:"snow",regn:"rain",vind:"wind",dag:"day",natt:"night",mann:"man",kvinne:"woman",barn:"child",gutt:"boy",jente:"girl",familie:"family",mor:"mother",far:"father",bror:"brother",søster:"sister",hjem:"home",by:"city",land:"country",butikk:"shop",brød:"bread",melk:"milk",egg:"egg",frukt:"fruit",eple:"apple",banan:"banana",fotball:"football",sang:"song",musikk:"music",penn:"pen",bord:"table",stol:"chair",vindu:"window",dør:"door",seng:"bed",telefon:"phone",nøkkel:"key",penger:"money",klær:"clothes",sko:"shoes",jakke:"jacket",god:"good",dårlig:"bad",stor:"big",liten:"small",rask:"fast",ny:"new",gammel:"old",varm:"warm",kald:"cold"};
 
+// ── HELPERS ──
+const shuffle = a => [...a].sort(() => Math.random()-0.5);
 async function dbGet(k){try{return await window.fbGet("glose/"+k);}catch{return null;}}
 async function dbSet(k,v){try{await window.fbSet("glose/"+k,v);}catch{}}
+function todayStr() { return new Date().toDateString(); }
+function buildQuizDeck(g){
+  if(g.length<=10)return shuffle([...g]);
+  const s=[...g].sort((a,b)=>b.id-a.id);
+  return shuffle([...s.slice(0,NEW_COUNT),...shuffle(s.slice(NEW_COUNT)).slice(0,Math.round(s.slice(NEW_COUNT).length*0.3))]);
+}
+function getDailyFlags(){
+  const seed=Math.floor(Date.now()/86400000);
+  return [...FLAGS].sort((a,b)=>((seed*1103515245+a.code.charCodeAt(0)*12345)&0x7fffffff)-((seed*1103515245+b.code.charCodeAt(0)*12345)&0x7fffffff)).slice(0,20);
+}
 
-function shuffle(a){return[...a].sort(()=>Math.random()-0.5);}
-function buildQuizDeck(g){if(g.length<=10)return shuffle([...g]);const s=[...g].sort((a,b)=>b.id-a.id);return shuffle([...s.slice(0,NEW_COUNT),...shuffle(s.slice(NEW_COUNT)).slice(0,Math.round(s.slice(NEW_COUNT).length*0.3))]);}
-function getDailyFlags(){const seed=Math.floor(Date.now()/86400000);return[...FLAGS].sort((a,b)=>((seed*1103515245+a.code.charCodeAt(0)*12345)&0x7fffffff)-((seed*1103515245+b.code.charCodeAt(0)*12345)&0x7fffffff)).slice(0,20);}
-function openPack(pack){const pool=PLAYERS.filter(p=>p.rating>=pack.minRating);return Array(pack.count).fill(0).map(()=>pool[Math.floor(Math.random()*pool.length)]);}
-function todayLabel(){const d=new Date();const days=["Søndag","Mandag","Tirsdag","Onsdag","Torsdag","Fredag","Lørdag"];return `${days[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()}`;}
+// ── STYLES ──
+const S = {
+  page:{maxWidth:480,margin:"0 auto",padding:"0 16px 40px"},
+  tb:{display:"flex",alignItems:"center",padding:"14px 0 8px",gap:8},
+  tt:{flex:1,textAlign:"center",fontWeight:800,fontSize:18},
+  back:{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"var(--purple)",fontWeight:700,padding:0},
+  bigBtn:{width:"100%",padding:"15px",borderRadius:16,border:"none",background:"linear-gradient(135deg,#7c4dff,#448aff)",color:"#fff",fontSize:16,cursor:"pointer",fontWeight:800},
+  grayBtn:{background:"#f0f0f0",color:"#333"},
+  input:{padding:"12px 14px",borderRadius:14,border:"2px solid #e0e0e0",fontSize:15,width:"100%",background:"#fff"},
+  card:{background:"#fff",borderRadius:20,padding:"32px 20px",textAlign:"center",marginBottom:16,boxShadow:"0 4px 16px rgba(0,0,0,0.07)"},
+  cg:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
+  choice:{padding:"16px 8px",borderRadius:16,border:"none",fontSize:17,cursor:"pointer",fontWeight:700,background:"#fff",boxShadow:"0 2px 8px rgba(0,0,0,0.07)"},
+  rb:{display:"flex",flexDirection:"column",alignItems:"center",gap:12,paddingTop:28},
+  prog:{textAlign:"center",fontSize:13,color:"var(--t3)",marginBottom:10},
+  pb:{padding:"16px",borderRadius:16,border:"none",background:"#fff",fontSize:22,cursor:"pointer",fontWeight:700,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"},
+  lb:{width:36,height:44,border:"3px solid #e0e0e0",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,background:"#fff",fontWeight:700},
+  kb:{display:"flex",flexWrap:"wrap",gap:5,justifyContent:"center"},
+  key:{width:34,height:38,border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer"},
+};
 
 // ── AVATAR ──
-function AvatarDisplay({avatar,name,size=80,coins,showCoins=false}){
-  const gender=avatar?.gender||"male",isMale=gender==="male";
-  const kits=isMale?MALE_KITS:FEMALE_KITS,hairs=isMale?MALE_HAIR:FEMALE_HAIR;
+function AvatarDisplay({avatar,size=80,showCoins=false,coins=0}){
+  const gender=avatar?.gender||"male", isMale=gender==="male";
+  const kits=isMale?MALE_KITS:FEMALE_KITS, hairs=isMale?MALE_HAIR:FEMALE_HAIR;
   const kit=kits.find(k=>k.id===(avatar?.kit||"basic"))||kits[0];
   const hair=hairs.find(h=>h.id===(avatar?.hair||(isMale?"short":"long")))||hairs[0];
   const hasExtra=avatar?.extra;
-  const skin=isMale?"#f5c89a":"#f9d4b0",skinD=isMale?"#e8a876":"#f0b882";
-  const bodyColor=kit.color;
-  const hairColors={short:"#5d3a1a",curly:"#2c1810",mohawk:"#1a1a1a",crown:"#f9a825",fire:"#e53935",long:"#8b4513",bun:"#3e2723",ponytail:"#c0392b",sparkle:"#7b1fa2"};
-  const hc=hairColors[hair.id]||"#5d3a1a";
-  const w=size,h=size*1.5;
+  const skin=isMale?"#f5c89a":"#f9d4b0", skinD=isMale?"#e8a876":"#f0b882";
+  const bc=kit.color;
+  const hc={short:"#5d3a1a",curly:"#2c1810",mohawk:"#1a1a1a",crown:"#f9a825",fire:"#e53935",long:"#8b4513",bun:"#3e2723",ponytail:"#c0392b",sparkle:"#7b1fa2"}[hair.id]||"#5d3a1a";
+  const w=size, h=size*1.5;
   return(
     <div style={{position:"relative",display:"inline-block",width:w,height:h}}>
-      <svg width={w} height={h} viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg">
-        {isMale?<><rect x="35" y="105" width="12" height="28" rx="4" fill="#37474f"/><rect x="53" y="105" width="12" height="28" rx="4" fill="#37474f"/><rect x="33" y="128" width="16" height="8" rx="3" fill="#212121"/><rect x="51" y="128" width="16" height="8" rx="3" fill="#212121"/></>:<><rect x="36" y="108" width="11" height="26" rx="4" fill={bodyColor}/><rect x="53" y="108" width="11" height="26" rx="4" fill={bodyColor}/><rect x="34" y="128" width="15" height="7" rx="3" fill="#e91e63"/><rect x="51" y="128" width="15" height="7" rx="3" fill="#e91e63"/></>}
-        {isMale?<rect x="28" y="72" width="44" height="38" rx="8" fill={bodyColor}/>:<path d="M28 72 Q50 68 72 72 L76 110 Q50 118 24 110 Z" fill={bodyColor}/>}
+      <svg width={w} height={h} viewBox="0 0 100 150">
+        {isMale?<><rect x="35" y="105" width="12" height="28" rx="4" fill="#37474f"/><rect x="53" y="105" width="12" height="28" rx="4" fill="#37474f"/><rect x="33" y="128" width="16" height="8" rx="3" fill="#212121"/><rect x="51" y="128" width="16" height="8" rx="3" fill="#212121"/></>:<><rect x="36" y="108" width="11" height="26" rx="4" fill={bc}/><rect x="53" y="108" width="11" height="26" rx="4" fill={bc}/><rect x="34" y="128" width="15" height="7" rx="3" fill="#e91e63"/><rect x="51" y="128" width="15" height="7" rx="3" fill="#e91e63"/></>}
+        {isMale?<rect x="28" y="72" width="44" height="38" rx="8" fill={bc}/>:<path d="M28 72 Q50 68 72 72 L76 110 Q50 118 24 110 Z" fill={bc}/>}
         <text x="50" y="95" textAnchor="middle" fontSize="14" fill="rgba(255,255,255,0.9)" fontWeight="bold">{kit.body}</text>
-        <rect x="14" y="73" width="15" height="10" rx="5" fill={bodyColor}/><rect x="71" y="73" width="15" height="10" rx="5" fill={bodyColor}/>
+        <rect x="14" y="73" width="15" height="10" rx="5" fill={bc}/><rect x="71" y="73" width="15" height="10" rx="5" fill={bc}/>
         <circle cx="13" cy="82" r="5" fill={skin}/><circle cx="87" cy="82" r="5" fill={skin}/>
         {hasExtra&&isMale&&<rect x="70" y="78" width="16" height="5" rx="2.5" fill="#f9a825" opacity="0.9"/>}
         {hasExtra&&!isMale&&<rect x="71" y="78" width="14" height="5" rx="2.5" fill="#e91e63" opacity="0.9"/>}
@@ -184,7 +213,8 @@ function AvatarDisplay({avatar,name,size=80,coins,showCoins=false}){
         <circle cx="42" cy="47" r="3.2" fill="#4a2c2a"/><circle cx="58" cy="47" r="3.2" fill="#4a2c2a"/>
         <circle cx="42.5" cy="47" r="1.6" fill="#111"/><circle cx="58.5" cy="47" r="1.6" fill="#111"/>
         <circle cx="44" cy="45.5" r="0.9" fill="white"/><circle cx="60" cy="45.5" r="0.9" fill="white"/>
-        {isMale?<><path d="M37 40 Q42 38 47 40" stroke="#4a2c2a" strokeWidth="1.8" fill="none" strokeLinecap="round"/><path d="M53 40 Q58 38 63 40" stroke="#4a2c2a" strokeWidth="1.8" fill="none" strokeLinecap="round"/></>:<><path d="M37 39 Q42 36.5 47 39" stroke="#4a2c2a" strokeWidth="1.5" fill="none" strokeLinecap="round"/><path d="M53 39 Q58 36.5 63 39" stroke="#4a2c2a" strokeWidth="1.5" fill="none" strokeLinecap="round"/></>}
+        <path d="M37 40 Q42 38 47 40" stroke="#4a2c2a" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+        <path d="M53 40 Q58 38 63 40" stroke="#4a2c2a" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
         <path d="M49 50 Q50 54 51 50" stroke={skinD} strokeWidth="1.2" fill="none" strokeLinecap="round"/>
         <path d="M43 57 Q50 63 57 57" stroke="#c0392b" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
         <circle cx="36" cy="55" r="4" fill="#ffb3b3" opacity="0.4"/><circle cx="64" cy="55" r="4" fill="#ffb3b3" opacity="0.4"/>
@@ -199,165 +229,36 @@ function AvatarDisplay({avatar,name,size=80,coins,showCoins=false}){
         {hair.id==="sparkle"&&<><ellipse cx="50" cy="26" rx="22" ry="13" fill={hc}/><rect x="26" y="28" width="8" height="40" rx="4" fill={hc}/><rect x="66" y="28" width="8" height="40" rx="4" fill={hc}/><text x="28" y="22" fontSize="10">✨</text></>}
         {hasExtra&&!isMale&&<path d="M32 30 L36 20 L42 28 L50 15 L58 28 L64 20 L68 30 Z" fill="#f9a825" opacity="0.95"/>}
       </svg>
-      {showCoins&&<div style={{position:"absolute",top:-8,right:-8,background:"linear-gradient(135deg,#f9a825,#ff6f00)",borderRadius:20,padding:"3px 7px",fontSize:11,fontWeight:800,color:"#fff",zIndex:4}}>🪙{coins||0}</div>}
+      {showCoins&&<div style={{position:"absolute",top:-8,right:-8,background:"linear-gradient(135deg,#f9a825,#ff6f00)",borderRadius:20,padding:"3px 7px",fontSize:11,fontWeight:800,color:"#fff"}}>🪙{coins}</div>}
     </div>
   );
 }
 
-// ── LEKSE-OVERSIKT (admin) ──
-function HomeworkPanel({students, onSaveStudents, onBack}) {
-  const [sel, setSel] = useState(students[0]?.id || null);
-  const [msg, setMsg] = useState("");
-  const [label, setLabel] = useState(todayLabel());
-  const [confirmReset, setConfirmReset] = useState(null);
-
-  const st = students.find(s => s.id === sel);
-
-  function getSessionStats(st) {
-    const h = st?.history || [];
-    const qi = h.filter(x => x.source === "quiz");
-    const hi = h.filter(x => x.source === "hangman");
-    const total = qi.length + hi.length;
-    const correct = qi.filter(x => x.correct).length + hi.filter(x => x.correct).length;
-    const pct = total > 0 ? Math.round(correct / total * 100) : null;
-    return { total, correct, pct, quizCount: qi.length, hangmanCount: hi.length };
+// ── PIN PAD ──
+function PinPad({title,subtitle,error,onSubmit,onBack}){
+  const [pin,setPin]=useState("");
+  function press(d){
+    if(pin.length>=4)return;
+    const n=pin+d;setPin(n);
+    if(n.length===4)setTimeout(()=>{onSubmit(n);setPin("");},120);
   }
-
-  function approveAndReset(student) {
-    const stats = getSessionStats(student);
-    const session = {
-      label,
-      date: new Date().toISOString(),
-      quizSessions: student.quizSessions || 0,
-      hangmanSessions: student.hangmanSessions || 0,
-      flashcardSessions: student.flashcardSessions || 0,
-      correct: stats.correct,
-      total: stats.total,
-      pct: stats.pct,
-      approved: true,
-    };
-    const prev = student.homeworkSessions || [];
-    const updated = {
-      ...student,
-      history: [],
-      quizSessions: 0,
-      hangmanSessions: 0,
-      flashcardSessions: 0,
-      mathAddSessions: 0,
-      mathSubtractSessions: 0,
-      mathMultiplySessions: 0,
-      flagSessions: 0,
-      homeworkSessions: [...prev, session],
-    };
-    const ns = students.map(s => s.id === student.id ? updated : s);
-    onSaveStudents(ns);
-    setMsg(`✅ ${student.name} godkjent og nullstilt!`);
-    setConfirmReset(null);
-    setTimeout(() => setMsg(""), 3000);
-  }
-
-  function deleteSession(student, idx) {
-    const prev = student.homeworkSessions || [];
-    const updated = { ...student, homeworkSessions: prev.filter((_, i) => i !== idx) };
-    onSaveStudents(students.map(s => s.id === student.id ? updated : s));
-  }
-
-  const stats = getSessionStats(st);
-  const sessions = st?.homeworkSessions || [];
-
-  const pctColor = p => p === null ? "#aaa" : p >= 80 ? "#2e7d32" : p >= 50 ? "#e65100" : "#c62828";
-  const pctBg = p => p === null ? "#f5f5f5" : p >= 80 ? "#e8f5e9" : p >= 50 ? "#fff3e0" : "#ffebee";
-
-  return (
-    <div style={s.page}>
-      <div style={s.tb}><button style={s.back} onClick={onBack}>← Tilbake</button><span style={s.tt}>📚 Lekser</span></div>
-
-      {/* Elev-velger */}
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
-        {students.map(x => (
-          <button key={x.id} onClick={() => setSel(x.id)} style={{padding:"6px 12px",borderRadius:20,border:"1px solid",borderColor:sel===x.id?"var(--purple)":"#ddd",background:sel===x.id?"var(--pl)":"#fafafa",color:sel===x.id?"var(--pd)":"#555",fontSize:13,cursor:"pointer",fontWeight:sel===x.id?700:400,display:"flex",alignItems:"center",gap:6}}>
-            <AvatarDisplay avatar={x.avatar} name={x.name} size={22}/>{x.name}
-          </button>
-        ))}
-      </div>
-
-      {st && <>
-        {/* Dagens aktivitet */}
-        <div style={{background:"#fff",borderRadius:16,padding:"14px",marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
-          <div style={{fontWeight:800,fontSize:15,marginBottom:10}}>📊 Dagens aktivitet — {st.name}</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
-            {[
-              {icon:"🃏",label:"Flashcards",val:st.flashcardSessions||0},
-              {icon:"🎯",label:"Quiz",val:st.quizSessions||0},
-              {icon:"🪢",label:"Hangman",val:st.hangmanSessions||0},
-            ].map(({icon,label,val}) => (
-              <div key={label} style={{background:"#f9f9f9",borderRadius:10,padding:"10px",textAlign:"center"}}>
-                <div style={{fontSize:18}}>{icon}</div>
-                <div style={{fontSize:18,fontWeight:800}}>{val}</div>
-                <div style={{fontSize:11,color:"var(--t3)"}}>{label}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{background: pctBg(stats.pct), borderRadius:12,padding:"12px",textAlign:"center",marginBottom:12}}>
-            <div style={{fontSize:32,fontWeight:900,color:pctColor(stats.pct)}}>
-              {stats.pct !== null ? `${stats.pct}%` : "–"}
-            </div>
-            <div style={{fontSize:13,color:"var(--t2)"}}>
-              {stats.total > 0 ? `${stats.correct} av ${stats.total} riktige` : "Ingen øvelser ennå"}
-            </div>
-          </div>
-
-          {/* Lekse-label */}
-          <div style={{marginBottom:10}}>
-            <div style={{fontSize:12,color:"var(--t3)",marginBottom:4}}>Navn på leksen:</div>
-            <input style={{...s.input,width:"100%",fontSize:14}} value={label} onChange={e=>setLabel(e.target.value)} placeholder="F.eks. Mandagslekser"/>
-          </div>
-
-          {msg && <div style={{background:"#e8f5e9",borderRadius:10,padding:"10px",marginBottom:10,fontSize:14,fontWeight:700,color:"#2e7d32"}}>{msg}</div>}
-
-          {confirmReset === st.id ? (
-            <div style={{background:"#fff3e0",borderRadius:12,padding:"12px",textAlign:"center"}}>
-              <div style={{fontWeight:700,marginBottom:8}}>Godkjenne og nullstille {st.name}?</div>
-              <div style={{display:"flex",gap:8}}>
-                <button style={{...s.bigBtn,background:"#43a047"}} onClick={() => approveAndReset(st)}>✅ Ja, godkjenn</button>
-                <button style={{...s.bigBtn,...s.btnG}} onClick={() => setConfirmReset(null)}>Avbryt</button>
-              </div>
-            </div>
-          ) : (
-            <button style={{...s.bigBtn,background:"linear-gradient(135deg,#43a047,#2e7d32)"}} onClick={() => setConfirmReset(st.id)}>
-              ✅ Godkjenn og nullstill
-            </button>
-          )}
+  return(
+    <div style={{maxWidth:340,margin:"0 auto",padding:"32px 16px",textAlign:"center"}}>
+      {onBack&&<button style={S.back} onClick={onBack}>← Tilbake</button>}
+      <div style={{paddingTop:onBack?16:0}}>
+        <div style={{fontSize:40,marginBottom:8,animation:"bounce 1.5s infinite"}}>🎓</div>
+        <div style={{fontSize:20,fontWeight:800}}>{title}</div>
+        {subtitle&&<div style={{fontSize:13,color:"var(--t2)",marginTop:4}}>{subtitle}</div>}
+        <div style={{display:"flex",justifyContent:"center",gap:12,margin:"24px 0 8px"}}>
+          {[0,1,2,3].map(i=><div key={i} style={{width:18,height:18,borderRadius:"50%",background:pin.length>i?"var(--purple)":"#e0e0e0",transition:"background 0.15s"}}/>)}
         </div>
-
-        {/* Leksehistorikk */}
-        {sessions.length > 0 && (
-          <div>
-            <div style={{fontSize:13,fontWeight:700,color:"var(--t3)",marginBottom:8}}>📅 Tidligere lekser</div>
-            <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {[...sessions].reverse().map((ses, i) => (
-                <div key={i} style={{background:"#fff",borderRadius:14,padding:"12px 14px",boxShadow:"0 2px 6px rgba(0,0,0,0.05)",display:"flex",alignItems:"center",gap:12}}>
-                  <div style={{width:52,height:52,borderRadius:12,background:pctBg(ses.pct),display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                    <div style={{fontSize:18,fontWeight:900,color:pctColor(ses.pct)}}>{ses.pct !== null ? `${ses.pct}%` : "–"}</div>
-                  </div>
-                  <div style={{flex:1}}>
-                    <div style={{fontWeight:700,fontSize:14}}>{ses.label}</div>
-                    <div style={{fontSize:11,color:"var(--t3)"}}>{new Date(ses.date).toLocaleDateString("no-NO",{weekday:"short",day:"numeric",month:"short"})}</div>
-                    <div style={{fontSize:11,color:"var(--t2)",marginTop:2}}>
-                      🃏{ses.flashcardSessions} · 🎯{ses.quizSessions} · 🪢{ses.hangmanSessions}
-                      {ses.total > 0 && ` · ${ses.correct}/${ses.total} riktige`}
-                    </div>
-                  </div>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-                    <span style={{fontSize:16}}>✅</span>
-                    <button style={{background:"none",border:"none",color:"#ffab91",fontSize:16,cursor:"pointer"}} onClick={() => deleteSession(st, sessions.length-1-i)}>🗑️</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </>}
+        {error&&<div style={{fontSize:12,color:"#e53935",margin:"6px 0"}}>{error}</div>}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginTop:20}}>
+          {[1,2,3,4,5,6,7,8,9].map(d=><button key={d} style={S.pb} onClick={()=>press(String(d))}>{d}</button>)}
+          <div/><button style={S.pb} onClick={()=>press("0")}>0</button>
+          <button style={{...S.pb,color:"var(--t3)"}} onClick={()=>setPin(p=>p.slice(0,-1))}>⌫</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -366,10 +267,9 @@ function HomeworkPanel({students, onSaveStudents, onBack}) {
 function AvatarShop({student,onUpdate,onBack}){
   const [tab,setTab]=useState("gender");
   const [msg,setMsg]=useState("");
-  const purchased=student.purchased||[],coins=student.coins||0;
-  const avatar=student.avatar||{gender:"male",kit:"basic",hair:"short",extra:false};
+  const {purchased=[],coins=0,avatar={}} = student;
   const isMale=(avatar.gender||"male")==="male";
-  const kits=isMale?MALE_KITS:FEMALE_KITS,hairs=isMale?MALE_HAIR:FEMALE_HAIR;
+  const kits=isMale?MALE_KITS:FEMALE_KITS, hairs=isMale?MALE_HAIR:FEMALE_HAIR;
   const extraItem=isMale?ARMBAND:TIARA_ITEM;
   function buy(id,cost,type){
     if(coins<cost){setMsg("Ikke nok coins!");setTimeout(()=>setMsg(""),2000);return;}
@@ -382,38 +282,37 @@ function AvatarShop({student,onUpdate,onBack}){
     if(!free&&!purchased.includes(id))return;
     onUpdate({avatar:{...avatar,[type]:type==="extra"?!avatar.extra:id}});
   }
-  const Row=({icon,bg,label,owned,active,cost,onBuy,onEquip})=>(
+  const Row=({icon,label,owned,active,cost,onBuy,onEquip})=>(
     <div style={{background:"#fff",border:`2px solid ${active?"var(--purple)":"#eee"}`,borderRadius:14,padding:"12px 14px",display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
-      <div style={{width:40,height:40,borderRadius:"50%",background:bg||"#f5f5f5",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{icon}</div>
+      <div style={{fontSize:24,width:36,textAlign:"center"}}>{icon}</div>
       <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{label}</div><div style={{fontSize:12,color:"var(--t3)"}}>{owned?"Eid":"🪙 "+cost}</div></div>
-      {owned?<button style={{...s.sb2,background:active?"var(--purple)":"#f0f0f0",color:active?"#fff":"#333"}} onClick={onEquip}>{active?"På":"Bruk"}</button>
-            :<button style={{...s.sb2,background:"#f9a825",color:"#fff"}} onClick={onBuy}>Kjøp</button>}
+      {owned?<button style={{padding:"7px 14px",borderRadius:10,border:"none",fontSize:13,cursor:"pointer",fontWeight:700,background:active?"var(--purple)":"#f0f0f0",color:active?"#fff":"#333"}} onClick={onEquip}>{active?"På":"Bruk"}</button>
+            :<button style={{padding:"7px 14px",borderRadius:10,border:"none",fontSize:13,cursor:"pointer",fontWeight:700,background:"#f9a825",color:"#fff"}} onClick={onBuy}>Kjøp</button>}
     </div>
   );
   return(
-    <div style={s.page}>
-      <div style={s.tb}><button style={s.back} onClick={onBack}>← Tilbake</button><span style={s.tt}>🛒 Butikk</span></div>
-      <div style={{display:"flex",alignItems:"center",gap:14,background:"#fff",borderRadius:16,padding:"14px",marginBottom:14,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
-        <AvatarDisplay avatar={avatar} name={student.name} size={64} coins={coins} showCoins/>
-        <div><div style={{fontWeight:700,fontSize:15}}>{student.name}</div><div style={{fontSize:14,color:"#f9a825",fontWeight:700}}>🪙 {coins}</div></div>
+    <div style={S.page}>
+      <div style={S.tb}><button style={S.back} onClick={onBack}>← Tilbake</button><span style={S.tt}>🛒 Butikk</span></div>
+      <div style={{display:"flex",alignItems:"center",gap:14,background:"#fff",borderRadius:16,padding:"14px",marginBottom:14}}>
+        <AvatarDisplay avatar={avatar} size={64} coins={coins} showCoins/>
+        <div><div style={{fontWeight:700}}>{student.name}</div><div style={{color:"#f9a825",fontWeight:700}}>🪙 {coins}</div></div>
       </div>
       {msg&&<div style={{background:"#e8f5e9",borderRadius:10,padding:"10px",marginBottom:10,fontSize:14,fontWeight:700,color:"#2e7d32"}}>{msg}</div>}
-      <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
         {["gender","kit","hair","extra"].map(t=>(
-          <button key={t} onClick={()=>setTab(t)} style={{flex:1,minWidth:55,padding:"8px 4px",borderRadius:10,border:"1px solid",borderColor:tab===t?"var(--purple)":"#ddd",background:tab===t?"var(--pl)":"#fafafa",color:tab===t?"var(--pd)":"#555",fontSize:12,cursor:"pointer",fontWeight:tab===t?700:400}}>
-            {t==="gender"?"⚧ Kjønn":t==="kit"?(isMale?"👕 Drakt":"👗 Kjole"):t==="hair"?"💇 Hår":"⭐ Ekstra"}
+          <button key={t} onClick={()=>setTab(t)} style={{flex:1,padding:"8px 4px",borderRadius:10,border:"1px solid",borderColor:tab===t?"var(--purple)":"#ddd",background:tab===t?"var(--pl)":"#fafafa",color:tab===t?"var(--pd)":"#555",fontSize:12,cursor:"pointer",fontWeight:tab===t?700:400}}>
+            {t==="gender"?"⚧":t==="kit"?(isMale?"👕":"👗"):t==="hair"?"💇":"⭐"}
           </button>
         ))}
       </div>
-      {tab==="gender"&&[{g:"male",icon:"⚽",label:"Gutt/Mann",bg:"#e3f2fd"},{g:"female",icon:"👗",label:"Jente/Kvinne",bg:"#fce4ec"}].map(({g,icon,label,bg})=>(
+      {tab==="gender"&&[{g:"male",icon:"⚽",label:"Gutt",bg:"#e3f2fd"},{g:"female",icon:"👗",label:"Jente",bg:"#fce4ec"}].map(({g,icon,label,bg})=>(
         <div key={g} onClick={()=>onUpdate({avatar:{gender:g,kit:"basic",hair:g==="male"?"short":"long",extra:false}})} style={{background:bg,border:`2px solid ${avatar.gender===g?"var(--purple)":"transparent"}`,borderRadius:16,padding:"18px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,marginBottom:10}}>
-          <span style={{fontSize:36}}>{icon}</span><div style={{flex:1}}><div style={{fontWeight:700,fontSize:15}}>{label}</div></div>
-          {avatar.gender===g&&<span style={{fontSize:20}}>✅</span>}
+          <span style={{fontSize:36}}>{icon}</span><div style={{flex:1,fontWeight:700,fontSize:15}}>{label}</div>{avatar.gender===g&&<span>✅</span>}
         </div>
       ))}
-      {tab==="kit"&&kits.map(k=><Row key={k.id} icon={k.body} bg={k.color} label={k.label} owned={purchased.includes(k.id)||k.cost===0} active={avatar.kit===k.id} cost={k.cost} onBuy={()=>buy(k.id,k.cost,"kit")} onEquip={()=>equip(k.id,"kit")}/>)}
-      {tab==="hair"&&hairs.map(h=><Row key={h.id} icon={h.top||"💆"} bg="#f5f5f5" label={h.label} owned={purchased.includes(h.id)||h.cost===0} active={avatar.hair===h.id} cost={h.cost} onBuy={()=>buy(h.id,h.cost,"hair")} onEquip={()=>equip(h.id,"hair")}/>)}
-      {tab==="extra"&&<Row icon={extraItem.emoji} bg="#fff3e0" label={extraItem.label} owned={purchased.includes(extraItem.id)} active={avatar.extra} cost={extraItem.cost} onBuy={()=>buy(extraItem.id,extraItem.cost,"extra")} onEquip={()=>equip(extraItem.id,"extra")}/>}
+      {tab==="kit"&&kits.map(k=><Row key={k.id} icon={k.body} label={k.label} owned={purchased.includes(k.id)||k.cost===0} active={avatar.kit===k.id} cost={k.cost} onBuy={()=>buy(k.id,k.cost,"kit")} onEquip={()=>equip(k.id,"kit")}/>)}
+      {tab==="hair"&&hairs.map(h=><Row key={h.id} icon="💆" label={h.label} owned={purchased.includes(h.id)||h.cost===0} active={avatar.hair===h.id} cost={h.cost} onBuy={()=>buy(h.id,h.cost,"hair")} onEquip={()=>equip(h.id,"hair")}/>)}
+      {tab==="extra"&&<Row icon={extraItem.emoji} label={extraItem.label} owned={purchased.includes(extraItem.id)} active={!!avatar.extra} cost={extraItem.cost} onBuy={()=>buy(extraItem.id,extraItem.cost,"extra")} onEquip={()=>equip(extraItem.id,"extra")}/>}
     </div>
   );
 }
@@ -423,13 +322,12 @@ function PlayerCard({player,size="normal"}){
   const r=RARITY_COLORS[player.rarity]||RARITY_COLORS.silver;
   const sm=size==="small";
   return(
-    <div style={{background:r.bg,borderRadius:sm?10:14,padding:sm?"6px 4px":"14px 10px",textAlign:"center",border:`2px solid ${r.border}`,position:"relative",minWidth:sm?52:80}}>
+    <div style={{background:r.bg,borderRadius:sm?10:14,padding:sm?"6px 4px":"14px 10px",textAlign:"center",border:`2px solid ${r.border}`,minWidth:sm?52:80,position:"relative"}}>
       {player.rarity==="legend"&&!sm&&<div style={{position:"absolute",top:-6,left:"50%",transform:"translateX(-50%)",fontSize:9,background:"#f9a825",color:"#fff",borderRadius:8,padding:"1px 6px",fontWeight:800,whiteSpace:"nowrap"}}>LEGEND</div>}
-      <div style={{fontSize:sm?16:26,marginBottom:2}}>{player.emoji}</div>
-      <div style={{fontSize:sm?14:20,fontWeight:900,color:"#fff",lineHeight:1}}>{player.rating}</div>
+      <div style={{fontSize:sm?16:26}}>{player.emoji}</div>
+      <div style={{fontSize:sm?14:20,fontWeight:900,color:"#fff"}}>{player.rating}</div>
       <div style={{fontSize:sm?7:9,color:"rgba(255,255,255,0.8)",fontWeight:700}}>{player.pos}</div>
-      <div style={{fontSize:sm?8:11,color:"#fff",fontWeight:800,marginTop:2,lineHeight:1.2}}>{sm?player.name.split(" ").pop():player.name}</div>
-      {!sm&&<div style={{fontSize:9,color:"rgba(255,255,255,0.7)",marginTop:1}}>{player.club}</div>}
+      <div style={{fontSize:sm?8:11,color:"#fff",fontWeight:800}}>{sm?player.name.split(" ").pop():player.name}</div>
     </div>
   );
 }
@@ -441,9 +339,13 @@ function PackStore({student,onUpdate,onBack}){
   const [revealed,setRevealed]=useState([]);
   const [revIdx,setRevIdx]=useState(0);
   const [msg,setMsg]=useState("");
-  const coins=student.coins||0,owned=student.playerCards||[];
+  const coins=student.coins||0, owned=student.playerCards||[];
+  function openPack(pack){
+    const pool=PLAYERS.filter(p=>p.rating>=pack.minRating);
+    return Array(3).fill(0).map(()=>pool[Math.floor(Math.random()*pool.length)]);
+  }
   function buyPack(pack){
-    if(coins<pack.price){setMsg("Ikke nok coins! 🪙");setTimeout(()=>setMsg(""),2000);return;}
+    if(coins<pack.price){setMsg("Ikke nok coins!");setTimeout(()=>setMsg(""),2000);return;}
     const players=openPack(pack);
     onUpdate({coins:coins-pack.price});
     setSelPack(pack);setRevealed(players);setRevIdx(0);setPhase("opening");
@@ -455,419 +357,581 @@ function PackStore({student,onUpdate,onBack}){
     if(revIdx+1>=revealed.length)setPhase("reveal");
     else setRevIdx(i=>i+1);
   }
-  if(phase==="opening"){const cur=revealed[revIdx];return(<div style={s.page}><div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontSize:13,color:"var(--t3)",marginBottom:4}}>{selPack.label} · Kort {revIdx+1} av {revealed.length}</div><div style={{fontSize:22,fontWeight:800,marginBottom:20}}>🎴 Hvem får du?</div><div style={{display:"flex",justifyContent:"center",marginBottom:20}}><PlayerCard player={cur}/></div><div style={{fontSize:13,color:"var(--t2)",marginBottom:14}}>{(student.playerCards||[]).includes(cur.id)?"⚠️ Allerede i samlingen":"🆕 Ny spiller!"}</div><button style={s.bigBtn} onClick={revealNext}>{revIdx+1<revealed.length?"Neste kort ▶":"Se alle ✓"}</button></div></div>);}
-  if(phase==="reveal")return(<div style={s.page}><div style={{textAlign:"center",padding:"16px 0 8px"}}><div style={{fontSize:40}}>🎉</div><div style={{fontSize:20,fontWeight:800,margin:"8px 0"}}>Pakke åpnet!</div></div><div style={{display:"flex",gap:10,justifyContent:"center",marginBottom:20,flexWrap:"wrap"}}>{revealed.map((p,i)=><PlayerCard key={i} player={p}/>)}</div><button style={s.bigBtn} onClick={()=>setPhase("store")}>Kjøp flere pakker</button><button style={{...s.bigBtn,...s.btnG,marginTop:10}} onClick={onBack}>Tilbake</button></div>);
-  return(
-    <div style={s.page}>
-      <div style={s.tb}><button style={s.back} onClick={onBack}>← Tilbake</button><span style={s.tt}>🎴 Spillerpakker</span></div>
-      <div style={{background:"linear-gradient(135deg,#1a237e,#283593)",borderRadius:16,padding:"12px 16px",marginBottom:14,display:"flex",alignItems:"center",gap:10}}>
-        <span style={{fontSize:24}}>🪙</span>
-        <div><div style={{color:"white",fontWeight:800,fontSize:16}}>{coins} coins</div><div style={{color:"rgba(255,255,255,0.7)",fontSize:12}}>{owned.length} spillere i samlingen</div></div>
-      </div>
-      {msg&&<div style={{background:"#ffcdd2",borderRadius:10,padding:"10px",marginBottom:10,fontSize:14,fontWeight:700,color:"#c62828",textAlign:"center"}}>{msg}</div>}
-      <div style={{display:"flex",flexDirection:"column",gap:12}}>
-        {PACK_TYPES.map(pack=>(
-          <div key={pack.id} style={{background:pack.bg,borderRadius:18,padding:"16px",boxShadow:"0 4px 16px rgba(0,0,0,0.15)"}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-              <div><div style={{fontWeight:800,fontSize:18,color:"#fff"}}>{pack.label}</div><div style={{fontSize:12,color:"rgba(255,255,255,0.8)"}}>{pack.desc}</div></div>
-              <div style={{fontSize:22,fontWeight:900,color:"#fff"}}>🪙{pack.price}</div>
-            </div>
-            <button onClick={()=>buyPack(pack)} style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:"rgba(255,255,255,0.25)",color:"#fff",fontSize:15,fontWeight:800,cursor:"pointer"}}>{coins>=pack.price?"🎴 Åpne pakke!":"🔒 Ikke nok coins"}</button>
+  if(phase==="opening"){
+    const cur=revealed[revIdx];
+    return(<div style={S.page}><div style={{textAlign:"center",padding:"20px 0"}}>
+      <div style={{fontSize:13,color:"var(--t3)",marginBottom:4}}>{selPack.label} · Kort {revIdx+1}/3</div>
+      <div style={{fontSize:22,fontWeight:800,marginBottom:20}}>🎴 Hvem får du?</div>
+      <div style={{display:"flex",justifyContent:"center",marginBottom:20}}><PlayerCard player={cur}/></div>
+      <div style={{fontSize:13,color:"var(--t2)",marginBottom:14}}>{owned.includes(cur.id)?"⚠️ Allerede i samlingen":"🆕 Ny spiller!"}</div>
+      <button style={S.bigBtn} onClick={revealNext}>{revIdx+1<revealed.length?"Neste kort ▶":"Se alle ✓"}</button>
+    </div></div>);
+  }
+  if(phase==="reveal")return(<div style={S.page}>
+    <div style={{textAlign:"center",padding:"16px 0"}}><div style={{fontSize:40}}>🎉</div><div style={{fontSize:20,fontWeight:800,margin:"8px 0"}}>Pakke åpnet!</div></div>
+    <div style={{display:"flex",gap:10,justifyContent:"center",marginBottom:20}}>{revealed.map((p,i)=><PlayerCard key={i} player={p}/>)}</div>
+    <button style={S.bigBtn} onClick={()=>setPhase("store")}>Kjøp flere</button>
+    <button style={{...S.bigBtn,...S.grayBtn,marginTop:10}} onClick={onBack}>Tilbake</button>
+  </div>);
+  return(<div style={S.page}>
+    <div style={S.tb}><button style={S.back} onClick={onBack}>← Tilbake</button><span style={S.tt}>🎴 Pakker</span></div>
+    <div style={{background:"linear-gradient(135deg,#1a237e,#283593)",borderRadius:16,padding:"12px 16px",marginBottom:14,display:"flex",alignItems:"center",gap:10}}>
+      <span style={{fontSize:24}}>🪙</span>
+      <div><div style={{color:"#fff",fontWeight:800,fontSize:16}}>{coins} coins</div><div style={{color:"rgba(255,255,255,0.7)",fontSize:12}}>{owned.length} spillere</div></div>
+    </div>
+    {msg&&<div style={{background:"#ffcdd2",borderRadius:10,padding:"10px",marginBottom:10,textAlign:"center",fontWeight:700,color:"#c62828"}}>{msg}</div>}
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      {PACK_TYPES.map(pack=>(
+        <div key={pack.id} style={{background:pack.bg,borderRadius:18,padding:"16px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+            <div><div style={{fontWeight:800,fontSize:18,color:"#fff"}}>{pack.label}</div><div style={{fontSize:12,color:"rgba(255,255,255,0.8)"}}>{pack.desc}</div></div>
+            <div style={{fontSize:22,fontWeight:900,color:"#fff"}}>🪙{pack.price}</div>
           </div>
-        ))}
-      </div>
-      {owned.length>0&&<><div style={{fontSize:13,fontWeight:700,color:"var(--t2)",margin:"16px 0 8px"}}>Din samling ({owned.length})</div><div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>{PLAYERS.filter(p=>owned.includes(p.id)).map(p=><PlayerCard key={p.id} player={p} size="small"/>)}</div></>}
-    </div>
-  );
-}
-
-// ── SQUAD BUILDER ──
-function SquadBuilder({student,onUpdate,onBack}){
-  const [selPos,setSelPos]=useState(null);
-  const lineup=student.lineup||Array(11).fill(null);
-  const ownedIds=student.playerCards||[];
-  const ownedPlayers=PLAYERS.filter(p=>ownedIds.includes(p.id));
-  function assignPlayer(pid){const nl=[...lineup];const ei=nl.indexOf(pid);if(ei!==-1)nl[ei]=null;nl[selPos]=pid;onUpdate({lineup:nl});setSelPos(null);}
-  function removePlayer(i){const nl=[...lineup];nl[i]=null;onUpdate({lineup:nl});}
-  return(
-    <div style={s.page}>
-      <div style={s.tb}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.tt}>⚽ Mitt lag</span><span style={{fontSize:12,color:"var(--t3)"}}>{lineup.filter(Boolean).length}/11</span></div>
-      <div style={{position:"relative",width:"100%",maxWidth:360,margin:"0 auto 14px",height:300,background:"linear-gradient(180deg,#2d8a2d,#1a5c1a 50%,#2d8a2d)",borderRadius:16,overflow:"hidden",border:"2px solid rgba(255,255,255,0.2)"}}>
-        <div style={{position:"absolute",top:"50%",left:"10%",right:"10%",height:1,background:"rgba(255,255,255,0.3)"}}/>
-        <div style={{position:"absolute",top:8,left:"25%",width:"50%",height:"22%",border:"1px solid rgba(255,255,255,0.3)",borderBottom:"none"}}/>
-        <div style={{position:"absolute",bottom:8,left:"25%",width:"50%",height:"22%",border:"1px solid rgba(255,255,255,0.3)",borderTop:"none"}}/>
-        <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:50,height:50,border:"1px solid rgba(255,255,255,0.3)",borderRadius:"50%"}}/>
-        {POSITIONS.map((pos,i)=>{
-          const pid=lineup[i],player=pid?PLAYERS.find(p=>p.id===pid):null;
-          const isSel=selPos===i,rc=player?(RARITY_COLORS[player.rarity]?.bg||"#555"):null;
-          return(
-            <div key={pos.id} style={{position:"absolute",left:`${pos.x}%`,top:`${pos.y}%`,transform:"translate(-50%,-50%)",textAlign:"center",zIndex:isSel?10:1}} onClick={()=>setSelPos(isSel?null:i)}>
-              {player?(
-                <div style={{background:rc,borderRadius:10,padding:"3px 5px",border:isSel?"3px solid #fff":"2px solid rgba(255,255,255,0.5)",minWidth:36,cursor:"pointer",position:"relative"}}>
-                  <div style={{fontSize:9,fontWeight:900,color:"#fff",lineHeight:1}}>{player.rating}</div>
-                  <div style={{fontSize:8,color:"rgba(255,255,255,0.85)",fontWeight:700,whiteSpace:"nowrap",maxWidth:40,overflow:"hidden"}}>{player.name.split(" ").pop()}</div>
-                  <div style={{fontSize:7,color:"rgba(255,255,255,0.7)"}}>{player.pos}</div>
-                  {isSel&&<div style={{position:"absolute",top:-8,right:-8,background:"#e53935",borderRadius:"50%",width:14,height:14,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#fff",fontWeight:900,cursor:"pointer"}} onClick={e=>{e.stopPropagation();removePlayer(i);setSelPos(null);}}>✕</div>}
-                </div>
-              ):(
-                <div style={{width:30,height:30,borderRadius:"50%",background:isSel?"rgba(255,255,255,0.5)":"rgba(255,255,255,0.15)",border:`2px dashed ${isSel?"#fff":"rgba(255,255,255,0.5)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"rgba(255,255,255,0.8)",cursor:"pointer"}}>+</div>
-              )}
-              <div style={{fontSize:7,color:"rgba(255,255,255,0.6)",marginTop:2,whiteSpace:"nowrap"}}>{pos.label}</div>
-            </div>
-          );
-        })}
-      </div>
-      {selPos!==null?(
-        <div>
-          <div style={{fontSize:13,fontWeight:700,color:"var(--t2)",marginBottom:8}}>Velg spiller til <strong>{POSITIONS[selPos].label}</strong>:</div>
-          {ownedPlayers.length===0?<div style={{textAlign:"center",padding:"20px",color:"var(--t3)"}}>Ingen spillere ennå — kjøp pakker! 🎴</div>:(
-            <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:250,overflowY:"auto"}}>
-              {ownedPlayers.map(p=>{const inSlot=lineup.indexOf(p.id),r=RARITY_COLORS[p.rarity]||RARITY_COLORS.silver;return(<div key={p.id} onClick={()=>assignPlayer(p.id)} style={{display:"flex",alignItems:"center",gap:12,background:inSlot!==-1?"#f5f5f5":"#fff",borderRadius:12,padding:"10px 12px",cursor:"pointer",border:`2px solid ${inSlot!==-1?"#ddd":r.border}`,opacity:inSlot!==-1?0.6:1}}><div style={{background:r.bg,borderRadius:8,padding:"4px 8px",minWidth:34,textAlign:"center"}}><div style={{fontSize:13,fontWeight:900,color:"#fff"}}>{p.rating}</div><div style={{fontSize:8,color:"rgba(255,255,255,0.8)",fontWeight:700}}>{p.pos}</div></div><div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{p.name}</div><div style={{fontSize:12,color:"var(--t3)"}}>{p.club}</div></div><div style={{fontSize:18}}>{p.emoji}</div>{inSlot!==-1&&<div style={{fontSize:11,color:"#888",fontWeight:600}}>På banen</div>}</div>);})}
-            </div>
-          )}
-          <button style={{...s.bigBtn,...s.btnG,marginTop:10}} onClick={()=>setSelPos(null)}>Avbryt</button>
+          <button onClick={()=>buyPack(pack)} style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:"rgba(255,255,255,0.25)",color:"#fff",fontSize:15,fontWeight:800,cursor:"pointer"}}>
+            {coins>=pack.price?"🎴 Åpne pakke!":"🔒 Ikke nok coins"}
+          </button>
         </div>
-      ):(
-        <div>
-          <div style={{fontSize:13,color:"var(--t3)",textAlign:"center",marginBottom:10}}>Trykk på en posisjon for å velge spiller</div>
-          <button style={{...s.bigBtn,background:"linear-gradient(135deg,#f9a825,#ff8f00)"}} onClick={()=>onBack("packs")}>🎴 Kjøp spillerpakker</button>
-        </div>
-      )}
+      ))}
     </div>
-  );
+    {owned.length>0&&<><div style={{fontSize:13,fontWeight:700,color:"var(--t2)",margin:"16px 0 8px"}}>Din samling ({owned.length})</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>{PLAYERS.filter(p=>owned.includes(p.id)).map(p=><PlayerCard key={p.id} player={p} size="small"/>)}</div></>}
+  </div>);
 }
 
 // ── LEADERBOARD ──
 function Leaderboard({students,onBack}){
-  return(
-    <div style={s.page}>
-      <div style={s.tb}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.tt}>🏆 Poengtavle</span></div>
-      <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:8}}>
-        {[...students].sort((a,b)=>(b.coins||0)-(a.coins||0)).map((st,i)=>(
-          <div key={st.id} style={{background:"#fff",borderRadius:14,padding:"14px",display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
-            <div style={{fontSize:22,minWidth:28}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":`${i+1}.`}</div>
-            <AvatarDisplay avatar={st.avatar} name={st.name} size={44}/>
-            <div style={{flex:1}}><div style={{fontWeight:700,fontSize:15}}>{st.name}</div><div style={{fontSize:12,color:"#888"}}>{(st.club||CLUBS[0]).name}</div></div>
-            <div style={{textAlign:"right"}}><div style={{fontSize:20,fontWeight:700,color:"#f9a825"}}>🪙{st.coins||0}</div><div style={{fontSize:11,color:"var(--t3)"}}>{st.points||0}p</div></div>
-          </div>
-        ))}
+  return(<div style={S.page}>
+    <div style={S.tb}><button style={S.back} onClick={onBack}>← Hjem</button><span style={S.tt}>🏆 Poengtavle</span></div>
+    {[...students].sort((a,b)=>(b.coins||0)-(a.coins||0)).map((st,i)=>(
+      <div key={st.id} style={{background:"#fff",borderRadius:14,padding:"14px",display:"flex",alignItems:"center",gap:12,marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+        <div style={{fontSize:22,minWidth:28}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":`${i+1}.`}</div>
+        <AvatarDisplay avatar={st.avatar} size={44}/>
+        <div style={{flex:1}}><div style={{fontWeight:700}}>{st.name}</div><div style={{fontSize:12,color:"#888"}}>{(st.club||CLUBS[0]).name}</div></div>
+        <div style={{textAlign:"right"}}><div style={{fontSize:20,fontWeight:700,color:"#f9a825"}}>🪙{st.coins||0}</div></div>
       </div>
-    </div>
-  );
+    ))}
+  </div>);
 }
 
 // ── FLAG QUIZ ──
 function FlagQuiz({onBack,addCoins,onDone}){
   const [deck]=useState(()=>getDailyFlags());
-  const [idx,setIdx]=useState(0);const [chosen,setChosen]=useState(null);const [score,setScore]=useState(0);const [done,setDone]=useState(false);const [choices,setChoices]=useState([]);
-  function makeChoices(i){const correct=deck[i];setChoices(shuffle([correct,...shuffle(FLAGS.filter(f=>f.code!==correct.code)).slice(0,3)]));setChosen(null);}
+  const [idx,setIdx]=useState(0);
+  const [chosen,setChosen]=useState(null);
+  const [score,setScore]=useState(0);
+  const [done,setDone]=useState(false);
+  const [choices,setChoices]=useState([]);
+  function makeChoices(i){
+    setChoices(shuffle([deck[i],...shuffle(FLAGS.filter(f=>f.code!==deck[i].code)).slice(0,3)]));
+    setChosen(null);
+  }
   useEffect(()=>{makeChoices(0);},[]);
-  function pick(flag){if(chosen)return;setChosen(flag.code);const ok=flag.code===deck[idx].code;if(ok){setScore(sc=>sc+1);if(addCoins)addCoins(1);}setTimeout(()=>{if(idx+1>=deck.length){if(onDone)onDone();setDone(true);}else{setIdx(i=>{makeChoices(i+1);return i+1;});}},1000);}
-  if(done)return(<div style={s.page}><div style={s.rb}><div style={{fontSize:64}}>{score>=18?"🏆":score>=12?"🌟":"💪"}</div><div style={s.rt}>Flaggquiz ferdig!</div><div style={s.rs}>{score} av {deck.length} riktige</div><div style={{fontSize:16,color:"#f9a825",fontWeight:700}}>+{score} 🪙</div><button style={{...s.bigBtn,...s.btnG}} onClick={onBack}>Hjem</button></div></div>);
+  function pick(flag){
+    if(chosen)return;
+    setChosen(flag.code);
+    const ok=flag.code===deck[idx].code;
+    if(ok){setScore(sc=>sc+1);if(addCoins)addCoins(1);}
+    setTimeout(()=>{
+      if(idx+1>=deck.length){if(onDone)onDone();setDone(true);}
+      else{setIdx(i=>{makeChoices(i+1);return i+1;});}
+    },1000);
+  }
+  if(done)return(<div style={S.page}><div style={S.rb}>
+    <div style={{fontSize:64}}>{score>=18?"🏆":score>=12?"🌟":"💪"}</div>
+    <div style={{fontSize:24,fontWeight:800}}>Flaggquiz ferdig!</div>
+    <div style={{fontSize:17,color:"var(--t2)"}}>{score} av {deck.length} riktige</div>
+    <div style={{fontSize:16,color:"#f9a825",fontWeight:700}}>+{score} 🪙</div>
+    <button style={{...S.bigBtn,...S.grayBtn}} onClick={onBack}>Hjem</button>
+  </div></div>);
   const cur=deck[idx];
-  return(
-    <div style={s.page}>
-      <div style={s.tb}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.tt}>🌍 Flaggquiz</span><span style={{fontSize:14,fontWeight:700}}>⭐{score}</span></div>
-      <div style={s.prog}>{idx+1}/{deck.length}</div>
-      <div style={{textAlign:"center",marginBottom:20}}>
-        <div style={{fontSize:13,color:"var(--t3)",marginBottom:12}}>Hvilket land er dette?</div>
-        <img src={`https://flagcdn.com/w160/${cur.code.toLowerCase()}.png`} alt={cur.code} style={{width:160,height:100,objectFit:"cover",borderRadius:10,border:"1px solid #ddd",boxShadow:"0 4px 12px rgba(0,0,0,0.15)"}}/>
-      </div>
-      <div style={s.cg}>{choices.map((f,i)=>{let bg="#fff",border="1px solid #ddd";if(chosen){if(f.code===cur.code){bg="#d4f7d4";border="2px solid #43a047";}else if(f.code===chosen){bg="#fdd";border="2px solid #e53935";}}return<button key={i} style={{...s.choice,background:bg,border,fontSize:14,padding:"16px 8px",fontWeight:600}} onClick={()=>pick(f)}>{f.name}</button>;})}</div>
+  return(<div style={S.page}>
+    <div style={S.tb}><button style={S.back} onClick={onBack}>← Hjem</button><span style={S.tt}>🌍 Flaggquiz</span><span style={{fontSize:14,fontWeight:700}}>⭐{score}</span></div>
+    <div style={S.prog}>{idx+1}/{deck.length}</div>
+    <div style={{textAlign:"center",marginBottom:20}}>
+      <div style={{fontSize:13,color:"var(--t3)",marginBottom:12}}>Hvilket land er dette?</div>
+      <img src={`https://flagcdn.com/w160/${cur.code.toLowerCase()}.png`} alt={cur.code} style={{width:160,height:100,objectFit:"cover",borderRadius:10,border:"1px solid #ddd",boxShadow:"0 4px 12px rgba(0,0,0,0.15)"}}/>
     </div>
-  );
+    <div style={S.cg}>{choices.map((f,i)=>{
+      let bg="#fff",border="1px solid #ddd";
+      if(chosen){if(f.code===cur.code){bg="#d4f7d4";border="2px solid #43a047";}else if(f.code===chosen){bg="#fdd";border="2px solid #e53935";}}
+      return<button key={i} style={{...S.choice,background:bg,border,fontSize:14,padding:"16px 8px"}} onClick={()=>pick(f)}>{f.name}</button>;
+    })}</div>
+  </div>);
 }
 
 // ── GEO MENU ──
 function GeoMenu({onBack,addCoins,onFlagDone}){
   const [mode,setMode]=useState(null);
   if(mode==="flags")return<FlagQuiz onBack={()=>setMode(null)} addCoins={addCoins} onDone={onFlagDone}/>;
-  return(
-    <div style={s.page}>
-      <div style={s.tb}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.tt}>🌍 Geografi</span></div>
-      <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:8}}>
-        <button onClick={()=>setMode("flags")} style={{background:"linear-gradient(135deg,#c8e6c9,#a5d6a7)",border:"none",borderRadius:16,padding:"20px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",textAlign:"left"}}>
-          <span style={{fontSize:36}}>🌍</span><div><div style={{fontWeight:800,fontSize:16}}>Flaggquiz</div><div style={{fontSize:13,color:"#555",marginTop:2}}>Gjett landet fra flagget · 20 flagg daglig</div></div>
-        </button>
-        <div style={{background:"#f5f5f5",border:"none",borderRadius:16,padding:"20px",display:"flex",alignItems:"center",gap:14,opacity:0.5}}>
-          <span style={{fontSize:36}}>🗺️</span><div><div style={{fontWeight:800,fontSize:16}}>Geografiquiz</div><div style={{fontSize:13,color:"#555",marginTop:2}}>Kommer snart!</div></div>
-        </div>
-      </div>
+  return(<div style={S.page}>
+    <div style={S.tb}><button style={S.back} onClick={onBack}>← Hjem</button><span style={S.tt}>🌍 Geografi</span></div>
+    <button onClick={()=>setMode("flags")} style={{background:"linear-gradient(135deg,#c8e6c9,#a5d6a7)",border:"none",borderRadius:16,padding:"20px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",width:"100%",textAlign:"left",marginBottom:12}}>
+      <span style={{fontSize:36}}>🌍</span><div><div style={{fontWeight:800,fontSize:16}}>Flaggquiz</div><div style={{fontSize:13,color:"#555"}}>Gjett landet fra flagget · 20 flagg daglig</div></div>
+    </button>
+    <div style={{background:"#f5f5f5",borderRadius:16,padding:"20px",display:"flex",alignItems:"center",gap:14,opacity:0.5}}>
+      <span style={{fontSize:36}}>🗺️</span><div><div style={{fontWeight:800,fontSize:16}}>Geografiquiz</div><div style={{fontSize:13,color:"#555"}}>Kommer snart!</div></div>
     </div>
-  );
+  </div>);
 }
 
 // ── HANGMAN ──
 function HangmanGame({gloser,onBack,onCorrect,onDone,onRecord}){
   const [deck]=useState(()=>shuffle(gloser).slice(0,10));
-  const [idx,setIdx]=useState(0);const [guessed,setGuessed]=useState(new Set());const [score,setScore]=useState(0);const [done,setDone]=useState(false);
-  const word=deck[idx]?.en||"",hint=deck[idx]?.no||"";
+  const [idx,setIdx]=useState(0);
+  const [guessed,setGuessed]=useState(new Set());
+  const [score,setScore]=useState(0);
+  const [done,setDone]=useState(false);
+  const word=deck[idx]?.en||"", hint=deck[idx]?.no||"";
   const letters=word.split("");
   const wrong=[...guessed].filter(l=>!letters.includes(l));
-  const wc=wrong.length,won=letters.every(l=>guessed.has(l)),lost=wc>=MAX_WRONG,fin=won||lost;
+  const wc=wrong.length, won=letters.length>0&&letters.every(l=>guessed.has(l)), lost=wc>=MAX_WRONG, fin=won||lost;
   function guess(l){
     if(fin||guessed.has(l))return;
     const nx=new Set(guessed);nx.add(l);setGuessed(nx);
     const nowWrong=[...nx].filter(g=>!letters.includes(g)).length;
     const nowWon=letters.every(c=>nx.has(c));
-    const nowLost=nowWrong>=MAX_WRONG;
     if(nowWon){setScore(sc=>sc+1);if(onCorrect)onCorrect();if(onRecord)onRecord(deck[idx].en,true);}
-    else if(nowLost){if(onRecord)onRecord(deck[idx].en,false);}
+    else if(nowWrong>=MAX_WRONG){if(onRecord)onRecord(deck[idx].en,false);}
   }
-  function next(){if(idx+1>=deck.length){if(onDone)onDone();setDone(true);return;}setIdx(i=>i+1);setGuessed(new Set());}
+  function next(){
+    if(idx+1>=deck.length){if(onDone)onDone();setDone(true);return;}
+    setIdx(i=>i+1);setGuessed(new Set());
+  }
   const alpha="abcdefghijklmnopqrstuvwxyz".split("");
-  if(done)return(<div style={s.page}><div style={s.rb}><div style={{fontSize:64}}>{score===deck.length?"🏆":score>=deck.length*0.6?"🌟":"💪"}</div><div style={s.rt}>Ferdig!</div><div style={s.rs}>{score} av {deck.length}!</div><div style={{fontSize:16,color:"#f9a825",fontWeight:700}}>+{score} 🪙</div><button style={s.bigBtn} onClick={()=>{setIdx(0);setGuessed(new Set());setScore(0);setDone(false);}}>Prøv igjen</button><button style={{...s.bigBtn,...s.btnG}} onClick={onBack}>Hjem</button></div></div>);
-  return(
-    <div style={s.page}>
-      <div style={s.tb}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.tt}>Hangman</span><span style={{fontSize:14,fontWeight:700}}>⭐{score}</span></div>
-      <div style={s.prog}>{idx+1}/{deck.length}</div>
-      <div style={{display:"flex",justifyContent:"center",marginBottom:4}}>
-        <svg viewBox="0 0 120 130" width="120" height="130">
-          <line x1="10" y1="125" x2="110" y2="125" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
-          <line x1="30" y1="125" x2="30" y2="10" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
-          <line x1="30" y1="10" x2="75" y2="10" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
-          <line x1="75" y1="10" x2="75" y2="25" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
-          {wc>=1&&<circle cx="75" cy="33" r="8" stroke="#e53935" strokeWidth="2.5" fill="none"/>}
-          {wc>=2&&<><line x1="75" y1="41" x2="75" y2="70" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="50" x2="58" y2="62" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="50" x2="92" y2="62" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/></>}
-          {wc>=3&&<><line x1="75" y1="70" x2="62" y2="88" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="70" x2="88" y2="88" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/></>}
-        </svg>
-      </div>
-      <div style={{textAlign:"center",fontSize:13,color:"var(--t2)",marginBottom:6}}>Norsk: <strong>{hint}</strong></div>
-      <div style={{display:"flex",justifyContent:"center",gap:6,flexWrap:"wrap",margin:"8px 0 12px"}}>
-        {letters.map((l,i)=><div key={i} style={s.lb}>{guessed.has(l)?<span style={{fontSize:20,fontWeight:700}}>{l}</span>:<span style={{color:"#ddd"}}>_</span>}</div>)}
-      </div>
-      {wrong.length>0&&<div style={{textAlign:"center",fontSize:12,color:"#e57373",marginBottom:6}}>Feil: {wrong.join("  ")} ({MAX_WRONG-wc} igjen)</div>}
-      {fin?(<div style={{textAlign:"center",marginBottom:14}}>{won?<div style={{fontSize:20,color:"#43a047",fontWeight:700}}>🎉 Bra!</div>:<div style={{fontSize:15,color:"#e53935"}}>Ordet var: <strong>{word}</strong></div>}<button style={{...s.bigBtn,marginTop:12}} onClick={next}>{idx+1<deck.length?"Neste ▶":"Se resultat"}</button></div>):(<div style={s.kb}>{alpha.map(l=><button key={l} style={{...s.key,background:guessed.has(l)?(letters.includes(l)?"#c8e6c9":"#ffcdd2"):"#f5f5f5",color:guessed.has(l)?"#999":"#222",cursor:guessed.has(l)?"default":"pointer"}} onClick={()=>guess(l)}>{l}</button>)}</div>)}
+  if(done)return(<div style={S.page}><div style={S.rb}>
+    <div style={{fontSize:64}}>{score===deck.length?"🏆":score>=deck.length*0.6?"🌟":"💪"}</div>
+    <div style={{fontSize:24,fontWeight:800}}>Ferdig!</div>
+    <div style={{fontSize:17,color:"var(--t2)"}}>{score} av {deck.length}</div>
+    <div style={{fontSize:16,color:"#f9a825",fontWeight:700}}>+{score} 🪙</div>
+    <button style={S.bigBtn} onClick={()=>{setIdx(0);setGuessed(new Set());setScore(0);setDone(false);}}>Prøv igjen</button>
+    <button style={{...S.bigBtn,...S.grayBtn}} onClick={onBack}>Hjem</button>
+  </div></div>);
+  return(<div style={S.page}>
+    <div style={S.tb}><button style={S.back} onClick={onBack}>← Hjem</button><span style={S.tt}>🪢 Hangman</span><span style={{fontSize:14,fontWeight:700}}>⭐{score}</span></div>
+    <div style={S.prog}>{idx+1}/{deck.length}</div>
+    <div style={{display:"flex",justifyContent:"center",marginBottom:4}}>
+      <svg viewBox="0 0 120 130" width="120" height="130">
+        <line x1="10" y1="125" x2="110" y2="125" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
+        <line x1="30" y1="125" x2="30" y2="10" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
+        <line x1="30" y1="10" x2="75" y2="10" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
+        <line x1="75" y1="10" x2="75" y2="25" stroke="#555" strokeWidth="3" strokeLinecap="round"/>
+        {wc>=1&&<circle cx="75" cy="33" r="8" stroke="#e53935" strokeWidth="2.5" fill="none"/>}
+        {wc>=2&&<><line x1="75" y1="41" x2="75" y2="70" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="50" x2="58" y2="62" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="50" x2="92" y2="62" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/></>}
+        {wc>=3&&<><line x1="75" y1="70" x2="62" y2="88" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/><line x1="75" y1="70" x2="88" y2="88" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round"/></>}
+      </svg>
     </div>
-  );
+    <div style={{textAlign:"center",fontSize:13,color:"var(--t2)",marginBottom:6}}>Norsk: <strong>{hint}</strong></div>
+    <div style={{display:"flex",justifyContent:"center",gap:6,flexWrap:"wrap",margin:"8px 0 12px"}}>
+      {letters.map((l,i)=><div key={i} style={S.lb}>{guessed.has(l)?<span style={{fontSize:20,fontWeight:700}}>{l}</span>:<span style={{color:"#ddd"}}>_</span>}</div>)}
+    </div>
+    {wrong.length>0&&<div style={{textAlign:"center",fontSize:12,color:"#e57373",marginBottom:6}}>Feil: {wrong.join(" ")} ({MAX_WRONG-wc} igjen)</div>}
+    {fin?(<div style={{textAlign:"center",marginBottom:14}}>
+      {won?<div style={{fontSize:20,color:"#43a047",fontWeight:700}}>🎉 Bra!</div>:<div style={{fontSize:15,color:"#e53935"}}>Ordet var: <strong>{word}</strong></div>}
+      <button style={{...S.bigBtn,marginTop:12}} onClick={next}>{idx+1<deck.length?"Neste ▶":"Se resultat"}</button>
+    </div>):(<div style={S.kb}>
+      {alpha.map(l=><button key={l} style={{...S.key,background:guessed.has(l)?(letters.includes(l)?"#c8e6c9":"#ffcdd2"):"#f5f5f5",color:guessed.has(l)?"#999":"#222"}} onClick={()=>guess(l)}>{l}</button>)}
+    </div>)}
+  </div>);
 }
 
 // ── MATHS ──
-function MathGame({onBack,addCoins,mode,onDone}){
-  const [score,setScore]=useState(0);const [q,setQ]=useState(null);const [chosen,setChosen]=useState(null);const [done,setDone]=useState(false);const [round,setRound]=useState(0);
+function MathGame({mode,onBack,addCoins,onDone}){
+  const [score,setScore]=useState(0);
+  const [q,setQ]=useState(null);
+  const [chosen,setChosen]=useState(null);
+  const [done,setDone]=useState(false);
+  const [round,setRound]=useState(0);
   const TOTAL=10;
-  function newQ(){let a,b,answer,op;if(mode==="multiply"){a=Math.floor(Math.random()*10)+1;b=Math.floor(Math.random()*10)+1;answer=a*b;op="×";}else if(mode==="add"){a=Math.floor(Math.random()*20)+1;b=Math.floor(Math.random()*20)+1;answer=a+b;op="+";}else{a=Math.floor(Math.random()*20)+10;b=Math.floor(Math.random()*a)+1;answer=a-b;op="−";}const wrong=new Set();while(wrong.size<3){let w=answer+(Math.floor(Math.random()*8)-4);if(w!==answer&&w>0)wrong.add(w);}setQ({a,b,answer,op,choices:shuffle([answer,...wrong])});setChosen(null);}
-  useEffect(()=>{newQ();},[mode]);
-  function pick(val){if(chosen!==null)return;setChosen(val);if(val===q.answer){setScore(sc=>sc+1);if(addCoins)addCoins(1);}setTimeout(()=>{if(round+1>=TOTAL){if(onDone)onDone();setDone(true);}else{setRound(r=>r+1);newQ();}},900);}
+  function newQ(){
+    let a,b,answer,op;
+    if(mode==="multiply"){a=Math.floor(Math.random()*10)+1;b=Math.floor(Math.random()*10)+1;answer=a*b;op="×";}
+    else if(mode==="add"){a=Math.floor(Math.random()*20)+1;b=Math.floor(Math.random()*20)+1;answer=a+b;op="+";}
+    else{a=Math.floor(Math.random()*20)+10;b=Math.floor(Math.random()*a)+1;answer=a-b;op="−";}
+    const wrong=new Set();
+    while(wrong.size<3){const w=answer+(Math.floor(Math.random()*8)-4);if(w!==answer&&w>0)wrong.add(w);}
+    setQ({a,b,answer,op,choices:shuffle([answer,...wrong])});setChosen(null);
+  }
+  useEffect(()=>{newQ();},[]);
+  function pick(val){
+    if(chosen!==null)return;setChosen(val);
+    if(val===q.answer){setScore(sc=>sc+1);if(addCoins)addCoins(1);}
+    setTimeout(()=>{
+      if(round+1>=TOTAL){if(onDone)onDone();setDone(true);}
+      else{setRound(r=>r+1);newQ();}
+    },900);
+  }
   const colors={multiply:"#e0f7fa",add:"#e8f5e9",subtract:"#fff3e0"};
   const titles={multiply:"✖️ Ganging",add:"➕ Addisjon",subtract:"➖ Subtraksjon"};
-  if(done)return(<div style={s.page}><div style={s.rb}><div style={{fontSize:64}}>{score>=9?"🏆":score>=6?"🌟":"💪"}</div><div style={s.rt}>Ferdig!</div><div style={s.rs}>{score} av {TOTAL}</div><div style={{fontSize:16,color:"#f9a825",fontWeight:700}}>+{score} 🪙</div><button style={s.bigBtn} onClick={()=>{setScore(0);setRound(0);setDone(false);newQ();}}>Prøv igjen</button><button style={{...s.bigBtn,...s.btnG}} onClick={onBack}>Hjem</button></div></div>);
+  if(done)return(<div style={S.page}><div style={S.rb}>
+    <div style={{fontSize:64}}>{score>=9?"🏆":score>=6?"🌟":"💪"}</div>
+    <div style={{fontSize:24,fontWeight:800}}>Ferdig!</div>
+    <div style={{fontSize:17,color:"var(--t2)"}}>{score} av {TOTAL}</div>
+    <div style={{fontSize:16,color:"#f9a825",fontWeight:700}}>+{score} 🪙</div>
+    <button style={S.bigBtn} onClick={()=>{setScore(0);setRound(0);setDone(false);newQ();}}>Prøv igjen</button>
+    <button style={{...S.bigBtn,...S.grayBtn}} onClick={onBack}>Hjem</button>
+  </div></div>);
   if(!q)return null;
-  return(<div style={s.page}><div style={s.tb}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.tt}>{titles[mode]}</span><span style={{fontSize:14,fontWeight:700}}>⭐{score}</span></div><div style={s.prog}>{round+1}/{TOTAL}</div><div style={{background:colors[mode],borderRadius:20,padding:"36px 24px",textAlign:"center",marginBottom:20}}><div style={{fontSize:13,color:"var(--t3)",marginBottom:6}}>Hva er?</div><div style={{fontSize:50,fontWeight:800}}>{q.a} {q.op} {q.b} = ?</div></div><div style={s.cg}>{q.choices.map((c,i)=>{let bg="#fff";if(chosen!==null){if(c===q.answer)bg="#d4f7d4";else if(c===chosen)bg="#fdd";}return<button key={i} style={{...s.choice,background:bg,fontSize:26,fontWeight:700,padding:"20px 8px"}} onClick={()=>pick(c)}>{c}</button>;})}</div></div>);
+  return(<div style={S.page}>
+    <div style={S.tb}><button style={S.back} onClick={onBack}>← Hjem</button><span style={S.tt}>{titles[mode]}</span><span style={{fontSize:14,fontWeight:700}}>⭐{score}</span></div>
+    <div style={S.prog}>{round+1}/{TOTAL}</div>
+    <div style={{background:colors[mode],borderRadius:20,padding:"36px 24px",textAlign:"center",marginBottom:20}}>
+      <div style={{fontSize:13,color:"var(--t3)",marginBottom:6}}>Hva er?</div>
+      <div style={{fontSize:50,fontWeight:800}}>{q.a} {q.op} {q.b} = ?</div>
+    </div>
+    <div style={S.cg}>{q.choices.map((c,i)=>{
+      let bg="#fff";
+      if(chosen!==null){if(c===q.answer)bg="#d4f7d4";else if(c===chosen)bg="#fdd";}
+      return<button key={i} style={{...S.choice,background:bg,fontSize:26,fontWeight:700,padding:"20px 8px"}} onClick={()=>pick(c)}>{c}</button>;
+    })}</div>
+  </div>);
 }
 function MathMenu({onBack,addCoins,onDone}){
   const [mode,setMode]=useState(null);
-  if(mode)return<MathGame onBack={()=>setMode(null)} addCoins={addCoins} mode={mode} onDone={()=>{if(onDone)onDone(mode);setMode(null);}}/>;
-  return(<div style={s.page}><div style={s.tb}><button style={s.back} onClick={onBack}>← Hjem</button><span style={s.tt}>🔢 Matte</span></div><div style={{display:"flex",flexDirection:"column",gap:12,marginTop:8}}>{[{mode:"add",icon:"➕",label:"Addisjon",desc:"Pluss opp til 40",bg:"#e8f5e9"},{mode:"subtract",icon:"➖",label:"Subtraksjon",desc:"Minus opp til 30",bg:"#fff3e0"},{mode:"multiply",icon:"✖️",label:"Gangetabell",desc:"1–10 gangen",bg:"#e0f7fa"}].map(({mode:m,icon,label,desc,bg})=>(<button key={m} onClick={()=>setMode(m)} style={{background:bg,border:"1px solid #eee",borderRadius:16,padding:"18px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",textAlign:"left"}}><span style={{fontSize:34}}>{icon}</span><div><div style={{fontWeight:700,fontSize:16}}>{label}</div><div style={{fontSize:13,color:"var(--t2)",marginTop:2}}>{desc}</div></div></button>))}</div></div>);
+  if(mode)return<MathGame mode={mode} onBack={()=>setMode(null)} addCoins={addCoins} onDone={()=>{if(onDone)onDone(mode);setMode(null);}}/>;
+  return(<div style={S.page}>
+    <div style={S.tb}><button style={S.back} onClick={onBack}>← Hjem</button><span style={S.tt}>🔢 Matte</span></div>
+    {[{m:"add",icon:"➕",label:"Addisjon",desc:"Pluss opp til 40",bg:"#e8f5e9"},{m:"subtract",icon:"➖",label:"Subtraksjon",desc:"Minus opp til 30",bg:"#fff3e0"},{m:"multiply",icon:"✖️",label:"Gangetabell",desc:"1–10 gangen",bg:"#e0f7fa"}].map(({m,icon,label,desc,bg})=>(
+      <button key={m} onClick={()=>setMode(m)} style={{background:bg,border:"1px solid #eee",borderRadius:16,padding:"18px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",width:"100%",textAlign:"left",marginBottom:12}}>
+        <span style={{fontSize:34}}>{icon}</span><div><div style={{fontWeight:700,fontSize:16}}>{label}</div><div style={{fontSize:13,color:"var(--t2)"}}>{desc}</div></div>
+      </button>
+    ))}
+  </div>);
+}
+
+// ── HOMEWORK PANEL ──
+function HomeworkPanel({students,onSaveStudents,onBack}){
+  const [sel,setSel]=useState(students[0]?.id||null);
+  const [msg,setMsg]=useState("");
+  const [label,setLabel]=useState(()=>{
+    const d=new Date();
+    const days=["Søndag","Mandag","Tirsdag","Onsdag","Torsdag","Fredag","Lørdag"];
+    return `${days[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()}`;
+  });
+  const [confirmReset,setConfirmReset]=useState(null);
+  const st=students.find(s=>s.id===sel);
+
+  function getStats(st){
+    const h=st?.history||[];
+    const qi=h.filter(x=>x.source==="quiz");
+    const hi=h.filter(x=>x.source==="hangman");
+    const total=qi.length+hi.length;
+    const correct=qi.filter(x=>x.correct).length+hi.filter(x=>x.correct).length;
+    return{total,correct,pct:total>0?Math.round(correct/total*100):null};
+  }
+
+  function approveAndReset(student){
+    const stats=getStats(student);
+    const session={label,date:new Date().toISOString(),quizSessions:student.quizSessions||0,hangmanSessions:student.hangmanSessions||0,flashcardSessions:student.flashcardSessions||0,correct:stats.correct,total:stats.total,pct:stats.pct,approved:true};
+    const updated={...student,history:[],quizSessions:0,hangmanSessions:0,flashcardSessions:0,mathAddSessions:0,mathSubtractSessions:0,mathMultiplySessions:0,flagSessions:0,bonusGivenDate:"",homeworkSessions:[...(student.homeworkSessions||[]),session]};
+    onSaveStudents(students.map(s=>s.id===student.id?updated:s));
+    setMsg(`✅ ${student.name} godkjent og nullstilt!`);setConfirmReset(null);
+    setTimeout(()=>setMsg(""),3000);
+  }
+
+  function deleteSession(student,i){
+    const sessions=[...(student.homeworkSessions||[])];sessions.splice(i,1);
+    onSaveStudents(students.map(s=>s.id===student.id?{...s,homeworkSessions:sessions}:s));
+  }
+
+  const stats=getStats(st);
+  const pctColor=p=>p===null?"#aaa":p>=80?"#2e7d32":p>=50?"#e65100":"#c62828";
+  const pctBg=p=>p===null?"#f5f5f5":p>=80?"#e8f5e9":p>=50?"#fff3e0":"#ffebee";
+
+  return(<div style={S.page}>
+    <div style={S.tb}><button style={S.back} onClick={onBack}>← Tilbake</button><span style={S.tt}>📚 Lekser</span></div>
+    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
+      {students.map(x=>(
+        <button key={x.id} onClick={()=>setSel(x.id)} style={{padding:"6px 12px",borderRadius:20,border:"1px solid",borderColor:sel===x.id?"var(--purple)":"#ddd",background:sel===x.id?"var(--pl)":"#fafafa",color:sel===x.id?"var(--pd)":"#555",fontSize:13,cursor:"pointer",fontWeight:sel===x.id?700:400,display:"flex",alignItems:"center",gap:6}}>
+          <AvatarDisplay avatar={x.avatar} size={22}/>{x.name}
+        </button>
+      ))}
+    </div>
+    {st&&<>
+      <div style={{background:"#fff",borderRadius:16,padding:"14px",marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+        <div style={{fontWeight:800,fontSize:15,marginBottom:10}}>📊 Dagens aktivitet — {st.name}</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:12}}>
+          {[{icon:"🃏",label:"Flashcards",val:st.flashcardSessions||0},{icon:"🎯",label:"Quiz",val:st.quizSessions||0},{icon:"🪢",label:"Hangman",val:st.hangmanSessions||0}].map(({icon,label,val})=>(
+            <div key={label} style={{background:"#f9f9f9",borderRadius:10,padding:"10px",textAlign:"center"}}>
+              <div style={{fontSize:18}}>{icon}</div><div style={{fontSize:18,fontWeight:800}}>{val}</div><div style={{fontSize:11,color:"var(--t3)"}}>{label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{background:pctBg(stats.pct),borderRadius:12,padding:"12px",textAlign:"center",marginBottom:12}}>
+          <div style={{fontSize:32,fontWeight:900,color:pctColor(stats.pct)}}>{stats.pct!==null?`${stats.pct}%`:"–"}</div>
+          <div style={{fontSize:13,color:"var(--t2)"}}>{stats.total>0?`${stats.correct} av ${stats.total} riktige`:"Ingen øvelser ennå"}</div>
+        </div>
+        <div style={{marginBottom:10}}>
+          <div style={{fontSize:12,color:"var(--t3)",marginBottom:4}}>Navn på leksen:</div>
+          <input style={S.input} value={label} onChange={e=>setLabel(e.target.value)} placeholder="F.eks. Mandagslekser"/>
+        </div>
+        {msg&&<div style={{background:"#e8f5e9",borderRadius:10,padding:"10px",marginBottom:10,fontSize:14,fontWeight:700,color:"#2e7d32"}}>{msg}</div>}
+        {confirmReset===st.id?(
+          <div style={{background:"#fff3e0",borderRadius:12,padding:"12px",textAlign:"center"}}>
+            <div style={{fontWeight:700,marginBottom:8}}>Godkjenne og nullstille {st.name}?</div>
+            <div style={{display:"flex",gap:8}}>
+              <button style={{...S.bigBtn,background:"#43a047"}} onClick={()=>approveAndReset(st)}>✅ Ja, godkjenn</button>
+              <button style={{...S.bigBtn,...S.grayBtn}} onClick={()=>setConfirmReset(null)}>Avbryt</button>
+            </div>
+          </div>
+        ):(
+          <button style={{...S.bigBtn,background:"linear-gradient(135deg,#43a047,#2e7d32)"}} onClick={()=>setConfirmReset(st.id)}>✅ Godkjenn og nullstill</button>
+        )}
+      </div>
+      {(st.homeworkSessions||[]).length>0&&(<>
+        <div style={{fontSize:13,fontWeight:700,color:"var(--t3)",marginBottom:8}}>📅 Tidligere lekser</div>
+        {[...(st.homeworkSessions||[])].reverse().map((ses,i)=>(
+          <div key={i} style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.05)"}}>
+            <div style={{width:52,height:52,borderRadius:12,background:pctBg(ses.pct),display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <div style={{fontSize:18,fontWeight:900,color:pctColor(ses.pct)}}>{ses.pct!==null?`${ses.pct}%`:"–"}</div>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:14}}>{ses.label}</div>
+              <div style={{fontSize:11,color:"var(--t3)"}}>{new Date(ses.date).toLocaleDateString("no-NO",{weekday:"short",day:"numeric",month:"short"})}</div>
+              <div style={{fontSize:11,color:"var(--t2)"}}>🃏{ses.flashcardSessions} · 🎯{ses.quizSessions} · 🪢{ses.hangmanSessions}{ses.total>0?` · ${ses.correct}/${ses.total} riktige`:""}</div>
+            </div>
+            <button style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:"#ffab91"}} onClick={()=>deleteSession(st,(st.homeworkSessions||[]).length-1-i)}>🗑️</button>
+          </div>
+        ))}
+      </>)}
+    </>}
+  </div>);
 }
 
 // ── TEACHER REPORT ──
 function TeacherReport({gloser,students,singleStudent,onBack}){
   const [sel,setSel]=useState(singleStudent||students[0]?.id||null);
-  const [copied,setCopied]=useState(false);
   const st=students.find(s=>s.id===sel);
   const history=st?.history||[];
   const sorted=[...gloser].sort((a,b)=>b.id-a.id);
-  const newest=sorted.slice(0,NEW_COUNT),older=sorted.slice(NEW_COUNT);
-  const today=new Date().toLocaleDateString("no-NO",{day:"numeric",month:"long",year:"numeric"});
-  const qi=history.filter(h=>h.source==="quiz"),hi=history.filter(h=>h.source==="hangman");
+  const newest=sorted.slice(0,NEW_COUNT), older=sorted.slice(NEW_COUNT);
+  const qi=history.filter(h=>h.source==="quiz"), hi=history.filter(h=>h.source==="hangman");
   const qp=qi.length>0?Math.round(qi.filter(h=>h.correct).length/qi.length*100):0;
   const hp=hi.length>0?Math.round(hi.filter(h=>h.correct).length/hi.length*100):0;
   function status(en){const items=history.filter(h=>h.en===en&&h.source==="quiz");if(!items.length)return"ikke øvd";const p=items.filter(h=>h.correct).length/items.length;return p>=0.75?"kan":p>=0.4?"nesten":"trenger øving";}
-  function sc2(x){return x==="kan"?"#2e7d32":x==="nesten"?"#e65100":x==="trenger øving"?"#c62828":"#aaa";}
-  function se(x){return x==="kan"?"✅":x==="nesten"?"🔶":x==="trenger øving"?"❌":"⬜";}
-  const can=gloser.filter(g=>status(g.en)==="kan").length;
-  const avatarKits=st?.avatar?.gender==="female"?FEMALE_KITS:MALE_KITS;
-  const kit=avatarKits.find(k=>k.id===(st?.avatar?.kit||"basic"))||avatarKits[0];
-  function SC({icon,title,sessions,correct,total,pct}){return(<div style={{background:"#fff",borderRadius:12,padding:"12px",marginBottom:8,boxShadow:"0 2px 6px rgba(0,0,0,0.05)"}}><div style={{fontSize:13,fontWeight:700,marginBottom:6}}>{icon} {title}</div><div style={{display:"grid",gridTemplateColumns:total!=null?"1fr 1fr 1fr":"1fr",gap:6}}><div style={{background:"#f9f9f9",borderRadius:8,padding:"8px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:700}}>{sessions}</div><div style={{fontSize:11,color:"var(--t3)"}}>Økter</div></div>{total!=null&&<><div style={{background:"#f9f9f9",borderRadius:8,padding:"8px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:700}}>{total>0?`${correct}/${total}`:"–"}</div><div style={{fontSize:11,color:"var(--t3)"}}>Riktige</div></div><div style={{background:"#f9f9f9",borderRadius:8,padding:"8px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:700,color:pct>=70?"#2e7d32":pct>=40?"#e65100":"var(--t3)"}}>{total>0?pct+"%":"–"}</div><div style={{fontSize:11,color:"var(--t3)"}}>Prosent</div></div></>}</div></div>);}
-  function WR({g}){const x=status(g.en);const it=history.filter(h=>h.en===g.en&&h.source==="quiz");return(<div style={{display:"flex",alignItems:"center",padding:"9px 12px",borderBottom:"1px solid #f0f0f0",gap:8}}><span style={{flex:1,fontSize:14}}>{g.no} <span style={{color:"#bbb"}}>→</span> {g.en}</span>{it.length>0&&<span style={{fontSize:11,color:"var(--t3)"}}>{it.filter(h=>h.correct).length}/{it.length}</span>}<span style={{fontSize:12,fontWeight:700,color:sc2(x),minWidth:90,textAlign:"right"}}>{se(x)} {x}</span></div>);}
-  return(
-    <div style={s.page}>
-      <div style={s.tb}><button style={s.back} onClick={onBack}>← Tilbake</button><span style={s.tt}>📋 Rapport</span></div>
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
-        {students.map(x=>(<button key={x.id} onClick={()=>setSel(x.id)} style={{padding:"5px 12px",borderRadius:20,border:"1px solid",borderColor:sel===x.id?"var(--purple)":"#ddd",background:sel===x.id?"var(--pl)":"#fafafa",color:sel===x.id?"var(--pd)":"#555",fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}><AvatarDisplay avatar={x.avatar} name={x.name} size={20}/>{x.name}</button>))}
+  const sc2=x=>x==="kan"?"#2e7d32":x==="nesten"?"#e65100":x==="trenger øving"?"#c62828":"#aaa";
+  const se=x=>x==="kan"?"✅":x==="nesten"?"🔶":x==="trenger øving"?"❌":"⬜";
+  function SC({icon,title,sessions,correct,total,pct}){return(
+    <div style={{background:"#fff",borderRadius:12,padding:"12px",marginBottom:8,boxShadow:"0 2px 6px rgba(0,0,0,0.05)"}}>
+      <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>{icon} {title}</div>
+      <div style={{display:"grid",gridTemplateColumns:total!=null?"1fr 1fr 1fr":"1fr",gap:6}}>
+        <div style={{background:"#f9f9f9",borderRadius:8,padding:"8px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:700}}>{sessions}</div><div style={{fontSize:11,color:"var(--t3)"}}>Økter</div></div>
+        {total!=null&&<><div style={{background:"#f9f9f9",borderRadius:8,padding:"8px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:700}}>{total>0?`${correct}/${total}`:"–"}</div><div style={{fontSize:11,color:"var(--t3)"}}>Riktige</div></div><div style={{background:"#f9f9f9",borderRadius:8,padding:"8px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:700,color:pct>=70?"#2e7d32":pct>=40?"#e65100":"var(--t3)"}}>{total>0?pct+"%":"–"}</div><div style={{fontSize:11,color:"var(--t3)"}}>Prosent</div></div></>}
       </div>
-      <SC icon="🃏" title="Flashcards" sessions={st?.flashcardSessions||0}/>
-      <SC icon="🎯" title="Quiz" sessions={st?.quizSessions||0} correct={qi.filter(h=>h.correct).length} total={qi.length} pct={qp}/>
-      <SC icon="🪢" title="Hangman" sessions={st?.hangmanSessions||0} correct={hi.filter(h=>h.correct).length} total={hi.length} pct={hp}/>
-      <SC icon="➕" title="Addisjon" sessions={st?.mathAddSessions||0}/>
-      <SC icon="➖" title="Subtraksjon" sessions={st?.mathSubtractSessions||0}/>
-      <SC icon="✖️" title="Gangetabell" sessions={st?.mathMultiplySessions||0}/>
-      <SC icon="🌍" title="Flaggquiz" sessions={st?.flagSessions||0}/>
+    </div>
+  );}
+  function WR({g}){const x=status(g.en);const it=history.filter(h=>h.en===g.en&&h.source==="quiz");return(
+    <div style={{display:"flex",alignItems:"center",padding:"9px 12px",borderBottom:"1px solid #f0f0f0",gap:8}}>
+      <span style={{flex:1,fontSize:14}}>{g.no} <span style={{color:"#bbb"}}>→</span> {g.en}</span>
+      {it.length>0&&<span style={{fontSize:11,color:"var(--t3)"}}>{it.filter(h=>h.correct).length}/{it.length}</span>}
+      <span style={{fontSize:12,fontWeight:700,color:sc2(x),minWidth:90,textAlign:"right"}}>{se(x)} {x}</span>
+    </div>
+  );}
+  return(<div style={S.page}>
+    <div style={S.tb}><button style={S.back} onClick={onBack}>← Tilbake</button><span style={S.tt}>📋 Rapport</span></div>
+    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+      {students.map(x=>(<button key={x.id} onClick={()=>setSel(x.id)} style={{padding:"5px 12px",borderRadius:20,border:"1px solid",borderColor:sel===x.id?"var(--purple)":"#ddd",background:sel===x.id?"var(--pl)":"#fafafa",color:sel===x.id?"var(--pd)":"#555",fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}><AvatarDisplay avatar={x.avatar} size={20}/>{x.name}</button>))}
+    </div>
+    <SC icon="🃏" title="Flashcards" sessions={st?.flashcardSessions||0}/>
+    <SC icon="🎯" title="Quiz" sessions={st?.quizSessions||0} correct={qi.filter(h=>h.correct).length} total={qi.length} pct={qp}/>
+    <SC icon="🪢" title="Hangman" sessions={st?.hangmanSessions||0} correct={hi.filter(h=>h.correct).length} total={hi.length} pct={hp}/>
+    <SC icon="➕" title="Addisjon" sessions={st?.mathAddSessions||0}/>
+    <SC icon="➖" title="Subtraksjon" sessions={st?.mathSubtractSessions||0}/>
+    <SC icon="✖️" title="Gangetabell" sessions={st?.mathMultiplySessions||0}/>
+    <SC icon="🌍" title="Flaggquiz" sessions={st?.flagSessions||0}/>
+    {gloser.length>0&&<>
       <div style={{fontSize:13,fontWeight:700,color:"var(--t3)",margin:"8px 0 6px"}}>NYE GLOSER</div>
       <div style={{background:"#fff",borderRadius:12,marginBottom:10,overflow:"hidden",boxShadow:"0 2px 6px rgba(0,0,0,0.05)"}}>{newest.map(g=><WR key={g.id} g={g}/>)}</div>
       {older.length>0&&<><div style={{fontSize:13,fontWeight:700,color:"var(--t3)",margin:"0 0 6px"}}>TIDLIGERE GLOSER</div><div style={{background:"#fff",borderRadius:12,marginBottom:10,overflow:"hidden",boxShadow:"0 2px 6px rgba(0,0,0,0.05)"}}>{older.map(g=><WR key={g.id} g={g}/>)}</div></>}
-    </div>
-  );
+    </>}
+  </div>);
 }
 
 // ── ADMIN ──
 function AdminPanel({students,gloser,onSaveStudents,onSaveGloser,onBack}){
   const [tab,setTab]=useState("students");
-  const [name,setName]=useState("");const [pinVal,setPinVal]=useState("");const [msg,setMsg]=useState("");
-  const [newNo,setNewNo]=useState("");const [newEn,setNewEn]=useState("");const [addMsg,setAddMsg]=useState("");
-  const [nextSId,setNextSId]=useState(()=>Math.max(...students.map(s=>s.id),0)+1);
-  const [nextGId,setNextGId]=useState(()=>Math.max(...gloser.map(g=>g.id),0)+1);
+  const [name,setName]=useState(""); const [pinVal,setPinVal]=useState(""); const [msg,setMsg]=useState("");
+  const [newNo,setNewNo]=useState(""); const [newEn,setNewEn]=useState(""); const [addMsg,setAddMsg]=useState("");
+  const nextSId=useRef(Math.max(...students.map(s=>s.id),0)+1);
+  const nextGId=useRef(Math.max(...gloser.map(g=>g.id),0)+1);
   function addStudent(){
     if(!name.trim()||!/^\d{4}$/.test(pinVal)){setMsg("Skriv navn og 4-sifret PIN.");return;}
     if(students.find(s=>s.pin===pinVal)){setMsg("PIN allerede i bruk.");return;}
-    const ns=[...students,{id:nextSId,name:name.trim(),pin:pinVal,history:[],quizSessions:0,hangmanSessions:0,flashcardSessions:0,mathAddSessions:0,mathSubtractSessions:0,mathMultiplySessions:0,flagSessions:0,points:0,coins:0,squad:[],club:CLUBS[nextSId%CLUBS.length],avatar:{gender:"male",kit:"basic",hair:"short",extra:false},purchased:[],playerCards:[],lineup:Array(11).fill(null),homeworkSessions:[]}];
-    onSaveStudents(ns);setNextSId(n=>n+1);setName("");setPinVal("");setMsg("✅ Lagt til!");setTimeout(()=>setMsg(""),1500);
+    const id=nextSId.current++;
+    onSaveStudents([...students,emptyStudent(id,name.trim(),pinVal,id)]);
+    setName("");setPinVal("");setMsg("✅ Lagt til!");setTimeout(()=>setMsg(""),1500);
   }
-  function translateWord(w){if(!w.trim()){setNewEn("");return;}const hit=dict[w.trim().toLowerCase()];setNewEn(hit||"");if(!hit){setAddMsg("Ikke funnet – skriv engelsk selv");setTimeout(()=>setAddMsg(""),2000);}}
-  function addGlose(){if(!newNo.trim()||!newEn.trim())return;const ng=[...gloser,{no:newNo.trim().toLowerCase(),en:newEn.trim().toLowerCase(),id:nextGId}];onSaveGloser(ng);setNextGId(n=>n+1);setNewNo("");setNewEn("");setAddMsg("✅ Lagt til!");setTimeout(()=>setAddMsg(""),1500);}
-  return(
-    <div style={s.page}>
-      <div style={s.tb}><button style={s.back} onClick={onBack}>← Logg ut</button><span style={s.tt}>Admin</span></div>
-      <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
-        {["students","gloser","homework","report"].map(t=><button key={t} onClick={()=>setTab(t)} style={{flex:1,minWidth:60,padding:"9px 4px",borderRadius:10,border:"1px solid",borderColor:tab===t?"var(--purple)":"#ddd",background:tab===t?"var(--pl)":"#fafafa",color:tab===t?"var(--pd)":"#555",fontWeight:tab===t?700:400,cursor:"pointer",fontSize:12}}>{t==="students"?"👤 Elever":t==="gloser"?"📚 Gloser":t==="homework"?"📝 Lekser":"📋 Rapport"}</button>)}
-      </div>
-      {tab==="students"&&<>
-        <div style={s.ab}>
-          <input style={s.input} placeholder="Elevnavn" value={name} onChange={e=>setName(e.target.value)}/>
-          <input style={s.input} placeholder="PIN (4 siffer)" value={pinVal} maxLength={4} onChange={e=>setPinVal(e.target.value.replace(/\D/g,""))}/>
-          <button style={s.bigBtn} onClick={addStudent}>Legg til elev +</button>
-          {msg&&<div style={{color:msg.startsWith("✅")?"green":"#e53935",fontWeight:700}}>{msg}</div>}
-        </div>
-        <div style={s.gl}>{students.map(st=><div key={st.id} style={s.gr}><AvatarDisplay avatar={st.avatar} name={st.name} size={34}/><span style={{flex:1,fontSize:14,marginLeft:8}}>{st.name} <span style={{color:"#bbb",fontSize:11}}>PIN:{st.pin}</span></span><span style={{fontSize:12,color:"#f9a825",marginRight:8}}>🪙{st.coins||0}</span><button style={s.db} onClick={()=>onSaveStudents(students.filter(s=>s.id!==st.id))}>✕</button></div>)}</div>
-      </>}
-      {tab==="gloser"&&<>
-        <div style={s.ab}>
-          <input style={s.input} placeholder="🇳🇴 Skriv norsk ord..." value={newNo} onChange={e=>setNewNo(e.target.value)} onBlur={e=>translateWord(e.target.value)}/>
-          <input style={{...s.input,width:"100%"}} placeholder="🇬🇧 Engelsk (forslag automatisk)" value={newEn} onChange={e=>setNewEn(e.target.value)}/>
-          {newEn&&<div style={{background:"#e8f5e9",borderRadius:10,padding:"10px 14px",fontSize:14,display:"flex",alignItems:"center",gap:10}}><span style={{flex:1}}>Forslag: <strong>{newEn}</strong></span><button style={{background:"none",border:"none",fontSize:13,color:"#e65100",cursor:"pointer"}} onClick={()=>setNewEn("")}>Endre</button></div>}
-          <button style={{...s.bigBtn,opacity:(!newNo.trim()||!newEn.trim())?0.5:1}} onClick={addGlose}>Legg til glose +</button>
-          {addMsg&&<div style={{color:addMsg.startsWith("✅")?"green":"#e65100",fontWeight:700}}>{addMsg}</div>}
-        </div>
-        <div style={s.gl}>{[...gloser].sort((a,b)=>b.id-a.id).map((g,i)=><div key={g.id} style={s.gr}>{i<NEW_COUNT&&<span style={{fontSize:10,background:"#fff3e0",color:"#e65100",borderRadius:4,padding:"1px 5px",marginRight:6}}>NY</span>}<span style={s.gp}>{g.no} <span style={{color:"#aaa"}}>→</span> {g.en}</span><button style={s.db} onClick={()=>onSaveGloser(gloser.filter(x=>x.id!==g.id))}>✕</button></div>)}</div>
-      </>}
-      {tab==="homework"&&<HomeworkPanel students={students} onSaveStudents={onSaveStudents} onBack={()=>setTab("students")}/>}
-      {tab==="report"&&<TeacherReport gloser={gloser} students={students} onBack={()=>setTab("students")}/>}
+  function translateWord(w){
+    if(!w.trim()){setNewEn("");return;}
+    const hit=dict[w.trim().toLowerCase()];
+    setNewEn(hit||"");
+    if(!hit){setAddMsg("Ikke funnet – skriv engelsk selv");setTimeout(()=>setAddMsg(""),2000);}
+  }
+  function addGlose(){
+    if(!newNo.trim()||!newEn.trim())return;
+    const id=nextGId.current++;
+    onSaveGloser([...gloser,{no:newNo.trim().toLowerCase(),en:newEn.trim().toLowerCase(),id}]);
+    setNewNo("");setNewEn("");setAddMsg("✅ Lagt til!");setTimeout(()=>setAddMsg(""),1500);
+  }
+  const tabs=["students","gloser","homework","report"];
+  const tabLabels={students:"👤 Elever",gloser:"📚 Gloser",homework:"📝 Lekser",report:"📋 Rapport"};
+  return(<div style={S.page}>
+    <div style={S.tb}><button style={S.back} onClick={onBack}>← Logg ut</button><span style={S.tt}>Admin</span></div>
+    <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+      {tabs.map(t=><button key={t} onClick={()=>setTab(t)} style={{flex:1,minWidth:60,padding:"9px 4px",borderRadius:10,border:"1px solid",borderColor:tab===t?"var(--purple)":"#ddd",background:tab===t?"var(--pl)":"#fafafa",color:tab===t?"var(--pd)":"#555",fontWeight:tab===t?700:400,cursor:"pointer",fontSize:12}}>{tabLabels[t]}</button>)}
     </div>
-  );
-}
-
-// ── PIN PAD ──
-function PinPad({title,subtitle,onSubmit,error,onBack}){
-  const [pin,setPin]=useState("");
-  function press(d){if(pin.length>=4)return;const n=pin+d;setPin(n);if(n.length===4){setTimeout(()=>{onSubmit(n);setPin("");},120);}}
-  return(
-    <div style={{maxWidth:340,margin:"0 auto",padding:"32px 16px",textAlign:"center"}}>
-      {onBack&&<button style={s.back} onClick={onBack}>← Tilbake</button>}
-      <div style={{paddingTop:onBack?16:0}}>
-        <div style={{fontSize:40,marginBottom:8,animation:"bounce 1.5s infinite"}}>🎓</div>
-        <div style={{fontSize:20,fontWeight:800}}>{title}</div>
-        {subtitle&&<div style={{fontSize:13,color:"var(--t2)",marginTop:4}}>{subtitle}</div>}
-        <div style={{display:"flex",justifyContent:"center",gap:12,margin:"24px 0 8px"}}>
-          {[0,1,2,3].map(i=><div key={i} style={{width:18,height:18,borderRadius:"50%",background:pin.length>i?"var(--purple)":"#e0e0e0",transition:"background 0.15s"}}/>)}
-        </div>
-        {error&&<div style={{fontSize:12,color:"#e53935",margin:"6px 0"}}>{error}</div>}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginTop:20}}>
-          {[1,2,3,4,5,6,7,8,9].map(d=><button key={d} style={s.pb} onClick={()=>press(String(d))}>{d}</button>)}
-          <div/><button style={s.pb} onClick={()=>press("0")}>0</button>
-          <button style={{...s.pb,color:"var(--t3)"}} onClick={()=>setPin(p=>p.slice(0,-1))}>⌫</button>
-        </div>
+    {tab==="students"&&<>
+      <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
+        <input style={S.input} placeholder="Elevnavn" value={name} onChange={e=>setName(e.target.value)}/>
+        <input style={S.input} placeholder="PIN (4 siffer)" value={pinVal} maxLength={4} onChange={e=>setPinVal(e.target.value.replace(/\D/g,""))}/>
+        <button style={S.bigBtn} onClick={addStudent}>Legg til elev +</button>
+        {msg&&<div style={{color:msg.startsWith("✅")?"green":"#e53935",fontWeight:700}}>{msg}</div>}
       </div>
-    </div>
-  );
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {students.map(st=>(
+          <div key={st.id} style={{display:"flex",alignItems:"center",background:"#fff",borderRadius:14,padding:"10px 12px",boxShadow:"0 2px 6px rgba(0,0,0,0.06)"}}>
+            <AvatarDisplay avatar={st.avatar} size={34}/>
+            <span style={{flex:1,fontSize:14,marginLeft:8}}>{st.name} <span style={{color:"#bbb",fontSize:11}}>PIN:{st.pin}</span></span>
+            <span style={{fontSize:12,color:"#f9a825",marginRight:8}}>🪙{st.coins||0}</span>
+            <button style={{background:"none",border:"none",color:"#ffab91",fontSize:18,cursor:"pointer"}} onClick={()=>onSaveStudents(students.filter(s=>s.id!==st.id))}>✕</button>
+          </div>
+        ))}
+      </div>
+    </>}
+    {tab==="gloser"&&<>
+      <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
+        <input style={S.input} placeholder="🇳🇴 Norsk ord..." value={newNo} onChange={e=>setNewNo(e.target.value)} onBlur={e=>translateWord(e.target.value)}/>
+        <input style={S.input} placeholder="🇬🇧 Engelsk" value={newEn} onChange={e=>setNewEn(e.target.value)}/>
+        {newEn&&<div style={{background:"#e8f5e9",borderRadius:10,padding:"10px 14px",fontSize:14,display:"flex",alignItems:"center",gap:10}}><span style={{flex:1}}>Forslag: <strong>{newEn}</strong></span><button style={{background:"none",border:"none",fontSize:13,color:"#e65100",cursor:"pointer"}} onClick={()=>setNewEn("")}>Endre</button></div>}
+        <button style={{...S.bigBtn,opacity:(!newNo.trim()||!newEn.trim())?0.5:1}} onClick={addGlose}>Legg til glose +</button>
+        {addMsg&&<div style={{color:addMsg.startsWith("✅")?"green":"#e65100",fontWeight:700}}>{addMsg}</div>}
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {[...gloser].sort((a,b)=>b.id-a.id).map((g,i)=>(
+          <div key={g.id} style={{display:"flex",alignItems:"center",background:"#fff",borderRadius:14,padding:"10px 12px",boxShadow:"0 2px 6px rgba(0,0,0,0.06)"}}>
+            {i<NEW_COUNT&&<span style={{fontSize:10,background:"#fff3e0",color:"#e65100",borderRadius:4,padding:"1px 5px",marginRight:6}}>NY</span>}
+            <span style={{flex:1,fontSize:15}}>{g.no} <span style={{color:"#aaa"}}>→</span> {g.en}</span>
+            <button style={{background:"none",border:"none",color:"#ffab91",fontSize:18,cursor:"pointer"}} onClick={()=>onSaveGloser(gloser.filter(x=>x.id!==g.id))}>✕</button>
+          </div>
+        ))}
+      </div>
+    </>}
+    {tab==="homework"&&<HomeworkPanel students={students} onSaveStudents={onSaveStudents} onBack={()=>setTab("students")}/>}
+    {tab==="report"&&<TeacherReport gloser={gloser} students={students} onBack={()=>setTab("students")}/>}
+  </div>);
 }
 
 // ── PENALTY ──
 function PenaltyGame({onDone}){
-  const [phase,setPhase]=useState("aim");const [target,setTarget]=useState({x:50,y:50});const [scored,setScored]=useState(null);const [shots,setShots]=useState([]);const [current,setCurrent]=useState(0);
+  const [phase,setPhase]=useState("aim");
+  const [target,setTarget]=useState({x:50,y:50});
+  const [scored,setScored]=useState(null);
+  const [shots,setShots]=useState([]);
+  const [current,setCurrent]=useState(0);
   const TOTAL=5;
-  function shoot(){if(phase!=="aim")return;const keeperX=Math.random()>0.5?20:80;const hit=Math.abs(target.x-keeperX)>25||target.y<30;setPhase("flying");setTimeout(()=>{const ns=[...shots,hit];setShots(ns);setScored(hit);setPhase("result");setTimeout(()=>{if(current+1>=TOTAL){onDone(ns.filter(Boolean).length);}else{setCurrent(c=>c+1);setScored(null);setPhase("aim");setTarget({x:50,y:50});}},1200);},800);}
-  return(
-    <div style={{textAlign:"center",padding:"16px 0"}}>
-      <div style={{fontSize:13,fontWeight:700,marginBottom:10}}>Skytt {current+1} av {TOTAL} · Mål: {shots.filter(Boolean).length}</div>
-      <div style={{position:"relative",width:"100%",maxWidth:320,margin:"0 auto",height:180,background:"linear-gradient(180deg,#90ee90,#228b22)",borderRadius:12,overflow:"hidden",cursor:phase==="aim"?"crosshair":"default",border:"2px solid #555"}} onClick={e=>{if(phase!=="aim")return;const r=e.currentTarget.getBoundingClientRect();setTarget({x:((e.clientX-r.left)/r.width)*100,y:((e.clientY-r.top)/r.height)*100});}}>
-        <div style={{position:"absolute",top:10,left:"15%",width:"70%",height:"55%",border:"4px solid white",borderBottom:"none",pointerEvents:"none"}}/>
-        {phase==="aim"&&<div style={{position:"absolute",left:`${target.x}%`,top:`${target.y}%`,transform:"translate(-50%,-50%)",fontSize:22,pointerEvents:"none"}}>⚽</div>}
-        {phase==="result"&&scored!==null&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:scored?"rgba(0,180,0,0.5)":"rgba(200,0,0,0.5)",fontSize:32}}>{scored?"⚽ MÅL!":"❌ Reddet!"}</div>}
-        {phase==="aim"&&<div style={{position:"absolute",bottom:6,width:"100%",textAlign:"center",fontSize:11,color:"rgba(255,255,255,0.8)"}}>Trykk der du vil skyte</div>}
-      </div>
-      {phase==="aim"&&<button style={{...s.bigBtn,marginTop:14,background:"#e53935"}} onClick={shoot}>🦵 Skyt!</button>}
-      <div style={{display:"flex",justifyContent:"center",gap:8,marginTop:10}}>{Array(TOTAL).fill(0).map((_,i)=><span key={i} style={{fontSize:18}}>{i<shots.length?(shots[i]?"⚽":"❌"):"⬜"}</span>)}</div>
+  function shoot(){
+    if(phase!=="aim")return;
+    const keeperX=Math.random()>0.5?20:80;
+    const hit=Math.abs(target.x-keeperX)>25||target.y<30;
+    setPhase("flying");
+    setTimeout(()=>{
+      const ns=[...shots,hit];setShots(ns);setScored(hit);setPhase("result");
+      setTimeout(()=>{
+        if(current+1>=TOTAL){onDone(ns.filter(Boolean).length);}
+        else{setCurrent(c=>c+1);setScored(null);setPhase("aim");setTarget({x:50,y:50});}
+      },1200);
+    },800);
+  }
+  return(<div style={{textAlign:"center",padding:"16px 0"}}>
+    <div style={{fontSize:13,fontWeight:700,marginBottom:10}}>Skytt {current+1}/{TOTAL} · Mål: {shots.filter(Boolean).length}</div>
+    <div style={{position:"relative",width:"100%",maxWidth:320,margin:"0 auto",height:180,background:"linear-gradient(180deg,#90ee90,#228b22)",borderRadius:12,overflow:"hidden",cursor:phase==="aim"?"crosshair":"default",border:"2px solid #555"}}
+      onClick={e=>{if(phase!=="aim")return;const r=e.currentTarget.getBoundingClientRect();setTarget({x:((e.clientX-r.left)/r.width)*100,y:((e.clientY-r.top)/r.height)*100});}}>
+      <div style={{position:"absolute",top:10,left:"15%",width:"70%",height:"55%",border:"4px solid white",borderBottom:"none",pointerEvents:"none"}}/>
+      {phase==="aim"&&<div style={{position:"absolute",left:`${target.x}%`,top:`${target.y}%`,transform:"translate(-50%,-50%)",fontSize:22,pointerEvents:"none"}}>⚽</div>}
+      {phase==="result"&&scored!==null&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:scored?"rgba(0,180,0,0.5)":"rgba(200,0,0,0.5)",fontSize:32}}>{scored?"⚽ MÅL!":"❌ Reddet!"}</div>}
     </div>
-  );
+    {phase==="aim"&&<button style={{...S.bigBtn,marginTop:14,background:"#e53935"}} onClick={shoot}>🦵 Skyt!</button>}
+    <div style={{display:"flex",justifyContent:"center",gap:8,marginTop:10}}>
+      {Array(TOTAL).fill(0).map((_,i)=><span key={i} style={{fontSize:18}}>{i<shots.length?(shots[i]?"⚽":"❌"):"⬜"}</span>)}
+    </div>
+  </div>);
 }
 
 // ── MAIN APP ──
 function App(){
-  const [students,setStudentsState]=useState([]);
-  const [gloser,setGloserState]=useState([]);
+  const [students,setStudents]=useState([]);
+  const [gloser,setGloser]=useState([]);
   const [loaded,setLoaded]=useState(false);
   const [currentUser,setCurrentUser]=useState(null);
-  const [loginError,setLoginError]=useState("");
   const [selecting,setSelecting]=useState(null);
+  const [loginError,setLoginError]=useState("");
   const [screen,setScreen]=useState("home");
+  const [coinAnim,setCoinAnim]=useState(null);
+  const [bonusAnim,setBonusAnim]=useState(false);
+  // quiz state
   const [quizDeck,setQuizDeck]=useState([]);
   const [quizIdx,setQuizIdx]=useState(0);
   const [quizChoices,setQuizChoices]=useState([]);
   const [quizAnswer,setQuizAnswer]=useState(null);
   const [quizScore,setQuizScore]=useState(0);
   const [quizDone,setQuizDone]=useState(false);
+  const [showPenalty,setShowPenalty]=useState(false);
+  const [penaltyResult,setPenaltyResult]=useState(null);
+  // flashcard state
   const [fcDeck,setFcDeck]=useState([]);
   const [fcIdx,setFcIdx]=useState(0);
   const [fcFlipped,setFcFlipped]=useState(false);
   const [fcDir,setFcDir]=useState("no→en");
-  const [showPenalty,setShowPenalty]=useState(false);
-  const [penaltyResult,setPenaltyResult]=useState(null);
-  const [coinAnim,setCoinAnim]=useState(null);
-  const [bonusAnim,setBonusAnim]=useState(false);
-  const bonusGivenRef=useRef({});
 
+  const studentsRef=useRef([]);
+  const bonusGivenRef=useRef({});
+  useEffect(()=>{studentsRef.current=students;},[students]);
+
+  // Load from Firebase
+  useEffect(()=>{
+    async function load(){
+      const ss=await dbGet("students");
+      if(ss){setStudents(Array.isArray(ss)?ss.filter(Boolean):Object.values(ss).filter(v=>v&&v.id));}
+      else{setStudents(defaultStudents);await dbSet("students",Object.fromEntries(defaultStudents.map(s=>[s.id,s])));}
+      const gg=await dbGet("gloser");
+      if(gg){setGloser(Array.isArray(gg)?gg.filter(Boolean):Object.values(gg).filter(Boolean));}
+      else{setGloser(defaultGloser);await dbSet("gloser",Object.fromEntries(defaultGloser.map(g=>[g.id,g])));}
+      setLoaded(true);
+    }
+    load();
+    let unsub;
+    try{unsub=window.fbOn("glose/students",val=>{if(val)setStudents(Object.values(val).filter(v=>v&&v.id));});}catch(e){}
+    return()=>{if(unsub)unsub();};
+  },[]);
+
+  // Bonus check
   useEffect(()=>{
     if(!currentUser||currentUser==="admin")return;
     const st=studentsRef.current.find(s=>s.id===currentUser.id);
     if(!st)return;
-    const todayKey=new Date().toDateString()+"_"+currentUser.id;
-    if(bonusGivenRef.current[todayKey])return;
-    if(st.bonusGivenDate===new Date().toDateString())return;
+    const key=todayStr()+"_"+currentUser.id;
+    if(bonusGivenRef.current[key])return;
+    if(st.bonusGivenDate===todayStr())return;
     if(!isHomeworkComplete(st))return;
-    bonusGivenRef.current[todayKey]=true;
+    bonusGivenRef.current[key]=true;
     setBonusAnim(true);
     setTimeout(()=>setBonusAnim(false),4000);
-    updateStudent(currentUser.id,{
-      points:(st.points||0)+HOMEWORK_BONUS,
-      coins:(st.coins||0)+HOMEWORK_BONUS,
-      bonusGivenDate:new Date().toDateString()
-    });
+    updateStudent(currentUser.id,{coins:(st.coins||0)+HOMEWORK_BONUS,points:(st.points||0)+HOMEWORK_BONUS,bonusGivenDate:todayStr()});
   },[students]);
 
-  const studentsRef=useRef(students);
-  useEffect(()=>{studentsRef.current=students;},[students]);
-
-  useEffect(()=>{
-    async function load(){
-      const ss=await dbGet("students");
-      if(ss){const arr=Array.isArray(ss)?ss.filter(Boolean):Object.values(ss).filter(v=>v&&v.id);setStudentsState(arr);}
-      else{setStudentsState(defaultStudents);await dbSet("students",Object.fromEntries(defaultStudents.map(s=>[s.id,s])));}
-      const gg=await dbGet("gloser");
-      if(gg){const arr=Array.isArray(gg)?gg.filter(Boolean):Object.values(gg).filter(Boolean);setGloserState(arr);}
-      else{setGloserState(defaultGloser);await dbSet("gloser",Object.fromEntries(defaultGloser.map(g=>[g.id,g])));}
-      setLoaded(true);
-    }
-    load();
-    let unsub=null;
-    try{unsub=window.fbOn("glose/students",(val)=>{if(val){const arr=Object.values(val).filter(v=>v&&v.id);setStudentsState(arr);}});}catch(e){}
-    return()=>{if(unsub)unsub();};
-  },[]);
-
   async function saveStudents(ns){
-    const clean=ns.filter(Boolean);setStudentsState(clean);
+    const clean=ns.filter(Boolean);setStudents(clean);
     const obj={};clean.forEach(s=>{if(s?.id)obj[s.id]=s;});
     await dbSet("students",obj);
   }
   async function saveGloser(ng){
-    const clean=ng.filter(Boolean);setGloserState(clean);
+    const clean=ng.filter(Boolean);setGloser(clean);
     const obj={};clean.forEach(g=>{if(g?.id)obj[g.id]=g;});
     await dbSet("gloser",obj);
   }
   async function updateStudent(id,updates){
     const cur=studentsRef.current.find(s=>s.id===id)||{};
     const merged={...cur,...updates};
-    setStudentsState(prev=>prev.map(st=>st.id!==id?st:merged));
+    setStudents(prev=>prev.map(s=>s.id!==id?s:merged));
     if(currentUser&&currentUser!=="admin"&&currentUser.id===id)setCurrentUser(u=>({...u,...updates}));
     try{await window.fbSet("glose/students/"+id,merged);}catch(e){}
   }
@@ -876,177 +940,211 @@ function App(){
     if(!c||!currentUser||currentUser==="admin")return;
     setCoinAnim(`+${c} 🪙`);setTimeout(()=>setCoinAnim(null),1500);
     const st=getStudent();
-    const np=(st.points||0)+c,nc=(st.coins||0)+c;
-    updateStudent(currentUser.id,{points:np,coins:nc});
+    updateStudent(currentUser.id,{coins:(st.coins||0)+c,points:(st.points||0)+c});
   }
   function recordHistory(en,correct,source){
     const st=studentsRef.current.find(s=>s.id===currentUser?.id);if(!st)return;
     updateStudent(currentUser.id,{history:[...(st.history||[]),{en,correct,source}]});
   }
-
-  if(!loaded)return(<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",gap:12}}><div style={{fontSize:48,animation:"bounce 1.5s infinite"}}>🎓</div><div style={{fontSize:16,color:"var(--t2)"}}>Laster...</div></div>);
-
-  if(!currentUser){
-    if(!selecting)return(
-      <div style={{maxWidth:380,margin:"0 auto",padding:"32px 16px",textAlign:"center"}}>
-        <div style={{fontSize:56,animation:"bounce 1.5s infinite"}}>🎓</div>
-        <div style={{fontSize:24,fontWeight:800,marginTop:8,background:"linear-gradient(135deg,#7c4dff,#448aff)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Glose-appen</div>
-        <div style={{fontSize:14,color:"var(--t2)",marginTop:4,marginBottom:24}}>Hvem er du? 👇</div>
-        <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
-          {students.map((st,i)=>{
-            const colors=["linear-gradient(135deg,#bbdefb,#90caf9)","linear-gradient(135deg,#e1bee7,#ce93d8)","linear-gradient(135deg,#c8e6c9,#a5d6a7)","linear-gradient(135deg,#ffcdd2,#ef9a9a)","linear-gradient(135deg,#fff9c4,#fff176)","linear-gradient(135deg,#ffe0b2,#ffcc80)"];
-            return(<button key={st.id} style={{padding:"12px 18px",borderRadius:20,border:"none",background:colors[i%colors.length],fontSize:16,cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:12,boxShadow:"0 4px 12px rgba(0,0,0,0.08)",fontWeight:600}} onClick={()=>{setSelecting(st);setLoginError("");}}>
-              <AvatarDisplay avatar={st.avatar} name={st.name} size={46}/>
-              <div><div style={{fontWeight:800}}>{st.name}</div><div style={{fontSize:11,color:"#555"}}>{(st.club||CLUBS[0]).name} · 🪙{st.coins||0}</div></div>
-            </button>);
-          })}
-        </div>
-        <button style={{width:"100%",padding:"12px",borderRadius:14,border:"none",background:"#ede7f6",color:"#7c4dff",fontSize:14,cursor:"pointer",fontWeight:700}} onClick={()=>{setSelecting("admin");setLoginError("");}}>🔒 Admin / Lærer</button>
-      </div>
-    );
-    if(selecting==="admin")return<PinPad title="Admin" subtitle="Admin PIN" error={loginError} onBack={()=>{setSelecting(null);setLoginError("");}} onSubmit={p=>{if(p===ADMIN_PIN){setCurrentUser("admin");setSelecting(null);setLoginError("");}else setLoginError("Feil PIN.");}}/>;
-    return<PinPad title={selecting.name} subtitle="PIN-kode" error={loginError} onBack={()=>{setSelecting(null);setLoginError("");}} onSubmit={p=>{if(p===selecting.pin){setCurrentUser(selecting);setSelecting(null);setLoginError("");setScreen("home");}else setLoginError("Feil PIN.");}}/>;
+  function incSession(key){
+    const st=getStudent();
+    updateStudent(currentUser.id,{[key]:(st[key]||0)+1});
   }
 
+  // ── LOADING ──
+  if(!loaded)return(<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",gap:12}}>
+    <div style={{fontSize:48,animation:"bounce 1.5s infinite"}}>🎓</div>
+    <div style={{fontSize:16,color:"var(--t2)"}}>Laster...</div>
+  </div>);
+
+  // ── LOGIN ──
+  if(!currentUser){
+    if(!selecting)return(<div style={{maxWidth:380,margin:"0 auto",padding:"32px 16px",textAlign:"center"}}>
+      <div style={{fontSize:56,animation:"bounce 1.5s infinite"}}>🎓</div>
+      <div style={{fontSize:24,fontWeight:800,marginTop:8,background:"linear-gradient(135deg,#7c4dff,#448aff)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Glose-appen</div>
+      <div style={{fontSize:14,color:"var(--t2)",marginTop:4,marginBottom:24}}>Hvem er du? 👇</div>
+      <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
+        {students.map((st,i)=>{
+          const colors=["linear-gradient(135deg,#bbdefb,#90caf9)","linear-gradient(135deg,#e1bee7,#ce93d8)","linear-gradient(135deg,#c8e6c9,#a5d6a7)","linear-gradient(135deg,#ffcdd2,#ef9a9a)","linear-gradient(135deg,#fff9c4,#fff176)","linear-gradient(135deg,#ffe0b2,#ffcc80)"];
+          return(<button key={st.id} onClick={()=>{setSelecting(st);setLoginError("");}} style={{padding:"12px 18px",borderRadius:20,border:"none",background:colors[i%colors.length],fontSize:16,cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:12,boxShadow:"0 4px 12px rgba(0,0,0,0.08)",fontWeight:600}}>
+            <AvatarDisplay avatar={st.avatar} size={46} coins={st.coins||0} showCoins/>
+            <div><div style={{fontWeight:800}}>{st.name}</div><div style={{fontSize:11,color:"#555"}}>{(st.club||CLUBS[0]).name} · 🪙{st.coins||0}</div></div>
+          </button>);
+        })}
+      </div>
+      <button onClick={()=>{setSelecting("admin");setLoginError("");}} style={{width:"100%",padding:"12px",borderRadius:14,border:"none",background:"#ede7f6",color:"#7c4dff",fontSize:14,cursor:"pointer",fontWeight:700}}>🔒 Admin / Lærer</button>
+    </div>);
+    if(selecting==="admin")return<PinPad title="Admin" subtitle="Admin PIN" error={loginError} onBack={()=>{setSelecting(null);setLoginError("");}} onSubmit={p=>{if(p===ADMIN_PIN){setCurrentUser("admin");setSelecting(null);}else setLoginError("Feil PIN.")}}/>;
+    return<PinPad title={selecting.name} subtitle="PIN-kode" error={loginError} onBack={()=>{setSelecting(null);setLoginError("");}} onSubmit={p=>{if(p===selecting.pin){setCurrentUser(selecting);setSelecting(null);setScreen("home");}else setLoginError("Feil PIN.")}}/>;
+  }
+
+  // ── ADMIN ──
   if(currentUser==="admin")return<AdminPanel students={students} gloser={gloser} onSaveStudents={saveStudents} onSaveGloser={saveGloser} onBack={()=>setCurrentUser(null)}/>;
 
-  const stData=students.find(s=>s.id===currentUser.id)||currentUser;
+  // ── STUDENT SCREENS ──
+  const stData=students.find(s=>s.id===currentUser.id)||{...currentUser};
   const club=stData.club||CLUBS[0];
 
-  if(showPenalty)return(<div style={s.page}><div style={{textAlign:"center",padding:"18px 0 8px"}}><div style={{fontSize:24,fontWeight:800}}>⚽ Straffespark!</div></div><PenaltyGame onDone={goals=>{const bonus=goals*2;addCoins(quizScore+bonus);setPenaltyResult({goals,bonus});setShowPenalty(false);}}/></div>);
-  if(penaltyResult)return(<div style={s.page}><div style={s.rb}><AvatarDisplay avatar={stData.avatar} name={stData.name} size={80} coins={stData.coins} showCoins/><div style={s.rt}>Økt ferdig!</div><div style={{fontSize:22,fontWeight:800,color:"#f9a825"}}>+{quizScore+penaltyResult.bonus} 🪙</div><button style={s.bigBtn} onClick={()=>{setPenaltyResult(null);setScreen("shop");}}>🛒 Til butikken!</button><button style={{...s.bigBtn,...s.btnG}} onClick={()=>{setPenaltyResult(null);setScreen("home");}}>Hjem</button></div></div>);
+  if(showPenalty)return(<div style={S.page}>
+    <div style={{textAlign:"center",padding:"18px 0 8px"}}><div style={{fontSize:24,fontWeight:800}}>⚽ Straffespark!</div></div>
+    <PenaltyGame onDone={goals=>{const bonus=goals*2;addCoins(quizScore+bonus);setPenaltyResult({goals,bonus});setShowPenalty(false);}}/>
+  </div>);
 
-  if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)} onRecord={(en,correct)=>recordHistory(en,correct,"hangman")} onDone={()=>{const st=studentsRef.current.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{hangmanSessions:(st.hangmanSessions||0)+1});}}/>;
-  if(screen==="geo")return<GeoMenu onBack={()=>setScreen("home")} addCoins={addCoins} onFlagDone={()=>{const st=studentsRef.current.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{flagSessions:(st.flagSessions||0)+1});}}/>;
-  if(screen==="maths")return<MathMenu onBack={()=>setScreen("home")} addCoins={addCoins} onDone={m=>{const st=studentsRef.current.find(s=>s.id===currentUser.id)||{};const key=m==="multiply"?"mathMultiplySessions":m==="add"?"mathAddSessions":"mathSubtractSessions";updateStudent(currentUser.id,{[key]:(st[key]||0)+1});}}/>;
-  if(screen==="leaderboard")return<Leaderboard students={students} onBack={()=>setScreen("home")}/>;
+  if(penaltyResult)return(<div style={S.page}><div style={S.rb}>
+    <AvatarDisplay avatar={stData.avatar} size={80} coins={stData.coins} showCoins/>
+    <div style={{fontSize:24,fontWeight:800}}>Økt ferdig!</div>
+    <div style={{fontSize:22,fontWeight:800,color:"#f9a825"}}>+{quizScore+penaltyResult.bonus} 🪙</div>
+    <button style={S.bigBtn} onClick={()=>{setPenaltyResult(null);setScreen("shop");}}>🛒 Til butikken!</button>
+    <button style={{...S.bigBtn,...S.grayBtn}} onClick={()=>{setPenaltyResult(null);setScreen("home");}}>Hjem</button>
+  </div></div>);
+
   if(screen==="shop")return<AvatarShop student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("home")}/>;
-  if(screen==="packs")return<PackStore student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("squad")}/>;
-  if(screen==="squad")return<SquadBuilder student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={(dest)=>setScreen(dest||"home")}/>;
+  if(screen==="packs")return<PackStore student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("home")}/>;
+  if(screen==="leaderboard")return<Leaderboard students={students} onBack={()=>setScreen("home")}/>;
   if(screen==="report")return<TeacherReport gloser={gloser} students={students} singleStudent={stData.id} onBack={()=>setScreen("home")}/>;
+  if(screen==="hangman")return<HangmanGame gloser={gloser} onBack={()=>setScreen("home")} onCorrect={()=>addCoins(1)} onRecord={(en,c)=>recordHistory(en,c,"hangman")} onDone={()=>incSession("hangmanSessions")}/>;
+  if(screen==="geo")return<GeoMenu onBack={()=>setScreen("home")} addCoins={addCoins} onFlagDone={()=>incSession("flagSessions")}/>;
+  if(screen==="maths")return<MathMenu onBack={()=>setScreen("home")} addCoins={addCoins} onDone={m=>incSession(m==="multiply"?"mathMultiplySessions":m==="add"?"mathAddSessions":"mathSubtractSessions")}/>;
 
   if(screen==="flashcard"){
-    const card=fcDeck[fcIdx];
-    const front=fcDir==="no→en"?card.no:card.en,back=fcDir==="no→en"?card.en:card.no;
-    return(<div style={s.page}><div style={s.tb}><button style={s.back} onClick={()=>setScreen("home")}>← Hjem</button><span style={s.tt}>Flashcards</span><button style={s.sm} onClick={()=>setFcDir(d=>d==="no→en"?"en→no":"no→en")}>{fcDir==="no→en"?"🇳🇴→🇬🇧":"🇬🇧→🇳🇴"}</button></div><div style={s.prog}>{fcIdx+1}/{fcDeck.length}</div><div style={{...s.card,cursor:"pointer"}} onClick={()=>setFcFlipped(f=>!f)}><div style={{fontSize:13,color:"var(--t3)",marginBottom:6}}>{fcFlipped?(fcDir==="no→en"?"🇬🇧 Engelsk":"🇳🇴 Norsk"):(fcDir==="no→en"?"🇳🇴 Norsk":"🇬🇧 Engelsk")}</div><div style={{fontSize:34,fontWeight:800}}>{fcFlipped?back:front}</div>{!fcFlipped&&<div style={{fontSize:12,color:"#bbb",marginTop:12}}>Trykk for å snu</div>}</div><div style={s.row}><button style={s.nb} onClick={()=>{setFcIdx(i=>Math.max(0,i-1));setFcFlipped(false);}} disabled={fcIdx===0}>◀ Forrige</button><button style={s.nb} onClick={()=>{if(fcIdx<fcDeck.length-1){setFcIdx(i=>i+1);setFcFlipped(false);addCoins(1);}else{addCoins(1);setScreen("home");}}}>{fcIdx<fcDeck.length-1?"Neste +🪙":"Ferdig +🪙"}</button></div></div>);
+    const card=fcDeck[fcIdx]||{no:"",en:""};
+    const front=fcDir==="no→en"?card.no:card.en, back=fcDir==="no→en"?card.en:card.no;
+    return(<div style={S.page}>
+      <div style={S.tb}><button style={S.back} onClick={()=>setScreen("home")}>← Hjem</button><span style={S.tt}>🃏 Flashcards</span>
+        <button style={{background:"#fff",border:"none",borderRadius:10,padding:"4px 10px",fontSize:12,cursor:"pointer"}} onClick={()=>setFcDir(d=>d==="no→en"?"en→no":"no→en")}>{fcDir==="no→en"?"🇳🇴→🇬🇧":"🇬🇧→🇳🇴"}</button>
+      </div>
+      <div style={S.prog}>{fcIdx+1}/{fcDeck.length}</div>
+      <div style={{...S.card,cursor:"pointer",minHeight:160}} onClick={()=>setFcFlipped(f=>!f)}>
+        <div style={{fontSize:13,color:"var(--t3)",marginBottom:6}}>{fcFlipped?(fcDir==="no→en"?"🇬🇧 Engelsk":"🇳🇴 Norsk"):(fcDir==="no→en"?"🇳🇴 Norsk":"🇬🇧 Engelsk")}</div>
+        <div style={{fontSize:34,fontWeight:800}}>{fcFlipped?back:front}</div>
+        {!fcFlipped&&<div style={{fontSize:12,color:"#bbb",marginTop:12}}>Trykk for å snu</div>}
+      </div>
+      <div style={{display:"flex",gap:10}}>
+        <button style={{flex:1,padding:"13px",borderRadius:16,border:"none",background:"#fff",fontSize:14,cursor:"pointer",fontWeight:700}} onClick={()=>{setFcIdx(i=>Math.max(0,i-1));setFcFlipped(false);}} disabled={fcIdx===0}>◀ Forrige</button>
+        <button style={{flex:1,padding:"13px",borderRadius:16,border:"none",background:"#fff",fontSize:14,cursor:"pointer",fontWeight:700}} onClick={()=>{if(fcIdx<fcDeck.length-1){setFcIdx(i=>i+1);setFcFlipped(false);addCoins(1);}else{addCoins(1);setScreen("home");}}}>{fcIdx<fcDeck.length-1?"Neste +🪙":"Ferdig +🪙"}</button>
+      </div>
+    </div>);
   }
 
   if(screen==="quiz"){
-    if(quizDone)return(<div style={s.page}><div style={s.rb}><div style={{fontSize:64}}>{quizScore===quizDeck.length?"🏆":quizScore>=quizDeck.length*0.7?"🌟":"💪"}</div><div style={s.rt}>Quiz ferdig!</div><div style={s.rs}>{quizScore} av {quizDeck.length}</div><button style={{...s.bigBtn,background:"#e53935"}} onClick={()=>{setQuizDone(false);setShowPenalty(true);}}>⚽ Straffespark!</button><button style={{...s.bigBtn,...s.btnG}} onClick={()=>{addCoins(quizScore);setScreen("home");}}>Hjem (+{quizScore}🪙)</button></div></div>);
+    if(quizDone)return(<div style={S.page}><div style={S.rb}>
+      <div style={{fontSize:64}}>{quizScore===quizDeck.length?"🏆":quizScore>=quizDeck.length*0.7?"🌟":"💪"}</div>
+      <div style={{fontSize:24,fontWeight:800}}>Quiz ferdig!</div>
+      <div style={{fontSize:17,color:"var(--t2)"}}>{quizScore} av {quizDeck.length}</div>
+      <button style={{...S.bigBtn,background:"#e53935"}} onClick={()=>{setQuizDone(false);setShowPenalty(true);}}>⚽ Straffespark!</button>
+      <button style={{...S.bigBtn,...S.grayBtn}} onClick={()=>{addCoins(quizScore);setScreen("home");}}>Hjem (+{quizScore}🪙)</button>
+    </div></div>);
     const q=quizDeck[quizIdx];
     const isNew=[...gloser].sort((a,b)=>b.id-a.id).slice(0,NEW_COUNT).some(g=>g.en===q.en);
-    return(<div style={s.page}><div style={s.tb}><button style={s.back} onClick={()=>setScreen("home")}>← Hjem</button><span style={s.tt}>Quiz</span><span style={{fontSize:14,fontWeight:700}}>⭐{quizScore} 🪙{stData.coins||0}</span></div><div style={s.prog}>{quizIdx+1}/{quizDeck.length}</div><div style={{background:"linear-gradient(135deg,#f3e5f5,#e8eaf6)",borderRadius:20,padding:"20px",textAlign:"center",marginBottom:16}}>{isNew&&<div style={{fontSize:11,background:"#fff3e0",color:"#e65100",borderRadius:6,padding:"2px 8px",display:"inline-block",marginBottom:6}}>Ny glose</div>}<div style={{fontSize:14,color:"var(--purple)",marginBottom:6,fontWeight:700}}>Hva er engelsk for:</div><div style={{fontSize:32,fontWeight:800}}>{q.no}</div></div><div style={s.cg}>{quizChoices.map((c,i)=>{let bg="#fff";if(quizAnswer!==null){if(c.en===q.en)bg="#d4f7d4";else if(c.en===quizAnswer)bg="#fdd";}return<button key={i} style={{...s.choice,background:bg}} onClick={()=>{if(quizAnswer!==null)return;const cor=quizDeck[quizIdx],ok=c.en===cor.en;setQuizAnswer(c.en);recordHistory(cor.en,ok,"quiz");if(ok)setQuizScore(sc=>sc+1);setTimeout(()=>{const nx=quizIdx+1;if(nx>=quizDeck.length){const st=studentsRef.current.find(s=>s.id===currentUser.id)||{};updateStudent(currentUser.id,{quizSessions:(st.quizSessions||0)+1});setQuizDone(true);}else{setQuizIdx(nx);setQuizAnswer(null);const nc=quizDeck[nx];setQuizChoices(shuffle([nc,...shuffle(gloser.filter(g=>g.en!==nc.en)).slice(0,3)]));}},900);}}>{c.en}</button>;})}</div></div>);
+    return(<div style={S.page}>
+      <div style={S.tb}><button style={S.back} onClick={()=>setScreen("home")}>← Hjem</button><span style={S.tt}>🎯 Quiz</span><span style={{fontSize:14,fontWeight:700}}>⭐{quizScore}</span></div>
+      <div style={S.prog}>{quizIdx+1}/{quizDeck.length}</div>
+      <div style={{background:"linear-gradient(135deg,#f3e5f5,#e8eaf6)",borderRadius:20,padding:"20px",textAlign:"center",marginBottom:16}}>
+        {isNew&&<div style={{fontSize:11,background:"#fff3e0",color:"#e65100",borderRadius:6,padding:"2px 8px",display:"inline-block",marginBottom:6}}>Ny glose</div>}
+        <div style={{fontSize:14,color:"var(--purple)",marginBottom:6,fontWeight:700}}>Hva er engelsk for:</div>
+        <div style={{fontSize:32,fontWeight:800}}>{q.no}</div>
+      </div>
+      <div style={S.cg}>{quizChoices.map((c,i)=>{
+        let bg="#fff";
+        if(quizAnswer!==null){if(c.en===q.en)bg="#d4f7d4";else if(c.en===quizAnswer)bg="#fdd";}
+        return<button key={i} style={{...S.choice,background:bg}} onClick={()=>{
+          if(quizAnswer!==null)return;
+          const ok=c.en===q.en;
+          setQuizAnswer(c.en);recordHistory(q.en,ok,"quiz");
+          if(ok)setQuizScore(sc=>sc+1);
+          setTimeout(()=>{
+            const nx=quizIdx+1;
+            if(nx>=quizDeck.length){incSession("quizSessions");setQuizDone(true);}
+            else{setQuizIdx(nx);setQuizAnswer(null);const nc=quizDeck[nx];setQuizChoices(shuffle([nc,...shuffle(gloser.filter(g=>g.en!==nc.en)).slice(0,3)]));}
+          },900);
+        }}>{c.en}</button>;
+      })}</div>
+    </div>);
   }
 
+  // ── HOME ──
   function startFlashcards(){
-    const st=studentsRef.current.find(s=>s.id===currentUser.id)||{};
     setFcDeck(shuffle(gloser));setFcIdx(0);setFcFlipped(false);
-    updateStudent(currentUser.id,{flashcardSessions:(st.flashcardSessions||0)+1});
-    setScreen("flashcard");
+    incSession("flashcardSessions");setScreen("flashcard");
   }
   function startQuiz(){
+    if(gloser.length<4){alert("Trenger minst 4 gloser!");return;}
     const deck=buildQuizDeck(gloser);setQuizDeck(deck);setQuizIdx(0);setQuizScore(0);setQuizDone(false);setQuizAnswer(null);
-    const f=deck[0];setQuizChoices(shuffle([f,...shuffle(gloser.filter(g=>g.en!==f.en)).slice(0,3)]));
+    setQuizChoices(shuffle([deck[0],...shuffle(gloser.filter(g=>g.en!==deck[0].en)).slice(0,3)]));
     setScreen("quiz");
   }
 
+  const doneTasks=HOMEWORK_TASKS.filter(t=>(stData[t.key]||0)>=1).length;
+  const allDone=doneTasks===HOMEWORK_TASKS.length;
+  const alreadyBonused=stData.bonusGivenDate===todayStr();
 
+  return(<div style={S.page}>
+    {/* Animations */}
+    {coinAnim&&<div style={{position:"fixed",top:80,right:20,fontSize:20,fontWeight:800,color:"#f9a825",animation:"coinPop 1s",zIndex:99,pointerEvents:"none"}}>{coinAnim}</div>}
+    {bonusAnim&&<div style={{position:"fixed",inset:0,display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,pointerEvents:"none",background:"rgba(0,0,0,0.3)"}}>
+      <div style={{background:"linear-gradient(135deg,#f9a825,#ff6f00)",borderRadius:24,padding:"28px 36px",textAlign:"center",animation:"fadeIn 0.4s"}}>
+        <div style={{fontSize:56}}>🎉</div>
+        <div style={{fontSize:22,fontWeight:900,color:"#fff",marginTop:8}}>Alle lekser gjort!</div>
+        <div style={{fontSize:32,fontWeight:900,color:"#fff",marginTop:4}}>+{HOMEWORK_BONUS} 🪙 BONUS!</div>
+      </div>
+    </div>}
 
-  return(
-    <div style={s.page}>
-      {coinAnim&&<div style={{position:"fixed",top:80,right:20,fontSize:20,fontWeight:800,color:"#f9a825",animation:"coinPop 1s",zIndex:99,pointerEvents:"none"}}>{coinAnim}</div>}
-      {bonusAnim&&<div style={{position:"fixed",top:0,left:0,right:0,bottom:0,display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,pointerEvents:"none"}}>
-        <div style={{background:"linear-gradient(135deg,#f9a825,#ff6f00)",borderRadius:24,padding:"28px 36px",textAlign:"center",boxShadow:"0 8px 32px rgba(0,0,0,0.25)",animation:"coinPop 0.5s"}}>
-          <div style={{fontSize:56}}>🎉</div>
-          <div style={{fontSize:22,fontWeight:900,color:"#fff",marginTop:8}}>Alle lekser gjort!</div>
-          <div style={{fontSize:32,fontWeight:900,color:"#fff",marginTop:4}}>+{HOMEWORK_BONUS} 🪙 BONUS!</div>
+    {/* Header */}
+    <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 0 6px"}}>
+      <div style={{cursor:"pointer"}} onClick={()=>setScreen("shop")}><AvatarDisplay avatar={stData.avatar} size={56} coins={stData.coins||0} showCoins/></div>
+      <div style={{flex:1}}><div style={{fontSize:16,fontWeight:800}}>Hei, {stData.name}! 👋</div><div style={{fontSize:12,color:"var(--t3)"}}>{gloser.length} gloser · {stData.points||0}p</div></div>
+      <button style={{background:"none",border:"1px solid #ddd",borderRadius:8,padding:"6px 10px",fontSize:12,color:"#888",cursor:"pointer"}} onClick={()=>setCurrentUser(null)}>Logg ut</button>
+    </div>
+
+    {/* Homework progress */}
+    <div style={{background:allDone?"linear-gradient(135deg,#e8f5e9,#c8e6c9)":"linear-gradient(135deg,#fff8e1,#fff3e0)",borderRadius:14,padding:"12px 14px",marginBottom:12}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+        <div style={{fontWeight:800,fontSize:13,color:allDone?"#2e7d32":"#e65100"}}>
+          {allDone?"✅ Alle lekser gjort!":`📚 Lekser: ${doneTasks}/${HOMEWORK_TASKS.length}`}
         </div>
-      </div>}
-      <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 0 6px"}}>
-        <div style={{cursor:"pointer"}} onClick={()=>setScreen("shop")}><AvatarDisplay avatar={stData.avatar} name={stData.name} size={56} coins={stData.coins||0} showCoins/></div>
-        <div style={{flex:1}}><div style={{fontSize:16,fontWeight:800}}>Hei, {stData.name}! 👋</div><div style={{fontSize:12,color:"var(--t3)"}}>{gloser.length} gloser · ⚽{stData.points||0}p</div></div>
-        <button style={{background:"none",border:"1px solid #ddd",borderRadius:8,padding:"6px 10px",fontSize:12,color:"#888",cursor:"pointer"}} onClick={()=>setCurrentUser(null)}>Logg ut</button>
+        {alreadyBonused&&<div style={{fontSize:12,color:"#f9a825",fontWeight:700}}>🪙+{HOMEWORK_BONUS} mottatt!</div>}
+        {!alreadyBonused&&!allDone&&<div style={{fontSize:11,color:"#888"}}>+{HOMEWORK_BONUS}🪙 bonus</div>}
       </div>
-
-      {/* Lekse-fremgang */}
-      {(()=>{
-        const done=HOMEWORK_TASKS.filter(t=>(stData[t.key]||0)>=1).length;
-        const allDone=done===HOMEWORK_TASKS.length;
-        const alreadyBonused=stData.bonusGivenDate===new Date().toDateString();
-        return(
-          <div style={{background:allDone?"linear-gradient(135deg,#e8f5e9,#c8e6c9)":"linear-gradient(135deg,#fff8e1,#fff3e0)",borderRadius:14,padding:"12px 14px",marginBottom:12}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-              <div style={{fontWeight:800,fontSize:13,color:allDone?"#2e7d32":"#e65100"}}>
-                {allDone?"✅ Alle lekser gjort!":`📚 Lekser: ${done}/${HOMEWORK_TASKS.length}`}
-              </div>
-              {alreadyBonused&&<div style={{fontSize:12,color:"#f9a825",fontWeight:700}}>🪙+{HOMEWORK_BONUS} mottatt!</div>}
-              {!alreadyBonused&&allDone&&<div style={{fontSize:12,color:"#43a047",fontWeight:700}}>Bonus kommer! 🎉</div>}
-              {!allDone&&<div style={{fontSize:12,color:"#888"}}>+{HOMEWORK_BONUS}🪙 bonus</div>}
-            </div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {HOMEWORK_TASKS.map(t=>{
-                const isDone=(stData[t.key]||0)>=1;
-                return(<div key={t.key} style={{display:"flex",alignItems:"center",gap:4,background:isDone?"#43a047":"#e0e0e0",borderRadius:20,padding:"4px 10px"}}>
-                  <span style={{fontSize:13}}>{t.icon}</span>
-                  <span style={{fontSize:11,fontWeight:700,color:isDone?"#fff":"#888"}}>{isDone?"✓":t.label}</span>
-                </div>);
-              })}
-            </div>
-          </div>
-        );
-      })()}
-
-      <div style={{background:club.bg,borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} onClick={()=>setScreen("squad")}>
-        <span style={{fontSize:20}}>⚽</span>
-        <div style={{flex:1}}><div style={{color:"white",fontWeight:800,fontSize:13}}>{club.name}</div><div style={{color:"rgba(255,255,255,0.7)",fontSize:11}}>{(stData.lineup||[]).filter(Boolean).length}/11 spillere</div></div>
-        <div style={{color:"white",fontSize:15,fontWeight:800}}>🪙{stData.coins||0}</div>
-      </div>
-
-      <div style={s.mg}>
-        <button style={{...s.mb,background:"linear-gradient(135deg,#bbdefb,#90caf9)"}} onClick={startFlashcards}><span style={s.mi}>🃏</span><span style={s.ml}>Flashcards</span></button>
-        <button style={{...s.mb,background:"linear-gradient(135deg,#e1bee7,#ce93d8)"}} onClick={()=>gloser.length>=4?startQuiz():alert("Trenger minst 4 gloser!")}><span style={s.mi}>🎯</span><span style={s.ml}>Quiz</span></button>
-        <button style={{...s.mb,background:"linear-gradient(135deg,#ffcdd2,#ef9a9a)"}} onClick={()=>setScreen("hangman")}><span style={s.mi}>🪢</span><span style={s.ml}>Hangman</span></button>
-        <button style={{...s.mb,background:"linear-gradient(135deg,#b2ebf2,#80deea)"}} onClick={()=>setScreen("maths")}><span style={s.mi}>🔢</span><span style={s.ml}>Matte</span></button>
-        <button style={{...s.mb,background:"linear-gradient(135deg,#c8e6c9,#a5d6a7)"}} onClick={()=>setScreen("geo")}><span style={s.mi}>🌍</span><span style={s.ml}>Geografi</span></button>
-        <button style={{...s.mb,background:"linear-gradient(135deg,#fff9c4,#fff176)"}} onClick={()=>setScreen("shop")}><span style={s.mi}>🛒</span><span style={s.ml}>Butikk</span></button>
-        <button style={{...s.mb,background:"linear-gradient(135deg,#dcedc8,#c5e1a5)"}} onClick={()=>setScreen("packs")}><span style={s.mi}>🎴</span><span style={s.ml}>Pakker</span></button>
-        <button style={{...s.mb,background:"linear-gradient(135deg,#ffe0b2,#ffcc80)"}} onClick={()=>setScreen("leaderboard")}><span style={s.mi}>🏆</span><span style={s.ml}>Poengtavle</span></button>
-        <button style={{...s.mb,background:"linear-gradient(135deg,#f8bbd0,#f48fb1)",gridColumn:"span 2"}} onClick={()=>setScreen("report")}><span style={s.mi}>📋</span><span style={s.ml}>Rapport</span></button>
+      <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+        {HOMEWORK_TASKS.map(t=>{
+          const isDone=(stData[t.key]||0)>=1;
+          return(<div key={t.key} style={{display:"flex",alignItems:"center",gap:3,background:isDone?"#43a047":"#e0e0e0",borderRadius:20,padding:"3px 8px"}}>
+            <span style={{fontSize:12}}>{t.icon}</span>
+            <span style={{fontSize:10,fontWeight:700,color:isDone?"#fff":"#888"}}>{isDone?"✓":t.label}</span>
+          </div>);
+        })}
       </div>
     </div>
-  );
-}
 
-const s={
-  page:{maxWidth:480,margin:"0 auto",padding:"0 16px 32px"},
-  tb:{display:"flex",alignItems:"center",padding:"14px 0 8px",gap:8},
-  tt:{flex:1,textAlign:"center",fontWeight:800,fontSize:18},
-  back:{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"var(--purple)",padding:0,fontWeight:700},
-  sm:{background:"#fff",border:"none",borderRadius:10,padding:"4px 10px",fontSize:12,cursor:"pointer",boxShadow:"0 2px 6px rgba(0,0,0,0.08)"},
-  sb2:{padding:"7px 14px",borderRadius:10,border:"none",fontSize:13,cursor:"pointer",fontWeight:700},
-  prog:{textAlign:"center",fontSize:13,color:"var(--t3)",marginBottom:10},
-  mg:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:4},
-  mb:{border:"none",borderRadius:20,padding:"18px 10px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:8,boxShadow:"0 4px 12px rgba(0,0,0,0.08)"},
-  mi:{fontSize:30},ml:{fontSize:13,fontWeight:800},
-  card:{background:"#fff",borderRadius:24,padding:"36px 24px",textAlign:"center",minHeight:150,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",margin:"0 0 16px",boxShadow:"0 4px 16px rgba(0,0,0,0.08)"},
-  row:{display:"flex",gap:10},
-  nb:{flex:1,padding:"13px",borderRadius:16,border:"none",background:"#fff",fontSize:14,cursor:"pointer",fontWeight:700,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"},
-  cg:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
-  choice:{padding:"16px 8px",borderRadius:16,border:"none",fontSize:17,cursor:"pointer",fontWeight:700,boxShadow:"0 2px 8px rgba(0,0,0,0.07)",background:"#fff"},
-  rb:{display:"flex",flexDirection:"column",alignItems:"center",gap:12,paddingTop:28},
-  rt:{fontSize:24,fontWeight:800},rs:{fontSize:17,color:"var(--t2)"},
-  bigBtn:{width:"100%",padding:"15px",borderRadius:16,border:"none",background:"linear-gradient(135deg,#7c4dff,#448aff)",color:"#fff",fontSize:16,cursor:"pointer",fontWeight:800,boxShadow:"0 4px 12px rgba(124,77,255,0.3)"},
-  btnG:{background:"#f0f0f0",color:"#333",boxShadow:"none"},
-  ab:{display:"flex",flexDirection:"column",gap:10,marginBottom:16},
-  input:{padding:"12px 14px",borderRadius:14,border:"2px solid #e0e0e0",fontSize:16,background:"#fff"},
-  gl:{display:"flex",flexDirection:"column",gap:8},
-  gr:{display:"flex",alignItems:"center",background:"#fff",borderRadius:14,padding:"10px 12px",boxShadow:"0 2px 6px rgba(0,0,0,0.06)"},
-  gp:{flex:1,fontSize:15},db:{background:"none",border:"none",color:"#ffab91",fontSize:18,cursor:"pointer"},
-  lb:{width:36,height:44,border:"3px solid #e0e0e0",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,background:"#fff",fontWeight:700},
-  kb:{display:"flex",flexWrap:"wrap",gap:5,justifyContent:"center"},
-  key:{width:34,height:38,border:"none",borderRadius:10,fontSize:14,fontWeight:700,background:"#fff",boxShadow:"0 2px 6px rgba(0,0,0,0.08)"},
-  pb:{padding:"16px",borderRadius:16,border:"none",background:"#fff",fontSize:22,cursor:"pointer",fontWeight:700,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"},
-};
+    {/* Club bar */}
+    <div style={{background:club.bg,borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} onClick={()=>setScreen("packs")}>
+      <span style={{fontSize:20}}>⚽</span>
+      <div style={{flex:1}}><div style={{color:"white",fontWeight:800,fontSize:13}}>{club.name}</div></div>
+      <div style={{color:"white",fontSize:15,fontWeight:800}}>🪙{stData.coins||0}</div>
+    </div>
+
+    {/* Menu grid */}
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+      {[
+        {icon:"🃏",label:"Flashcards",bg:"linear-gradient(135deg,#bbdefb,#90caf9)",action:startFlashcards},
+        {icon:"🎯",label:"Quiz",bg:"linear-gradient(135deg,#e1bee7,#ce93d8)",action:startQuiz},
+        {icon:"🪢",label:"Hangman",bg:"linear-gradient(135deg,#ffcdd2,#ef9a9a)",action:()=>setScreen("hangman")},
+        {icon:"🔢",label:"Matte",bg:"linear-gradient(135deg,#b2ebf2,#80deea)",action:()=>setScreen("maths")},
+        {icon:"🌍",label:"Geografi",bg:"linear-gradient(135deg,#c8e6c9,#a5d6a7)",action:()=>setScreen("geo")},
+        {icon:"🛒",label:"Butikk",bg:"linear-gradient(135deg,#fff9c4,#fff176)",action:()=>setScreen("shop")},
+        {icon:"🎴",label:"Pakker",bg:"linear-gradient(135deg,#dcedc8,#c5e1a5)",action:()=>setScreen("packs")},
+        {icon:"🏆",label:"Poengtavle",bg:"linear-gradient(135deg,#ffe0b2,#ffcc80)",action:()=>setScreen("leaderboard")},
+      ].map(({icon,label,bg,action})=>(
+        <button key={label} onClick={action} style={{border:"none",borderRadius:20,padding:"18px 10px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:8,background:bg,boxShadow:"0 4px 12px rgba(0,0,0,0.08)"}}>
+          <span style={{fontSize:30}}>{icon}</span><span style={{fontSize:13,fontWeight:800}}>{label}</span>
+        </button>
+      ))}
+      <button onClick={()=>setScreen("report")} style={{border:"none",borderRadius:20,padding:"18px 10px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:8,background:"linear-gradient(135deg,#f8bbd0,#f48fb1)",boxShadow:"0 4px 12px rgba(0,0,0,0.08)",gridColumn:"span 2"}}>
+        <span style={{fontSize:30}}>📋</span><span style={{fontSize:13,fontWeight:800}}>Rapport</span>
+      </button>
+    </div>
+  </div>);
+}
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script></body></html>
