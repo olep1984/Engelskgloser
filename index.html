@@ -263,6 +263,82 @@ function PinPad({title,subtitle,error,onSubmit,onBack}){
   );
 }
 
+// ── SQUAD BUILDER ──
+function SquadBuilder({student,onUpdate,onBack}){
+  const [selPos,setSelPos]=useState(null);
+  const lineup=student.lineup||Array(11).fill(null);
+  const ownedIds=student.playerCards||[];
+  const ownedPlayers=PLAYERS.filter(p=>ownedIds.includes(p.id));
+  function assignPlayer(pid){
+    const nl=[...lineup];
+    const ei=nl.indexOf(pid);if(ei!==-1)nl[ei]=null;
+    nl[selPos]=pid;onUpdate({lineup:nl});setSelPos(null);
+  }
+  function removePlayer(i){const nl=[...lineup];nl[i]=null;onUpdate({lineup:nl});}
+  return(
+    <div style={S.page}>
+      <div style={S.tb}><button style={S.back} onClick={()=>onBack()}>← Hjem</button><span style={S.tt}>⚽ Mitt lag</span><span style={{fontSize:12,color:"var(--t3)"}}>{lineup.filter(Boolean).length}/11</span></div>
+      <div style={{position:"relative",width:"100%",maxWidth:360,margin:"0 auto 14px",height:300,background:"linear-gradient(180deg,#2d8a2d,#1a5c1a 50%,#2d8a2d)",borderRadius:16,overflow:"hidden",border:"2px solid rgba(255,255,255,0.2)"}}>
+        <div style={{position:"absolute",top:"50%",left:"10%",right:"10%",height:1,background:"rgba(255,255,255,0.3)"}}/>
+        <div style={{position:"absolute",top:8,left:"25%",width:"50%",height:"22%",border:"1px solid rgba(255,255,255,0.3)",borderBottom:"none"}}/>
+        <div style={{position:"absolute",bottom:8,left:"25%",width:"50%",height:"22%",border:"1px solid rgba(255,255,255,0.3)",borderTop:"none"}}/>
+        <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:50,height:50,border:"1px solid rgba(255,255,255,0.3)",borderRadius:"50%"}}/>
+        {POSITIONS.map((pos,i)=>{
+          const pid=lineup[i],player=pid?PLAYERS.find(p=>p.id===pid):null;
+          const isSel=selPos===i,rc=player?(RARITY_COLORS[player.rarity]?.bg||"#555"):null;
+          return(
+            <div key={pos.id} style={{position:"absolute",left:`${pos.x}%`,top:`${pos.y}%`,transform:"translate(-50%,-50%)",textAlign:"center",zIndex:isSel?10:1}} onClick={()=>setSelPos(isSel?null:i)}>
+              {player?(
+                <div style={{background:rc,borderRadius:10,padding:"3px 5px",border:isSel?"3px solid #fff":"2px solid rgba(255,255,255,0.5)",minWidth:36,cursor:"pointer",position:"relative"}}>
+                  <div style={{fontSize:9,fontWeight:900,color:"#fff",lineHeight:1}}>{player.rating}</div>
+                  <div style={{fontSize:8,color:"rgba(255,255,255,0.85)",fontWeight:700,whiteSpace:"nowrap",maxWidth:40,overflow:"hidden"}}>{player.name.split(" ").pop()}</div>
+                  <div style={{fontSize:7,color:"rgba(255,255,255,0.7)"}}>{player.pos}</div>
+                  {isSel&&<div style={{position:"absolute",top:-8,right:-8,background:"#e53935",borderRadius:"50%",width:14,height:14,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#fff",fontWeight:900,cursor:"pointer"}} onClick={e=>{e.stopPropagation();removePlayer(i);setSelPos(null);}}>✕</div>}
+                </div>
+              ):(
+                <div style={{width:30,height:30,borderRadius:"50%",background:isSel?"rgba(255,255,255,0.5)":"rgba(255,255,255,0.15)",border:`2px dashed ${isSel?"#fff":"rgba(255,255,255,0.5)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"rgba(255,255,255,0.8)",cursor:"pointer"}}>+</div>
+              )}
+              <div style={{fontSize:7,color:"rgba(255,255,255,0.6)",marginTop:2,whiteSpace:"nowrap"}}>{pos.label}</div>
+            </div>
+          );
+        })}
+      </div>
+      {selPos!==null?(
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:"var(--t2)",marginBottom:8}}>Velg spiller til <strong>{POSITIONS[selPos].label}</strong>:</div>
+          {ownedPlayers.length===0?(
+            <div style={{textAlign:"center",padding:"20px",color:"var(--t3)"}}>Ingen spillere ennå — kjøp pakker! 🎴</div>
+          ):(
+            <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:250,overflowY:"auto"}}>
+              {ownedPlayers.map(p=>{
+                const inSlot=lineup.indexOf(p.id);
+                const r=RARITY_COLORS[p.rarity]||RARITY_COLORS.silver;
+                return(
+                  <div key={p.id} onClick={()=>assignPlayer(p.id)} style={{display:"flex",alignItems:"center",gap:12,background:inSlot!==-1?"#f5f5f5":"#fff",borderRadius:12,padding:"10px 12px",cursor:"pointer",border:`2px solid ${inSlot!==-1?"#ddd":r.border}`,opacity:inSlot!==-1?0.6:1}}>
+                    <div style={{background:r.bg,borderRadius:8,padding:"4px 8px",minWidth:34,textAlign:"center"}}>
+                      <div style={{fontSize:13,fontWeight:900,color:"#fff"}}>{p.rating}</div>
+                      <div style={{fontSize:8,color:"rgba(255,255,255,0.8)",fontWeight:700}}>{p.pos}</div>
+                    </div>
+                    <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{p.name}</div><div style={{fontSize:12,color:"var(--t3)"}}>{p.club}</div></div>
+                    <div style={{fontSize:18}}>{p.emoji}</div>
+                    {inSlot!==-1&&<div style={{fontSize:11,color:"#888",fontWeight:600}}>På banen</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <button style={{...S.bigBtn,...S.grayBtn,marginTop:10}} onClick={()=>setSelPos(null)}>Avbryt</button>
+        </div>
+      ):(
+        <div>
+          <div style={{fontSize:13,color:"var(--t3)",textAlign:"center",marginBottom:10}}>Trykk på en posisjon for å velge spiller</div>
+          <button style={{...S.bigBtn,background:"linear-gradient(135deg,#f9a825,#ff8f00)",marginBottom:8}} onClick={()=>onBack("packs")}>🎴 Kjøp spillerpakker</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── AVATAR SHOP ──
 function AvatarShop({student,onUpdate,onBack}){
   const [tab,setTab]=useState("gender");
