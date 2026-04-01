@@ -886,21 +886,25 @@ function App(){
   const bonusGivenRef=useRef({});
   useEffect(()=>{studentsRef.current=students;},[students]);
 
-  // Load from Firebase
+  // Load from Firebase — kun én gang, ingen live-lytter som overskriver
   useEffect(()=>{
     async function load(){
       const ss=await dbGet("students");
-      if(ss){setStudents(Array.isArray(ss)?ss.filter(Boolean):Object.values(ss).filter(v=>v&&v.id));}
-      else{setStudents(defaultStudents);await dbSet("students",Object.fromEntries(defaultStudents.map(s=>[s.id,s])));}
+      if(ss){
+        const arr=Array.isArray(ss)?ss.filter(Boolean):Object.values(ss).filter(v=>v&&v.id);
+        setStudents(arr);
+        studentsRef.current=arr;
+      } else {
+        setStudents(defaultStudents);
+        studentsRef.current=defaultStudents;
+        await dbSet("students",Object.fromEntries(defaultStudents.map(s=>[s.id,s])));
+      }
       const gg=await dbGet("gloser");
       if(gg){setGloser(Array.isArray(gg)?gg.filter(Boolean):Object.values(gg).filter(Boolean));}
       else{setGloser(defaultGloser);await dbSet("gloser",Object.fromEntries(defaultGloser.map(g=>[g.id,g])));}
       setLoaded(true);
     }
     load();
-    let unsub;
-    try{unsub=window.fbOn("glose/students",val=>{if(val)setStudents(Object.values(val).filter(v=>v&&v.id));});}catch(e){}
-    return()=>{if(unsub)unsub();};
   },[]);
 
   // Bonus check
@@ -919,21 +923,26 @@ function App(){
   },[students]);
 
   async function saveStudents(ns){
-    const clean=ns.filter(Boolean);setStudents(clean);
+    const clean=ns.filter(Boolean);
+    studentsRef.current=clean;
+    setStudents(clean);
     const obj={};clean.forEach(s=>{if(s?.id)obj[s.id]=s;});
     await dbSet("students",obj);
   }
   async function saveGloser(ng){
-    const clean=ng.filter(Boolean);setGloser(clean);
+    const clean=ng.filter(Boolean);
+    setGloser(clean);
     const obj={};clean.forEach(g=>{if(g?.id)obj[g.id]=g;});
     await dbSet("gloser",obj);
   }
   async function updateStudent(id,updates){
     const cur=studentsRef.current.find(s=>s.id===id)||{};
     const merged={...cur,...updates};
-    setStudents(prev=>prev.map(s=>s.id!==id?s:merged));
+    const next=studentsRef.current.map(s=>s.id!==id?s:merged);
+    studentsRef.current=next;
+    setStudents(next);
     if(currentUser&&currentUser!=="admin"&&currentUser.id===id)setCurrentUser(u=>({...u,...updates}));
-    try{await window.fbSet("glose/students/"+id,merged);}catch(e){}
+    try{await window.fbSet("glose/students/"+id,merged);}catch(e){console.error("Firebase write failed",e);}
   }
   function getStudent(){return studentsRef.current.find(s=>s.id===currentUser?.id)||{};}
   function addCoins(c){
