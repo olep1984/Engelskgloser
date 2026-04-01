@@ -896,7 +896,20 @@ function App(){
     async function load(){
       function fixStudent(s){
         if(!s)return s;
-        return {...s, lineup: s.lineup ? s.lineup.map(v=>v===false||v===undefined?null:v) : Array(11).fill(null)};
+        // Konverter lineup fra objekt tilbake til array
+        let lineup=Array(11).fill(null);
+        if(s.lineup){
+          if(Array.isArray(s.lineup)){
+            lineup=s.lineup.map(v=>(!v||v==="empty")?null:v);
+          } else {
+            // objekt fra Firebase
+            for(let i=0;i<11;i++){
+              const v=s.lineup[i];
+              lineup[i]=(!v||v==="empty")?null:v;
+            }
+          }
+        }
+        return {...s, lineup};
       }
       try {
         const ss=await dbGet("students");
