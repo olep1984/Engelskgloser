@@ -143,8 +143,8 @@ const emptyStudent = (id, name, pin, idx) => ({
 });
 
 const defaultStudents = [
-  emptyStudent(1,"Elev 1","1111",0),
-  emptyStudent(2,"Elev 2","2222",1),
+  {id:1,name:"Elev 1",pin:"1111",history:[],quizSessions:0,hangmanSessions:0,flashcardSessions:0,mathAddSessions:0,mathSubtractSessions:0,mathMultiplySessions:0,flagSessions:0,points:0,coins:0,club:{name:"Real Madrid",bg:"#1a1a6e"},avatar:{gender:"male",kit:"basic",hair:"short",extra:false},purchased:[],playerCards:[],lineup:Array(11).fill(null),homeworkSessions:[],bonusGivenDate:""},
+  {id:2,name:"Elev 2",pin:"2222",history:[],quizSessions:0,hangmanSessions:0,flashcardSessions:0,mathAddSessions:0,mathSubtractSessions:0,mathMultiplySessions:0,flagSessions:0,points:0,coins:0,club:{name:"Barcelona",bg:"#004d98"},avatar:{gender:"female",kit:"basic",hair:"long",extra:false},purchased:[],playerCards:[],lineup:Array(11).fill(null),homeworkSessions:[],bonusGivenDate:""},
 ];
 
 const dict = {hund:"dog",katt:"cat",hus:"house",bil:"car",bok:"book",skole:"school",venn:"friend",mat:"food",fisk:"fish",fugl:"bird",tre:"tree",blomst:"flower",sol:"sun",måne:"moon",stjerne:"star",vann:"water",ild:"fire",snø:"snow",regn:"rain",vind:"wind",dag:"day",natt:"night",mann:"man",kvinne:"woman",barn:"child",gutt:"boy",jente:"girl",familie:"family",mor:"mother",far:"father",bror:"brother",søster:"sister",hjem:"home",by:"city",land:"country",butikk:"shop",brød:"bread",melk:"milk",egg:"egg",frukt:"fruit",eple:"apple",banan:"banana",fotball:"football",sang:"song",musikk:"music",penn:"pen",bord:"table",stol:"chair",vindu:"window",dør:"door",seng:"bed",telefon:"phone",nøkkel:"key",penger:"money",klær:"clothes",sko:"shoes",jakke:"jacket",god:"good",dårlig:"bad",stor:"big",liten:"small",rask:"fast",ny:"new",gammel:"old",varm:"warm",kald:"cold"};
