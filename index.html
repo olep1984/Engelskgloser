@@ -353,7 +353,10 @@ function PackStore({student,onUpdate,onBack}){
   function revealNext(){
     const p=revealed[revIdx];
     const ex=student.playerCards||[];
-    if(!ex.includes(p.id))onUpdate({playerCards:[...ex,p.id]});
+    if(!ex.includes(p.id)){
+      const next=[...ex,p.id];
+      onUpdate({playerCards:next});
+    }
     if(revIdx+1>=revealed.length)setPhase("reveal");
     else setRevIdx(i=>i+1);
   }
@@ -891,10 +894,14 @@ function App(){
   // Load from Firebase — kun én gang, ingen live-lytter som overskriver
   useEffect(()=>{
     async function load(){
+      function fixStudent(s){
+        if(!s)return s;
+        return {...s, lineup: s.lineup ? s.lineup.map(v=>v===false||v===undefined?null:v) : Array(11).fill(null)};
+      }
       try {
         const ss=await dbGet("students");
         if(ss){
-          const arr=Array.isArray(ss)?ss.filter(Boolean):Object.values(ss).filter(v=>v&&v.id);
+          const arr=(Array.isArray(ss)?ss.filter(Boolean):Object.values(ss).filter(v=>v&&v.id)).map(fixStudent);
           setStudents(arr);
           studentsRef.current=arr;
           setDbStatus("✅ Firebase OK – "+arr.length+" elever");
