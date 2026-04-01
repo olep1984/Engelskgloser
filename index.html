@@ -886,22 +886,33 @@ function App(){
   const bonusGivenRef=useRef({});
   useEffect(()=>{studentsRef.current=students;},[students]);
 
+  const [dbStatus,setDbStatus]=useState("laster...");
+
   // Load from Firebase — kun én gang, ingen live-lytter som overskriver
   useEffect(()=>{
     async function load(){
-      const ss=await dbGet("students");
-      if(ss){
-        const arr=Array.isArray(ss)?ss.filter(Boolean):Object.values(ss).filter(v=>v&&v.id);
-        setStudents(arr);
-        studentsRef.current=arr;
-      } else {
+      try {
+        const ss=await dbGet("students");
+        if(ss){
+          const arr=Array.isArray(ss)?ss.filter(Boolean):Object.values(ss).filter(v=>v&&v.id);
+          setStudents(arr);
+          studentsRef.current=arr;
+          setDbStatus("✅ Firebase OK – "+arr.length+" elever");
+        } else {
+          setStudents(defaultStudents);
+          studentsRef.current=defaultStudents;
+          await dbSet("students",Object.fromEntries(defaultStudents.map(s=>[s.id,s])));
+          setDbStatus("⚠️ Tom database – lagret defaults");
+        }
+        const gg=await dbGet("gloser");
+        if(gg){setGloser(Array.isArray(gg)?gg.filter(Boolean):Object.values(gg).filter(Boolean));}
+        else{setGloser(defaultGloser);await dbSet("gloser",Object.fromEntries(defaultGloser.map(g=>[g.id,g])));}
+      } catch(e) {
+        setDbStatus("❌ Firebase feil: "+e.message);
         setStudents(defaultStudents);
         studentsRef.current=defaultStudents;
-        await dbSet("students",Object.fromEntries(defaultStudents.map(s=>[s.id,s])));
+        setGloser(defaultGloser);
       }
-      const gg=await dbGet("gloser");
-      if(gg){setGloser(Array.isArray(gg)?gg.filter(Boolean):Object.values(gg).filter(Boolean));}
-      else{setGloser(defaultGloser);await dbSet("gloser",Object.fromEntries(defaultGloser.map(g=>[g.id,g])));}
       setLoaded(true);
     }
     load();
@@ -971,6 +982,7 @@ function App(){
     if(!selecting)return(<div style={{maxWidth:380,margin:"0 auto",padding:"32px 16px",textAlign:"center"}}>
       <div style={{fontSize:56,animation:"bounce 1.5s infinite"}}>🎓</div>
       <div style={{fontSize:24,fontWeight:800,marginTop:8,background:"linear-gradient(135deg,#7c4dff,#448aff)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Glose-appen</div>
+      <div style={{fontSize:11,color:"#888",marginTop:8,padding:"6px 12px",background:"#f5f5f5",borderRadius:8}}>{dbStatus}</div>
       <div style={{fontSize:14,color:"var(--t2)",marginTop:4,marginBottom:24}}>Hvem er du? 👇</div>
       <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
         {students.map((st,i)=>{
