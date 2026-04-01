@@ -1039,6 +1039,7 @@ function App(){
     <button style={{...S.bigBtn,...S.grayBtn}} onClick={()=>{setPenaltyResult(null);setScreen("home");}}>Hjem</button>
   </div></div>);
 
+  if(screen==="squad")return<SquadBuilder student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={(dest)=>setScreen(dest||"home")}/>;
   if(screen==="shop")return<AvatarShop student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("home")}/>;
   if(screen==="packs")return<PackStore student={stData} onUpdate={u=>updateStudent(stData.id,u)} onBack={()=>setScreen("home")}/>;
   if(screen==="leaderboard")return<Leaderboard students={students} onBack={()=>setScreen("home")}/>;
@@ -1158,9 +1159,9 @@ function App(){
     </div>
 
     {/* Club bar */}
-    <div style={{background:club.bg,borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} onClick={()=>setScreen("packs")}>
+    <div style={{background:club.bg,borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} onClick={()=>setScreen("squad")}>
       <span style={{fontSize:20}}>⚽</span>
-      <div style={{flex:1}}><div style={{color:"white",fontWeight:800,fontSize:13}}>{club.name}</div></div>
+      <div style={{flex:1}}><div style={{color:"white",fontWeight:800,fontSize:13}}>{club.name}</div><div style={{color:"rgba(255,255,255,0.7)",fontSize:11}}>{(stData.lineup||[]).filter(Boolean).length}/11 spillere</div></div>
       <div style={{color:"white",fontSize:15,fontWeight:800}}>🪙{stData.coins||0}</div>
     </div>
 
